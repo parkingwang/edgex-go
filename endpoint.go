@@ -46,20 +46,20 @@ func (e *endpoint) Startup(args map[string]interface{}) {
 	opts.SetAutoReconnect(e.global.MqttAutoReconnect)
 	opts.SetConnectTimeout(e.global.MqttConnectTimeout)
 	e.mqtt = mqtt.NewClient(opts)
-	log.Debugf("Mqtt客户端连接Broker: %s", e.global.MqttBroker)
+	log.Info("Mqtt客户端连接Broker: ", e.global.MqttBroker)
 	if token := e.mqtt.Connect(); token.Wait() && token.Error() != nil {
 		log.Panic("Mqtt客户端连接出错：", token.Error())
 	} else {
 		log.Info("Mqtt客户端连接成功")
-		log.Debugf("Mqtt客户端SendQ.Topic: %s", e.mqttTopicSend)
-		log.Debugf("Mqtt客户端RecvQ.Topic: %s", e.mqttTopicRecv)
+		log.Info("Mqtt客户端SendQ.Topic: ", e.mqttTopicSend)
+		log.Info("Mqtt客户端RecvQ.Topic: ", e.mqttTopicRecv)
 	}
 
 	// 开启Recv订阅事件
 	sub := e.mqtt.Subscribe(e.mqttTopicRecv, e.global.MqttQoS, func(cli mqtt.Client, msg mqtt.Message) {
 		select {
 		case e.recvChan <- msg.Payload():
-			log.Debugf("接收到消息：%s", msg.Topic())
+			log.Debug("接收到消息：%s", msg.Topic())
 
 		default:
 			log.Warn("消息队列繁忙")
@@ -68,7 +68,7 @@ func (e *endpoint) Startup(args map[string]interface{}) {
 	if sub.Wait() && nil != sub.Error() {
 		log.Error("事件订阅出错：", sub.Error())
 	} else {
-		log.Debugf("事件订阅成功")
+		log.Info("事件订阅成功")
 	}
 }
 
@@ -85,7 +85,6 @@ func (e *endpoint) Send(frames Frame) error {
 	if token.Wait() && nil != token.Error() {
 		return errors.New("发送消息出错: " + token.Error().Error())
 	} else {
-		log.Debugf("发送消息成功: %s", e.mqttTopicSend)
 		return nil
 	}
 }
