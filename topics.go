@@ -9,28 +9,28 @@ import (
 //
 
 const (
-	MqTopicEndpointSendQ = "$EdgeX/endpoints/sendq/${UUID}/T/${TOPIC}"
-	MqTopicEndpointRecvQ = "$EdgeX/endpoints/recvq/${UUID}/T/${TOPIC}"
-	MqTopicPipeline      = "$EdgeX/pipelines/T/${TOPIC}"
-	MqTopicDrivers       = "$EdgeX/drivers/T/${TOPIC}"
+	tplEndpointSendQ = "$EdgeX/Endpoint/SendQ/${UUID}/$T/${TOPIC}"
+	tplEndpointRecvQ = "$EdgeX/Endpoint/RecvQ/${UUID}/$T/${TOPIC}"
+	tplPipeline      = "$EdgeX/Pipeline/$T/${TOPIC}"
+	tplDrivers       = "$EdgeX/Drivers/$T/${TOPIC}"
 )
 
 func topicOfEndpointSendQ(topic string, uuid string) string {
-	return makeEndpoint(MqTopicEndpointSendQ, topic, uuid)
+	return makeEndpoint(tplEndpointSendQ, topic, uuid)
 }
 
 func topicOfEndpointRecvQ(topic string, uuid string) string {
-	return makeEndpoint(MqTopicEndpointRecvQ, topic, uuid)
+	return makeEndpoint(tplEndpointRecvQ, topic, uuid)
 }
 
 func topicOfPipeline(topic string) string {
 	checkTopicPrefix(topic)
-	return strings.Replace(MqTopicPipeline, "${TOPIC}", topic, 1)
+	return strings.Replace(tplPipeline, "${TOPIC}", topic, 1)
 }
 
 func topicOfDriver(topic string) string {
 	checkTopicPrefix(topic)
-	return strings.Replace(MqTopicDrivers, "${TOPIC}", topic, 1)
+	return strings.Replace(tplDrivers, "${TOPIC}", topic, 1)
 }
 
 func makeEndpoint(tpl, topic, uuid string) string {
