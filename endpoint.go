@@ -27,36 +27,36 @@ var ErrRecvTimeout = errors.New("receive timeout")
 
 type endpoint struct {
 	Endpoint
-	global *Global
-	info   NodeInfo
-	mqtt   mqtt.Client
-
-	topicSend string
-	topicRecv string
-	recvChan  chan Frame
+	global   *GlobalScoped
+	topic    string
+	id       string
+	recvChan chan Frame
+	// MQTT
+	mqtt          mqtt.Client
+	mqttTopicSend string
+	mqttTopicRecv string
 }
 
 func (e *endpoint) Startup(args map[string]interface{}) {
-	e.topicSend = TopicEndpointSendQ(e.info.Topic, e.info.Uuid)
-	e.topicRecv = TopicEndpointRecvQ(e.info.Topic, e.info.Uuid)
-	e.recvChan = make(chan Frame, 2)
-	// Mqtt connect
-	log.Debugf("Mqtt客户端连接Broker: %s", e.global.MqttBroker)
-	opts := mqtt.NewClientOptions().AddBroker(e.global.MqttBroker).SetClientID(e.info.Uuid)
-	opts.SetKeepAlive(2 * time.Second)
-	opts.SetPingTimeout(1 * time.Second)
-	opts.SetAutoReconnect(true)
-
+	// 连接Broker
+	opts := mqtt.NewClientOptions().AddBroker(e.global.MqttBroker)
+	opts.SetClientID(e.id)
+	opts.SetKeepAlive(e.global.MqttKeepAlive)
+	opts.SetPingTimeout(e.global.MqttPingTimeout)
+	opts.SetAutoReconnect(e.global.MqttAutoReconnect)
+	opts.SetConnectTimeout(e.global.MqttConnectTimeout)
 	e.mqtt = mqtt.NewClient(opts)
+	log.Debugf("Mqtt客户端连接Broker: %s", e.global.MqttBroker)
 	if token := e.mqtt.Connect(); token.Wait() && token.Error() != nil {
 		log.Panic("Mqtt客户端连接出错：", token.Error())
 	} else {
 		log.Info("Mqtt客户端连接成功")
-		log.Debugf("Mqtt客户端SendQ.Topic: %s", e.topicSend)
-		log.Debugf("Mqtt客户端RecvQ.Topic: %s", e.topicRecv)
+		log.Debugf("Mqtt客户端SendQ.Topic: %s", e.mqttTopicSend)
+		log.Debugf("Mqtt客户端RecvQ.Topic: %s", e.mqttTopicRecv)
 	}
 
-	token := e.mqtt.Subscribe(e.topicRecv, 2, func(cli mqtt.Client, msg mqtt.Message) {
+	// 开启Recv订阅事件
+	sub := e.mqtt.Subscribe(e.mqttTopicRecv, e.global.MqttQoS, func(cli mqtt.Client, msg mqtt.Message) {
 		select {
 		case e.recvChan <- msg.Payload():
 			log.Debugf("接收到消息：%s", msg.Topic())
@@ -65,26 +65,27 @@ func (e *endpoint) Startup(args map[string]interface{}) {
 			log.Warn("消息队列繁忙")
 		}
 	})
-	if token.Wait() && nil != token.Error() {
-		log.Error("事件订阅出错：", token.Error())
+	if sub.Wait() && nil != sub.Error() {
+		log.Error("事件订阅出错：", sub.Error())
 	} else {
 		log.Debugf("事件订阅成功")
 	}
 }
 
 func (e *endpoint) Shutdown() {
-	token := e.mqtt.Unsubscribe(e.topicRecv)
-	if token.Wait() && nil != token.Error() {
-		log.Error("取消订阅出错：", token.Error())
+	unsub := e.mqtt.Unsubscribe(e.mqttTopicRecv)
+	if unsub.Wait() && nil != unsub.Error() {
+		log.Error("取消订阅出错：", unsub.Error())
 	}
+	e.mqtt.Disconnect(1000)
 }
 
 func (e *endpoint) Send(frames Frame) error {
-	token := e.mqtt.Publish(e.topicSend, 2, false, []byte(frames))
+	token := e.mqtt.Publish(e.mqttTopicSend, e.global.MqttQoS, e.global.MqttRetained, []byte(frames))
 	if token.Wait() && nil != token.Error() {
 		return errors.New("发送消息出错: " + token.Error().Error())
 	} else {
-		log.Debugf("发送消息成功: %s", e.topicSend)
+		log.Debugf("发送消息成功: %s", e.mqttTopicSend)
 		return nil
 	}
 }

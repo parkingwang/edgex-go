@@ -1,7 +1,6 @@
 package edgex
 
 import (
-	"fmt"
 	"github.com/BurntSushi/toml"
 	"os"
 	"os/signal"
@@ -17,13 +16,13 @@ type Context interface {
 	LoadConfig() map[string]interface{}
 
 	// 注册端点
-	NewEndpoint(opts EndpointOptions) (Endpoint, NodeInfo)
+	NewEndpoint(opts EndpointOptions) Endpoint
 
 	// 注册驱动
-	NewDriver(opts DriverOptions) (Driver, NodeInfo)
+	NewDriver(opts DriverOptions) Driver
 
 	// 注册管道
-	NewPipeline(opts PipelineOptions) (Pipeline, NodeInfo)
+	NewPipeline(opts PipelineOptions) Pipeline
 
 	// 返回等待通道
 	WaitChan() <-chan os.Signal
@@ -32,18 +31,11 @@ type Context interface {
 	AwaitTerm()
 }
 
-type NodeInfo struct {
-	Topic string
-	Uuid  string
-}
-
 ////
 
 func Run(handler func(ctx Context) error) {
-	global := &Global{
-		MqttBroker: "tcp://localhost:1883",
-	}
-	ctx := newContext(global)
+	scoped := NewDefaultGlobalScoped("tcp://localhost:1883")
+	ctx := newContext(scoped)
 	log.Debug("启动Service")
 	defer log.Debug("停止Service")
 	if err := handler(ctx); nil != err {
@@ -54,10 +46,9 @@ func Run(handler func(ctx Context) error) {
 ////
 
 type ctx struct {
-	global       *Global
-	serviceName  string
-	instanceName string
-	info         NodeInfo
+	global      *GlobalScoped
+	serviceName string
+	serviceId   string
 }
 
 // 加载配置
@@ -70,28 +61,27 @@ func (c *ctx) LoadConfig() map[string]interface{} {
 }
 
 // 注册端点
-func (c *ctx) NewEndpoint(opts EndpointOptions) (Endpoint, NodeInfo) {
+func (c *ctx) NewEndpoint(opts EndpointOptions) Endpoint {
 	c.serviceName = "Endpoint"
-	c.instanceName = opts.Name
-	c.info = NodeInfo{
-		Topic: opts.Topic,
-		Uuid:  fmt.Sprintf("EdgeX-Endpoint-%s", opts.Name),
+	c.serviceId = opts.Id
+	return &endpoint{
+		global:        c.global,
+		topic:         opts.Topic,
+		id:            opts.Id,
+		mqttTopicSend: topicOfEndpointSendQ(opts.Topic, opts.Id),
+		mqttTopicRecv: topicOfEndpointRecvQ(opts.Topic, opts.Id),
+		recvChan:      make(chan Frame, 2),
 	}
-	worker := &endpoint{
-		global: c.global,
-		info:   c.info,
-	}
-	return worker, c.info
 }
 
 // 注册驱动
-func (c *ctx) NewDriver(opts DriverOptions) (Driver, NodeInfo) {
-	return nil, c.info
+func (c *ctx) NewDriver(opts DriverOptions) Driver {
+	return nil
 }
 
 // 注册管道
-func (c *ctx) NewPipeline(opts PipelineOptions) (Pipeline, NodeInfo) {
-	return nil, c.info
+func (c *ctx) NewPipeline(opts PipelineOptions) Pipeline {
+	return nil
 }
 
 func (c *ctx) WaitChan() <-chan os.Signal {
@@ -105,7 +95,7 @@ func (c *ctx) AwaitTerm() {
 	<-c.WaitChan()
 }
 
-func newContext(global *Global) Context {
+func newContext(global *GlobalScoped) Context {
 	return &ctx{
 		global: global,
 	}

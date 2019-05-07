@@ -15,20 +15,20 @@ const (
 	MqTopicDrivers       = "$EdgeX/drivers/T/${TOPIC}"
 )
 
-func TopicEndpointSendQ(topic string, uuid string) string {
+func topicOfEndpointSendQ(topic string, uuid string) string {
 	return makeEndpoint(MqTopicEndpointSendQ, topic, uuid)
 }
 
-func TopicEndpointRecvQ(topic string, uuid string) string {
+func topicOfEndpointRecvQ(topic string, uuid string) string {
 	return makeEndpoint(MqTopicEndpointRecvQ, topic, uuid)
 }
 
-func TopicPipeline(topic string) string {
+func topicOfPipeline(topic string) string {
 	checkTopicPrefix(topic)
 	return strings.Replace(MqTopicPipeline, "${TOPIC}", topic, 1)
 }
 
-func TopicDriver(topic string) string {
+func topicOfDriver(topic string) string {
 	checkTopicPrefix(topic)
 	return strings.Replace(MqTopicDrivers, "${TOPIC}", topic, 1)
 }
