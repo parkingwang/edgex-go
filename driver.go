@@ -20,6 +20,11 @@ type Driver interface {
 	Execute(endpointId string, in Packet, timeout time.Duration) (out Packet, err error)
 }
 
+type DriverOptions struct {
+	Name   string
+	Topics []string
+}
+
 var ErrExecuteTimeout = errors.New("execute timeout")
 
 //// Endpoint实现

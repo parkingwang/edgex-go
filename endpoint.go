@@ -14,9 +14,13 @@ import (
 // Endpoint是接收、处理，并返回结果的可控制终端节点。
 type Endpoint interface {
 	Lifecycle
-
 	// 处理消息并返回
 	Serve(func(in Packet) (out Packet))
+}
+
+type EndpointOptions struct {
+	Id   string
+	Name string
 }
 
 //// Endpoint实现
