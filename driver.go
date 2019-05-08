@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
+	"github.com/yoojia/edgex/util"
 	"time"
 )
 
@@ -25,15 +26,13 @@ type DriverOptions struct {
 	Topics []string
 }
 
-var ErrExecuteTimeout = errors.New("execute timeout")
-
 //// Endpoint实现
 
 type driver struct {
 	Endpoint
 	scoped  *GlobalScoped
 	name    string
-	replies map[string]chan Packet
+	replies *util.MapX
 	// MQTT
 	topics            []string
 	mqttClient        mqtt.Client
@@ -74,8 +73,8 @@ func (d *driver) Startup() {
 	d.mqttClient.Subscribe(d.mqttTopicEndpoint, 0, func(cli mqtt.Client, msg mqtt.Message) {
 		endpointId := endpointIdOfReplyQ(msg.Topic())
 		log.Debug("接收到[ENDPOINT]响应事件：", endpointId)
-		if ch, ok := d.replies[endpointId]; ok {
-			ch <- PacketOfBytes(msg.Payload())
+		if v, ok := d.replies.Load(endpointId); ok {
+			(v.(util.Lazy)).Store(PacketOfBytes(msg.Payload()))
 		} else {
 			log.Debug("Endpoint没有接收队列: ", endpointId)
 		}
@@ -101,24 +100,18 @@ func (d *driver) Process(f func(Packet)) {
 }
 
 func (d *driver) Execute(endpointId string, in Packet, to time.Duration) (out Packet, err error) {
-	var ch chan Packet
-	if c, ok := d.replies[endpointId]; !ok {
-		ch = make(chan Packet, 1)
-		d.replies[endpointId] = ch
-	} else {
-		ch = c
-	}
+	lazy, _ := d.replies.LoadOrStore(endpointId, func() interface{} {
+		return util.NewLazyPacket()
+	})
 	// Send and wait
 	if err := d.sendRequest(endpointId, in); nil != err {
 		return []byte{}, err
-	}
-
-	select {
-	case <-time.After(to):
-		return []byte{}, ErrExecuteTimeout
-
-	case p := <-ch:
-		return p, nil
+	} else {
+		if v, err := lazy.(util.Lazy).Take(to); nil != err {
+			return nil, err
+		} else {
+			return v.(Packet), nil
+		}
 	}
 }
 

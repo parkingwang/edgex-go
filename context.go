@@ -2,6 +2,7 @@ package edgex
 
 import (
 	"github.com/BurntSushi/toml"
+	"github.com/yoojia/edgex/util"
 	"go.uber.org/zap"
 	"os"
 	"os/signal"
@@ -98,7 +99,7 @@ func (c *context) NewDriver(opts DriverOptions) Driver {
 		scoped:  c.scoped,
 		name:    opts.Name,
 		topics:  opts.Topics,
-		replies: make(map[string]chan Packet),
+		replies: new(util.MapX),
 	}
 }
 
