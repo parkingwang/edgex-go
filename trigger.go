@@ -38,12 +38,8 @@ func (t *trigger) Startup() {
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
 	opts.SetClientID(fmt.Sprintf("Trigger-%s", t.name))
-	opts.AddBroker(t.scoped.MqttBroker)
-	opts.SetKeepAlive(t.scoped.MqttKeepAlive)
-	opts.SetPingTimeout(t.scoped.MqttPingTimeout)
-	opts.SetAutoReconnect(t.scoped.MqttAutoReconnect)
-	opts.SetConnectTimeout(t.scoped.MqttConnectTimeout)
 	opts.SetWill(topicOfWill("Trigger", t.name), "offline", 1, true)
+	setMqttDefaults(opts, t.scoped)
 
 	t.mqttTopic = topicOfTrigger(t.topic)
 	t.mqttClient = mqtt.NewClient(opts)

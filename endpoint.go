@@ -41,12 +41,8 @@ func (e *endpoint) Startup() {
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
 	opts.SetClientID(fmt.Sprintf("Endpoint-%s", e.endpointId))
-	opts.AddBroker(e.scoped.MqttBroker)
-	opts.SetKeepAlive(e.scoped.MqttKeepAlive)
-	opts.SetPingTimeout(e.scoped.MqttPingTimeout)
-	opts.SetAutoReconnect(e.scoped.MqttAutoReconnect)
-	opts.SetConnectTimeout(e.scoped.MqttConnectTimeout)
 	opts.SetWill(topicOfWill("Endpoint", e.endpointId), "offline", 1, true)
+	setMqttDefaults(opts, e.scoped)
 
 	e.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", e.scoped.MqttBroker)

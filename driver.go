@@ -46,12 +46,9 @@ func (d *driver) Startup() {
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
 	opts.SetClientID(fmt.Sprintf("Driver-%s", d.name))
-	opts.AddBroker(d.scoped.MqttBroker)
-	opts.SetKeepAlive(d.scoped.MqttKeepAlive)
-	opts.SetPingTimeout(d.scoped.MqttPingTimeout)
-	opts.SetAutoReconnect(d.scoped.MqttAutoReconnect)
-	opts.SetConnectTimeout(d.scoped.MqttConnectTimeout)
 	opts.SetWill(topicOfWill("Driver", d.name), "offline", 1, true)
+	setMqttDefaults(opts, d.scoped)
+
 	d.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", d.scoped.MqttBroker)
 	if token := d.mqttClient.Connect(); token.Wait() && token.Error() != nil {
