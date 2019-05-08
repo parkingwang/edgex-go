@@ -110,10 +110,8 @@ func (d *driver) Execute(endpointId string, in Packet, to time.Duration) (out Pa
 }
 
 func (d *driver) sendRequest(endpointId string, data Packet) error {
-	topic := topicOfEndpointRequestQ(endpointId)
-	log.Debug("Send [request] to: ", topic)
 	token := d.mqttClient.Publish(
-		topic,
+		topicOfEndpointRequestQ(endpointId),
 		d.scoped.MqttQoS,
 		d.scoped.MqttRetained, data.Bytes())
 	if token.Wait() && nil != token.Error() {

@@ -64,13 +64,12 @@ func (e *endpoint) Startup() {
 		out := e.mqttWorker(in)
 		if 0 != len(out) {
 			for i := 0; i < 5; i++ {
-				if err := e.sendReply(out); nil == err {
-					break
+				if err := e.sendReply(out); nil != err {
+					log.Debug("Endpoint重试返回结果: ", i)
+					<-time.After(time.Millisecond * 500)
 				} else {
-					log.Error("Endpoint返回结果出错", err)
+					return
 				}
-				log.Debug("Endpoint重试返回结果: ", i)
-				<-time.After(time.Millisecond * 500)
 			}
 		}
 	})
@@ -95,7 +94,6 @@ func (e *endpoint) Serve(w func(in Packet) (out Packet)) {
 }
 
 func (e *endpoint) sendReply(data Packet) error {
-	log.Debug("Endpoint返回结果: ", e.mqttTopicReply)
 	token := e.mqttClient.Publish(
 		e.mqttTopicReply,
 		e.scoped.MqttQoS,

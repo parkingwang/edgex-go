@@ -24,7 +24,7 @@ func main() {
 
 		ctx.Log().Debugf("创建Trigger节点: [%s]", opts.Name)
 
-		timer := time.NewTicker(time.Second)
+		timer := time.NewTicker(time.Millisecond * 500)
 
 		for {
 			select {

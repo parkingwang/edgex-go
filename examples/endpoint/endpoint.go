@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/yoojia/edgex"
+	"strconv"
+	"time"
 )
 
 //
@@ -18,7 +20,8 @@ func main() {
 		endpoint := ctx.NewEndpoint(opts)
 
 		endpoint.Serve(func(in edgex.Packet) (out edgex.Packet) {
-			ctx.Log().Debug("Recv: ", string(in))
+			recv, _ := strconv.ParseInt(string(in.Bytes()), 10, 64)
+			ctx.Log().Debug("Endpoint用时: ", time.Duration(time.Now().UnixNano()-recv))
 			return in
 		})
 
