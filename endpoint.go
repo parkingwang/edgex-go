@@ -57,7 +57,7 @@ func (e *endpoint) Startup(args map[string]interface{}) {
 	}
 
 	// 开启Recv订阅事件
-	sub := e.mqtt.Subscribe(e.mqttTopicRecv, e.scoped.MqttQoS,
+	token := e.mqtt.Subscribe(e.mqttTopicRecv, e.scoped.MqttQoS,
 		func(cli mqtt.Client, msg mqtt.Message) {
 			select {
 			case e.recvChan <- msg.Payload():
@@ -67,17 +67,17 @@ func (e *endpoint) Startup(args map[string]interface{}) {
 				log.Warn("消息队列繁忙")
 			}
 		})
-	if sub.Wait() && nil != sub.Error() {
-		log.Error("事件订阅出错：", sub.Error())
+	if token.Wait() && nil != token.Error() {
+		log.Error("事件订阅出错：", token.Error())
 	} else {
 		log.Info("事件订阅成功")
 	}
 }
 
 func (e *endpoint) Shutdown() {
-	unsub := e.mqtt.Unsubscribe(e.mqttTopicRecv)
-	if unsub.Wait() && nil != unsub.Error() {
-		log.Error("取消订阅出错：", unsub.Error())
+	token := e.mqtt.Unsubscribe(e.mqttTopicRecv)
+	if token.Wait() && nil != token.Error() {
+		log.Error("取消订阅出错：", token.Error())
 	}
 	e.mqtt.Disconnect(1000)
 }
