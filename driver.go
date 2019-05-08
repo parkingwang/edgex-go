@@ -62,7 +62,7 @@ func (d *driver) Startup() {
 	for _, t := range d.topics {
 		topic := topicOfTrigger(t)
 		d.mqttTopicTrigger[topic] = 0
-		log.Info("监听Trigger.EventTopic: ", topic)
+		log.Info("开启监听事件[TRIGGER]: ", topic)
 	}
 	d.mqttClient.SubscribeMultiple(d.mqttTopicTrigger, func(cli mqtt.Client, msg mqtt.Message) {
 		d.mqttWorker(PacketOfBytes(msg.Payload()))
@@ -70,9 +70,10 @@ func (d *driver) Startup() {
 
 	// 监听所有Endpoint的Reply
 	d.mqttTopicEndpoint = topicOfEndpointReplyQ("+")
-	log.Info("监听Endpoint.ReplyTopic: ", d.mqttTopicEndpoint)
+	log.Info("开启监听事件[ENDPOINT]: ", d.mqttTopicEndpoint)
 	d.mqttClient.Subscribe(d.mqttTopicEndpoint, 0, func(cli mqtt.Client, msg mqtt.Message) {
 		endpointId := endpointIdOfReplyQ(msg.Topic())
+		log.Debug("接收到[ENDPOINT]响应事件：", endpointId)
 		if ch, ok := d.replies[endpointId]; ok {
 			ch <- PacketOfBytes(msg.Payload())
 		} else {
@@ -82,6 +83,16 @@ func (d *driver) Startup() {
 }
 
 func (d *driver) Shutdown() {
+	topics := make([]string, 0)
+	topics = append(topics, d.mqttTopicEndpoint)
+	log.Info("取消监听事件[ENDPOINT]: ", d.mqttTopicEndpoint)
+	for t := range d.mqttTopicTrigger {
+		topics = append(topics, t)
+		log.Info("取消监听事件[TRIGGER]: ", t)
+	}
+	if token := d.mqttClient.Unsubscribe(topics...); token.Wait() && nil != token.Error() {
+		log.Error("取消监听事件出错：", token.Error())
+	}
 	d.mqttClient.Disconnect(1000)
 }
 
@@ -112,8 +123,10 @@ func (d *driver) Execute(endpointId string, in Packet, to time.Duration) (out Pa
 }
 
 func (d *driver) sendRequest(endpointId string, data Packet) error {
+	topic := topicOfEndpointRequestQ(endpointId)
+	log.Debug("发起Request请求：", topic)
 	token := d.mqttClient.Publish(
-		topicOfEndpointRequestQ(endpointId),
+		topic,
 		d.scoped.MqttQoS,
 		d.scoped.MqttRetained, data.Bytes())
 	if token.Wait() && nil != token.Error() {

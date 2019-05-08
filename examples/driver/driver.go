@@ -31,7 +31,7 @@ func main() {
 			_, err := driver.Execute("EXAMPLE-PINGPONG",
 				evt, time.Second)
 			if nil != err {
-				ctx.Log().Error("发生错误", err)
+				ctx.Log().Error("Execute发生错误: ", err)
 			} else {
 				ctx.Log().Debug("Execute用时: ", time.Since(execStart))
 			}

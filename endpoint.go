@@ -57,8 +57,9 @@ func (e *endpoint) Startup() {
 	}
 
 	// 开启事件监听
-	log.Info("Mqtt客户端Request.Topic: ", e.mqttTopicRequest)
-	log.Info("Mqtt客户端Reply.Topic: ", e.mqttTopicReply)
+	log.Info("开启监听事件[Request]: ", e.mqttTopicRequest)
+	log.Info("使用响应事件[Reply]: ", e.mqttTopicReply)
+
 	token := e.mqttClient.Subscribe(e.mqttTopicRequest, e.scoped.MqttQoS, func(cli mqtt.Client, msg mqtt.Message) {
 		in := PacketOfBytes(msg.Payload())
 		out := e.mqttWorker(in)
@@ -75,16 +76,15 @@ func (e *endpoint) Startup() {
 	})
 
 	if token.Wait() && nil != token.Error() {
-		log.Error("Endpoint订阅操作出错：", token.Error())
-	} else {
-		log.Info("Endpoint订阅操作成功")
+		log.Error("开启监听事件(失败)：", token.Error())
 	}
 }
 
 func (e *endpoint) Shutdown() {
 	token := e.mqttClient.Unsubscribe(e.mqttTopicRequest)
+	log.Info("取消监听事件: ", e.mqttTopicRequest)
 	if token.Wait() && nil != token.Error() {
-		log.Error("取消订阅出错：", token.Error())
+		log.Error("取消监听事件出错: ", token.Error())
 	}
 	e.mqttClient.Disconnect(1000)
 }
