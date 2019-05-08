@@ -27,14 +27,13 @@ func main() {
 			recv, _ := strconv.ParseInt(string(evt.Bytes()), 10, 64)
 
 			ctx.Log().Debug("Driver用时: ", time.Duration(time.Now().UnixNano()-recv))
-			execStart := time.Now()
-			_, err := driver.Execute("EXAMPLE-PINGPONG",
-				evt, time.Second)
-			if nil != err {
-				ctx.Log().Error("Execute发生错误: ", err)
-			} else {
-				ctx.Log().Debug("Execute用时: ", time.Since(execStart))
-			}
+			//execStart := time.Now()
+			//_, err := driver.Execute("EXAMPLE-PINGPONG", evt, time.Second * 3)
+			//if nil != err {
+			//	ctx.Log().Error("Execute发生错误: ", err)
+			//} else {
+			//	ctx.Log().Debug("Execute用时: ", time.Since(execStart))
+			//}
 		})
 
 		ctx.Log().Debugf("创建Driver节点: [%s]", opts.Name)
