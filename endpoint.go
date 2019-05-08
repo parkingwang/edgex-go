@@ -23,11 +23,11 @@ type Endpoint interface {
 
 var ErrRecvTimeout = errors.New("receive timeout")
 
-////
+//// Endpoint实现
 
 type endpoint struct {
 	Endpoint
-	global   *GlobalScoped
+	scoped   *GlobalScoped
 	topic    string
 	id       string
 	recvChan chan Frame
@@ -39,14 +39,15 @@ type endpoint struct {
 
 func (e *endpoint) Startup(args map[string]interface{}) {
 	// 连接Broker
-	opts := mqtt.NewClientOptions().AddBroker(e.global.MqttBroker)
+	opts := mqtt.NewClientOptions()
 	opts.SetClientID(e.id)
-	opts.SetKeepAlive(e.global.MqttKeepAlive)
-	opts.SetPingTimeout(e.global.MqttPingTimeout)
-	opts.SetAutoReconnect(e.global.MqttAutoReconnect)
-	opts.SetConnectTimeout(e.global.MqttConnectTimeout)
+	opts.AddBroker(e.scoped.MqttBroker)
+	opts.SetKeepAlive(e.scoped.MqttKeepAlive)
+	opts.SetPingTimeout(e.scoped.MqttPingTimeout)
+	opts.SetAutoReconnect(e.scoped.MqttAutoReconnect)
+	opts.SetConnectTimeout(e.scoped.MqttConnectTimeout)
 	e.mqtt = mqtt.NewClient(opts)
-	log.Info("Mqtt客户端连接Broker: ", e.global.MqttBroker)
+	log.Info("Mqtt客户端连接Broker: ", e.scoped.MqttBroker)
 	if token := e.mqtt.Connect(); token.Wait() && token.Error() != nil {
 		log.Panic("Mqtt客户端连接出错：", token.Error())
 	} else {
@@ -56,15 +57,16 @@ func (e *endpoint) Startup(args map[string]interface{}) {
 	}
 
 	// 开启Recv订阅事件
-	sub := e.mqtt.Subscribe(e.mqttTopicRecv, e.global.MqttQoS, func(cli mqtt.Client, msg mqtt.Message) {
-		select {
-		case e.recvChan <- msg.Payload():
-			log.Debug("接收到消息：%s", msg.Topic())
+	sub := e.mqtt.Subscribe(e.mqttTopicRecv, e.scoped.MqttQoS,
+		func(cli mqtt.Client, msg mqtt.Message) {
+			select {
+			case e.recvChan <- msg.Payload():
+				log.Debug("接收到消息：%s", msg.Topic())
 
-		default:
-			log.Warn("消息队列繁忙")
-		}
-	})
+			default:
+				log.Warn("消息队列繁忙")
+			}
+		})
 	if sub.Wait() && nil != sub.Error() {
 		log.Error("事件订阅出错：", sub.Error())
 	} else {
@@ -81,7 +83,7 @@ func (e *endpoint) Shutdown() {
 }
 
 func (e *endpoint) Send(frames Frame) error {
-	token := e.mqtt.Publish(e.mqttTopicSend, e.global.MqttQoS, e.global.MqttRetained, []byte(frames))
+	token := e.mqtt.Publish(e.mqttTopicSend, e.scoped.MqttQoS, e.scoped.MqttRetained, []byte(frames))
 	if token.Wait() && nil != token.Error() {
 		return errors.New("发送消息出错: " + token.Error().Error())
 	} else {

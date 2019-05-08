@@ -45,14 +45,14 @@ func Run(handler func(ctx Context) error) {
 
 ////
 
-type ctx struct {
-	global      *GlobalScoped
+type context struct {
+	scoped      *GlobalScoped
 	serviceName string
 	serviceId   string
 }
 
 // 加载配置
-func (c *ctx) LoadConfig() map[string]interface{} {
+func (c *context) LoadConfig() map[string]interface{} {
 	out := make(map[string]interface{})
 	if _, err := toml.DecodeFile("application.toml", &out); nil != err {
 		log.Error("读取配置文件(application.toml)出错: ", err)
@@ -61,11 +61,12 @@ func (c *ctx) LoadConfig() map[string]interface{} {
 }
 
 // 注册端点
-func (c *ctx) NewEndpoint(opts EndpointOptions) Endpoint {
+func (c *context) NewEndpoint(opts EndpointOptions) Endpoint {
+	checkContextInitialize(c)
 	c.serviceName = "Endpoint"
 	c.serviceId = opts.Id
 	return &endpoint{
-		global:        c.global,
+		scoped:        c.scoped,
 		topic:         opts.Topic,
 		id:            opts.Id,
 		mqttTopicSend: topicOfEndpointSendQ(opts.Topic, opts.Id),
@@ -75,28 +76,40 @@ func (c *ctx) NewEndpoint(opts EndpointOptions) Endpoint {
 }
 
 // 注册驱动
-func (c *ctx) NewDriver(opts DriverOptions) Driver {
+func (c *context) NewDriver(opts DriverOptions) Driver {
+	checkContextInitialize(c)
+	c.serviceName = "Driver"
+	c.serviceId = opts.Id
 	return nil
 }
 
 // 注册管道
-func (c *ctx) NewPipeline(opts PipelineOptions) Pipeline {
+func (c *context) NewPipeline(opts PipelineOptions) Pipeline {
+	checkContextInitialize(c)
+	c.serviceName = "Pipeline"
+	c.serviceId = opts.Id
 	return nil
 }
 
-func (c *ctx) WaitChan() <-chan os.Signal {
+func (c *context) WaitChan() <-chan os.Signal {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 	signal.Ignore(syscall.SIGPIPE)
 	return sig
 }
 
-func (c *ctx) AwaitTerm() {
+func (c *context) AwaitTerm() {
 	<-c.WaitChan()
 }
 
 func newContext(global *GlobalScoped) Context {
-	return &ctx{
-		global: global,
+	return &context{
+		scoped: global,
+	}
+}
+
+func checkContextInitialize(c *context) {
+	if c.serviceName != "" {
+		log.Panicf("Context已作为[%]服务使用", c.serviceName)
 	}
 }
