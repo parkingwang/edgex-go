@@ -12,8 +12,7 @@ import (
 
 func main() {
 	edgex.Run(func(ctx edgex.Context) error {
-		log := edgex.ZapSugarLogger
-
+		//config := ctx.LoadConfig()
 		// 向系统注册节点
 		opts := edgex.EndpointOptions{
 			Id:    "EXAMPLE-TIMER",
@@ -21,11 +20,10 @@ func main() {
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
-		endpoint.Startup(ctx.LoadConfig())
-
+		endpoint.Startup()
 		defer endpoint.Shutdown()
 
-		log.Debugf("创建Endpoint节点: [%s]", opts.Id)
+		ctx.Log().Debugf("创建Endpoint节点: [%s]", opts.Id)
 
 		// 模拟定时发送消息到系统
 		timer := time.NewTicker(time.Second * 3)
@@ -41,7 +39,7 @@ func main() {
 				}
 
 			case msg := <-endpoint.RecvChan():
-				fmt.Println("Recv: ", msg)
+				ctx.Log().Debugf("Recv: ", msg)
 
 			case <-ctx.WaitChan():
 				return nil

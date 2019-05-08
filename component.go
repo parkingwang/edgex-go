@@ -5,6 +5,6 @@ package edgex
 //
 
 type Lifecycle interface {
-	Startup(args map[string]interface{})
+	Startup()
 	Shutdown()
 }

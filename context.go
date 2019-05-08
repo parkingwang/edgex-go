@@ -2,6 +2,7 @@ package edgex
 
 import (
 	"github.com/BurntSushi/toml"
+	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,6 +13,10 @@ import (
 //
 
 type Context interface {
+
+	// 返回Log对象
+	Log() *zap.SugaredLogger
+
 	// 加载配置
 	LoadConfig() map[string]interface{}
 
@@ -43,7 +48,7 @@ func Run(handler func(ctx Context) error) {
 	}
 }
 
-////
+//// Context实现
 
 type context struct {
 	scoped      *GlobalScoped
@@ -71,7 +76,7 @@ func (c *context) NewEndpoint(opts EndpointOptions) Endpoint {
 		id:            opts.Id,
 		mqttTopicSend: topicOfEndpointSendQ(opts.Topic, opts.Id),
 		mqttTopicRecv: topicOfEndpointRecvQ(opts.Topic, opts.Id),
-		recvChan:      make(chan Frame, 2),
+		recvChan:      make(chan Frame, 16),
 	}
 }
 
@@ -100,6 +105,10 @@ func (c *context) WaitChan() <-chan os.Signal {
 
 func (c *context) AwaitTerm() {
 	<-c.WaitChan()
+}
+
+func (c *context) Log() *zap.SugaredLogger {
+	return log
 }
 
 func newContext(global *GlobalScoped) Context {

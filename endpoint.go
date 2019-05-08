@@ -37,7 +37,7 @@ type endpoint struct {
 	mqttTopicRecv string
 }
 
-func (e *endpoint) Startup(args map[string]interface{}) {
+func (e *endpoint) Startup() {
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
 	opts.SetClientID(e.id)
