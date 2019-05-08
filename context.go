@@ -13,33 +13,36 @@ import (
 //
 
 type Context interface {
-
 	// 返回Log对象
 	Log() *zap.SugaredLogger
 
 	// 加载配置
 	LoadConfig() map[string]interface{}
 
-	// 注册端点
+	// 创建Trigger
+	NewTrigger(opts TriggerOptions) Trigger
+
+	// 创建终端
 	NewEndpoint(opts EndpointOptions) Endpoint
 
-	// 注册驱动
+	// 创建驱动
 	NewDriver(opts DriverOptions) Driver
-
-	// 注册管道
-	NewPipeline(opts PipelineOptions) Pipeline
 
 	// 返回等待通道
 	WaitChan() <-chan os.Signal
 
 	// 阻塞等待终止信号
-	AwaitTerm()
+	AwaitTerm() error
 }
 
 ////
 
 func Run(handler func(ctx Context) error) {
-	scoped := NewDefaultGlobalScoped("tcp://localhost:1883")
+	broker, ok := os.LookupEnv("MQTT.broker")
+	if !ok {
+		broker = "tcp://localhost:1883"
+	}
+	scoped := NewDefaultGlobalScoped(broker)
 	ctx := newContext(scoped)
 	log.Debug("启动Service")
 	defer log.Debug("停止Service")
@@ -56,7 +59,6 @@ type context struct {
 	serviceId   string
 }
 
-// 加载配置
 func (c *context) LoadConfig() map[string]interface{} {
 	out := make(map[string]interface{})
 	if _, err := toml.DecodeFile("application.toml", &out); nil != err {
@@ -65,35 +67,39 @@ func (c *context) LoadConfig() map[string]interface{} {
 	return out
 }
 
-// 注册端点
+func (c *context) NewTrigger(opts TriggerOptions) Trigger {
+	checkContextInitialize(c)
+	c.serviceName = "Endpoint"
+	c.serviceId = opts.Name
+	return &trigger{
+		scoped: c.scoped,
+		topic:  opts.Topic,
+		name:   opts.Name,
+	}
+}
+
 func (c *context) NewEndpoint(opts EndpointOptions) Endpoint {
 	checkContextInitialize(c)
 	c.serviceName = "Endpoint"
 	c.serviceId = opts.Id
 	return &endpoint{
-		scoped:        c.scoped,
-		topic:         opts.Topic,
-		id:            opts.Id,
-		mqttTopicSend: topicOfEndpointSendQ(opts.Topic, opts.Id),
-		mqttTopicRecv: topicOfEndpointRecvQ(opts.Topic, opts.Id),
-		recvChan:      make(chan Frame, 16),
+		scoped:           c.scoped,
+		endpointId:       opts.Id,
+		mqttTopicRequest: topicOfEndpointRequestQ(opts.Id),
+		mqttTopicReply:   topicOfEndpointReplyQ(opts.Id),
 	}
 }
 
-// 注册驱动
 func (c *context) NewDriver(opts DriverOptions) Driver {
 	checkContextInitialize(c)
 	c.serviceName = "Driver"
-	c.serviceId = opts.Id
-	return nil
-}
-
-// 注册管道
-func (c *context) NewPipeline(opts PipelineOptions) Pipeline {
-	checkContextInitialize(c)
-	c.serviceName = "Pipeline"
-	c.serviceId = opts.Id
-	return nil
+	c.serviceId = opts.Name
+	return &driver{
+		scoped:  c.scoped,
+		name:    opts.Name,
+		topics:  opts.Topics,
+		replies: make(map[string]chan Packet),
+	}
 }
 
 func (c *context) WaitChan() <-chan os.Signal {
@@ -103,8 +109,9 @@ func (c *context) WaitChan() <-chan os.Signal {
 	return sig
 }
 
-func (c *context) AwaitTerm() {
+func (c *context) AwaitTerm() error {
 	<-c.WaitChan()
+	return nil
 }
 
 func (c *context) Log() *zap.SugaredLogger {

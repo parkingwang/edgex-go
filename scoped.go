@@ -20,7 +20,7 @@ type GlobalScoped struct {
 func NewDefaultGlobalScoped(broker string) *GlobalScoped {
 	return &GlobalScoped{
 		MqttBroker:         broker,
-		MqttQoS:            2,
+		MqttQoS:            1,
 		MqttRetained:       false,
 		MqttKeepAlive:      time.Second * 3,
 		MqttPingTimeout:    time.Second * 1,

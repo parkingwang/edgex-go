@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"github.com/yoojia/edgex"
-	"time"
 )
 
 //
@@ -15,37 +13,20 @@ func main() {
 		//config := ctx.LoadConfig()
 		// 向系统注册节点
 		opts := edgex.EndpointOptions{
-			Id:    "EXAMPLE-TIMER",
-			Topic: "scheduled/timer",
+			Id: "EXAMPLE-PINGPONG",
 		}
 		endpoint := ctx.NewEndpoint(opts)
+
+		endpoint.Serve(func(in edgex.Packet) (out edgex.Packet) {
+			ctx.Log().Debug("Recv: ", string(in))
+			return in
+		})
 
 		endpoint.Startup()
 		defer endpoint.Shutdown()
 
 		ctx.Log().Debugf("创建Endpoint节点: [%s]", opts.Id)
 
-		// 模拟定时发送消息到系统
-		timer := time.NewTicker(time.Second * 3)
-		defer timer.Stop()
-
-		for {
-			select {
-			case t := <-timer.C:
-				msg := []byte(fmt.Sprintf("HELLO: %d", t.Unix()))
-				// Send
-				if err := endpoint.Send(msg); nil != err {
-					return err
-				}
-
-			case msg := <-endpoint.RecvChan():
-				ctx.Log().Debugf("Recv: ", msg)
-
-			case <-ctx.WaitChan():
-				return nil
-
-			}
-		}
-
+		return ctx.AwaitTerm()
 	})
 }

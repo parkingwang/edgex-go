@@ -1,8 +1,9 @@
 package edgex
 
 import (
-	"errors"
+	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
+	"github.com/pkg/errors"
 	"time"
 )
 
@@ -10,97 +11,99 @@ import (
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
-// Endpoint是接收和处理消息的终端节点。它可以接收控制指令
+// Endpoint是接收、处理，并返回结果的可控制终端节点。
 type Endpoint interface {
 	Lifecycle
-	// 发送消息
-	Send(b Frame) error
-	// 接收消息
-	Recv() (b Frame, err error)
-	// 接收消息通道
-	RecvChan() <-chan Frame
-}
 
-var ErrRecvTimeout = errors.New("receive timeout")
+	// 处理消息并返回
+	Serve(func(in Packet) (out Packet))
+}
 
 //// Endpoint实现
 
 type endpoint struct {
 	Endpoint
-	scoped   *GlobalScoped
-	topic    string
-	id       string
-	recvChan chan Frame
+	scoped     *GlobalScoped
+	topic      string
+	endpointId string
 	// MQTT
-	mqtt          mqtt.Client
-	mqttTopicSend string
-	mqttTopicRecv string
+	mqttClient       mqtt.Client
+	mqttTopicReply   string
+	mqttTopicRequest string
+	mqttWorker       func(in Packet) (out Packet)
 }
 
 func (e *endpoint) Startup() {
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
-	opts.SetClientID(e.id)
+	opts.SetClientID(fmt.Sprintf("Endpoint-%s", e.endpointId))
 	opts.AddBroker(e.scoped.MqttBroker)
 	opts.SetKeepAlive(e.scoped.MqttKeepAlive)
 	opts.SetPingTimeout(e.scoped.MqttPingTimeout)
 	opts.SetAutoReconnect(e.scoped.MqttAutoReconnect)
 	opts.SetConnectTimeout(e.scoped.MqttConnectTimeout)
-	e.mqtt = mqtt.NewClient(opts)
+	opts.SetWill(topicOfWill("Endpoint", e.endpointId), "offline", 1, true)
+
+	e.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", e.scoped.MqttBroker)
-	if token := e.mqtt.Connect(); token.Wait() && token.Error() != nil {
+	if token := e.mqttClient.Connect(); token.Wait() && token.Error() != nil {
 		log.Panic("Mqtt客户端连接出错：", token.Error())
 	} else {
 		log.Info("Mqtt客户端连接成功")
-		log.Info("Mqtt客户端SendQ.Topic: ", e.mqttTopicSend)
-		log.Info("Mqtt客户端RecvQ.Topic: ", e.mqttTopicRecv)
 	}
 
-	// 开启Recv订阅事件
-	token := e.mqtt.Subscribe(e.mqttTopicRecv, e.scoped.MqttQoS,
-		func(cli mqtt.Client, msg mqtt.Message) {
-			select {
-			case e.recvChan <- msg.Payload():
-				log.Debug("接收到消息：%s", msg.Topic())
+	if e.mqttWorker == nil {
+		log.Panic("必须设置消息处理函数: SetReceivedHandler")
+	}
 
-			default:
-				log.Warn("消息队列繁忙")
+	// 开启事件监听
+	log.Info("Mqtt客户端Request.Topic: ", e.mqttTopicRequest)
+	log.Info("Mqtt客户端Reply.Topic: ", e.mqttTopicReply)
+	token := e.mqttClient.Subscribe(e.mqttTopicRequest, e.scoped.MqttQoS, func(cli mqtt.Client, msg mqtt.Message) {
+		in := PacketOfBytes(msg.Payload())
+		out := e.mqttWorker(in)
+		if 0 != len(out) {
+			for i := 0; i < 5; i++ {
+				if err := e.sendReply(out); nil == err {
+					break
+				} else {
+					log.Error("Endpoint返回结果出错", err)
+				}
+				log.Debug("Endpoint重试返回结果: ", i)
+				<-time.After(time.Millisecond * 500)
 			}
-		})
+		}
+	})
+
 	if token.Wait() && nil != token.Error() {
-		log.Error("事件订阅出错：", token.Error())
+		log.Error("Endpoint订阅操作出错：", token.Error())
 	} else {
-		log.Info("事件订阅成功")
+		log.Info("Endpoint订阅操作成功")
 	}
 }
 
 func (e *endpoint) Shutdown() {
-	token := e.mqtt.Unsubscribe(e.mqttTopicRecv)
+	token := e.mqttClient.Unsubscribe(e.mqttTopicRequest)
 	if token.Wait() && nil != token.Error() {
 		log.Error("取消订阅出错：", token.Error())
 	}
-	e.mqtt.Disconnect(1000)
+	e.mqttClient.Disconnect(1000)
 }
 
-func (e *endpoint) Send(frames Frame) error {
-	token := e.mqtt.Publish(e.mqttTopicSend, e.scoped.MqttQoS, e.scoped.MqttRetained, []byte(frames))
+func (e *endpoint) Serve(w func(in Packet) (out Packet)) {
+	e.mqttWorker = w
+}
+
+func (e *endpoint) sendReply(data Packet) error {
+	log.Debug("Endpoint返回结果: ", e.mqttTopicReply)
+	token := e.mqttClient.Publish(
+		e.mqttTopicReply,
+		e.scoped.MqttQoS,
+		e.scoped.MqttRetained,
+		data.Bytes())
 	if token.Wait() && nil != token.Error() {
-		return errors.New("发送消息出错: " + token.Error().Error())
+		return errors.WithMessage(token.Error(), "发送消息出错")
 	} else {
 		return nil
 	}
-}
-
-func (e *endpoint) Recv() (Frame, error) {
-	select {
-	case <-time.After(time.Second):
-		return nil, ErrRecvTimeout
-
-	case b := <-e.recvChan:
-		return b, nil
-	}
-}
-
-func (e *endpoint) RecvChan() <-chan Frame {
-	return e.recvChan
 }

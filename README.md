@@ -1,6 +1,6 @@
 # EdgeX
 
-- $EDGEX/endpoints/sendq/{uuid}/T/{ENDPOINT-TOPIC}
-- $EDGEX/pipelines/T/{ENDPOINT-TOPIC}
-- $EDGEX/drivers/T/{ENDPOINT-TOPIC}
-- $EDGEX/endpoints/recvq/{uuid}/T/{ENDPOINT-TOPIC}
+- $EDGEX/EP-SENDQ/${epid}/${user-topic}
+- $EDGEX/PIPELINE/${epid}/${user-topic}
+- $EDGEX/DRIVERSX/${epid}/${user-topic}
+- $EDGEX/EP-RECVQ/${epid}/${user-topic}
