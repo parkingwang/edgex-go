@@ -69,6 +69,8 @@ func (c *contextImpl) LoadConfig() map[string]interface{} {
 
 func (c *contextImpl) NewTrigger(opts TriggerOptions) Trigger {
 	checkContextInitialize(c)
+	checkRequired(opts.Name, "Trigger.Name MUST be specified")
+	checkRequired(opts.Topic, "Trigger.Topic MUST be specified")
 	c.serviceName = "Endpoint"
 	c.serviceId = opts.Name
 	return &trigger{
@@ -80,22 +82,26 @@ func (c *contextImpl) NewTrigger(opts TriggerOptions) Trigger {
 
 func (c *contextImpl) NewEndpoint(opts EndpointOptions) Endpoint {
 	checkContextInitialize(c)
+	checkRequired(opts.Name, "Endpoint.Name MUST be specified")
+	checkRequired(opts.Addr, "Endpoint.Addr MUST be specified")
 	c.serviceName = "Endpoint"
 	c.serviceId = opts.Addr
 	return &endpoint{
-		scoped:           c.scoped,
-		endpointAddr:     opts.Addr,
+		scoped:       c.scoped,
+		endpointAddr: opts.Addr,
 	}
 }
 
 func (c *contextImpl) NewDriver(opts DriverOptions) Driver {
 	checkContextInitialize(c)
+	checkRequired(opts.Name, "Endpoint.Name MUST be specified")
+	checkRequireds(opts.Topics, "Endpoint.Topics MUST be specified")
 	c.serviceName = "Driver"
 	c.serviceId = opts.Name
 	return &driver{
-		scoped:  c.scoped,
-		name:    opts.Name,
-		topics:  opts.Topics,
+		scoped: c.scoped,
+		name:   opts.Name,
+		topics: opts.Topics,
 	}
 }
 
@@ -124,5 +130,17 @@ func newContext(global *GlobalScoped) Context {
 func checkContextInitialize(c *contextImpl) {
 	if c.serviceName != "" {
 		log.Panicf("Context已作为[%]服务使用", c.serviceName)
+	}
+}
+
+func checkRequired(value, message string) {
+	if "" == value {
+		log.Panic(message)
+	}
+}
+
+func checkRequireds(value []string, message string) {
+	if 0 == len(value) {
+		log.Panic(message)
 	}
 }
