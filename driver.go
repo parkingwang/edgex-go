@@ -1,10 +1,11 @@
 package edgex
 
 import (
+	"context"
 	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
-	"github.com/yoojia/edgex/util"
+	"google.golang.org/grpc"
 	"time"
 )
 
@@ -18,7 +19,7 @@ type Driver interface {
 	Process(func(event Packet))
 	// 发起一个消息请求，并获取响应消息。
 	// 如果过程中发生错误，返回错误消息
-	Execute(endpointId string, in Packet, timeout time.Duration) (out Packet, err error)
+	Execute(endpointAddr string, in Packet, timeout time.Duration) (out Packet, err error)
 }
 
 type DriverOptions struct {
@@ -30,15 +31,13 @@ type DriverOptions struct {
 
 type driver struct {
 	Endpoint
-	scoped  *GlobalScoped
-	name    string
-	replies *util.MapX
+	scoped *GlobalScoped
+	name   string
 	// MQTT
-	topics            []string
-	mqttClient        mqtt.Client
-	mqttTopicTrigger  map[string]byte
-	mqttTopicEndpoint string
-	mqttWorker        func(event Packet)
+	topics           []string
+	mqttClient       mqtt.Client
+	mqttTopicTrigger map[string]byte
+	mqttWorker       func(event Packet)
 }
 
 func (d *driver) Startup() {
@@ -67,24 +66,10 @@ func (d *driver) Startup() {
 		d.mqttWorker(PacketOfBytes(msg.Payload()))
 	})
 
-	// 监听所有Endpoint的Reply
-	d.mqttTopicEndpoint = topicOfEndpointReplyQ("+")
-	log.Info("开启监听事件[ENDPOINT]: ", d.mqttTopicEndpoint)
-	d.mqttClient.Subscribe(d.mqttTopicEndpoint, 0, func(cli mqtt.Client, msg mqtt.Message) {
-		endpointId := endpointIdOfReplyQ(msg.Topic())
-		log.Debug("接收到[ENDPOINT]响应事件：", endpointId)
-		if v, ok := d.replies.Load(endpointId); ok {
-			(v.(util.Lazy)).Store(PacketOfBytes(msg.Payload()))
-		} else {
-			log.Debug("Endpoint没有接收队列: ", endpointId)
-		}
-	})
 }
 
 func (d *driver) Shutdown() {
 	topics := make([]string, 0)
-	topics = append(topics, d.mqttTopicEndpoint)
-	log.Info("取消监听事件[ENDPOINT]: ", d.mqttTopicEndpoint)
 	for t := range d.mqttTopicTrigger {
 		topics = append(topics, t)
 		log.Info("取消监听事件[TRIGGER]: ", t)
@@ -99,32 +84,23 @@ func (d *driver) Process(f func(Packet)) {
 	d.mqttWorker = f
 }
 
-func (d *driver) Execute(endpointId string, in Packet, to time.Duration) (out Packet, err error) {
-	lazy, _ := d.replies.LoadOrStore(endpointId, func() interface{} {
-		return util.NewLazyPacket()
-	})
-	// Send and wait
-	if err := d.sendRequest(endpointId, in); nil != err {
-		return []byte{}, err
-	} else {
-		if v, err := lazy.(util.Lazy).Take(to); nil != err {
-			return nil, err
-		} else {
-			return v.(Packet), nil
-		}
+func (d *driver) Execute(endpointAddr string, in Packet, to time.Duration) (out Packet, err error) {
+	log.Debug("GRPC调用Endpoint: ", endpointAddr)
+	remote, err := grpc.Dial(endpointAddr, grpc.WithInsecure())
+	if nil != err {
+		return nil, errors.WithMessage(err, "GRPC DIAL ERROR")
 	}
-}
+	client := NewExecuteClient(remote)
+	ctx, cancel := context.WithTimeout(context.Background(), to)
+	defer cancel()
 
-func (d *driver) sendRequest(endpointId string, data Packet) error {
-	topic := topicOfEndpointRequestQ(endpointId)
-	log.Debug("发起Request请求：", topic)
-	token := d.mqttClient.Publish(
-		topic,
-		d.scoped.MqttQoS,
-		d.scoped.MqttRetained, data.Bytes())
-	if token.Wait() && nil != token.Error() {
-		return errors.WithMessage(token.Error(), "发送消息出错")
+	ret, err := client.Execute(ctx, &Data{
+		Frames: in,
+	})
+
+	if nil != err && nil != ret {
+		return PacketOfBytes(ret.GetFrames()), nil
 	} else {
-		return nil
+		return nil, err
 	}
 }

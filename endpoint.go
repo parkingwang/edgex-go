@@ -1,10 +1,10 @@
 package edgex
 
 import (
-	"fmt"
-	"github.com/eclipse/paho.mqtt.golang"
-	"github.com/pkg/errors"
-	"time"
+	ctx "context"
+	"errors"
+	"google.golang.org/grpc"
+	"net"
 )
 
 //
@@ -19,7 +19,7 @@ type Endpoint interface {
 }
 
 type EndpointOptions struct {
-	Id   string
+	Addr string
 	Name string
 }
 
@@ -27,81 +27,52 @@ type EndpointOptions struct {
 
 type endpoint struct {
 	Endpoint
-	scoped     *GlobalScoped
-	topic      string
-	endpointId string
-	// MQTT
-	mqttClient       mqtt.Client
-	mqttTopicReply   string
-	mqttTopicRequest string
-	mqttWorker       func(in Packet) (out Packet)
+	scoped        *GlobalScoped
+	endpointAddr  string
+	messageWorker func(in Packet) (out Packet)
+	server        *grpc.Server
 }
 
 func (e *endpoint) Startup() {
-	// 连接Broker
-	opts := mqtt.NewClientOptions()
-	opts.SetClientID(fmt.Sprintf("Endpoint-%s", e.endpointId))
-	opts.SetWill(topicOfWill("Endpoint", e.endpointId), "offline", 1, true)
-	setMqttDefaults(opts, e.scoped)
-
-	e.mqttClient = mqtt.NewClient(opts)
-	log.Info("Mqtt客户端连接Broker: ", e.scoped.MqttBroker)
-	if token := e.mqttClient.Connect(); token.Wait() && token.Error() != nil {
-		log.Panic("Mqtt客户端连接出错：", token.Error())
-	} else {
-		log.Info("Mqtt客户端连接成功")
+	listen, err := net.Listen("tcp", e.endpointAddr)
+	if nil != err {
+		log.Panic("Endpoint listen failed: ", err)
 	}
-
-	if e.mqttWorker == nil {
-		log.Panic("必须设置消息处理函数: SetReceivedHandler")
-	}
-
-	// 开启事件监听
-	log.Info("开启监听事件[Request]: ", e.mqttTopicRequest)
-	log.Info("使用响应事件[Reply]: ", e.mqttTopicReply)
-
-	token := e.mqttClient.Subscribe(e.mqttTopicRequest, e.scoped.MqttQoS, func(cli mqtt.Client, msg mqtt.Message) {
-		in := PacketOfBytes(msg.Payload())
-		out := e.mqttWorker(in)
-		if 0 != len(out) {
-			for i := 0; i < 5; i++ {
-				if err := e.sendReply(out); nil != err {
-					log.Debug("Endpoint重试返回结果: ", i)
-					<-time.After(time.Millisecond * 500)
-				} else {
-					return
-				}
-			}
-		}
+	e.server = grpc.NewServer()
+	RegisterExecuteServer(e.server, &executor{
+		handler: e.messageWorker,
 	})
-
-	if token.Wait() && nil != token.Error() {
-		log.Error("开启监听事件(失败)：", token.Error())
-	}
+	go func() {
+		log.Info("开启GRPC服务: ", e.endpointAddr)
+		if err := e.server.Serve(listen); nil != err {
+			log.Error("GRPC server stop: ", err)
+		}
+	}()
 }
 
 func (e *endpoint) Shutdown() {
-	token := e.mqttClient.Unsubscribe(e.mqttTopicRequest)
-	log.Info("取消监听事件: ", e.mqttTopicRequest)
-	if token.Wait() && nil != token.Error() {
-		log.Error("取消监听事件出错: ", token.Error())
-	}
-	e.mqttClient.Disconnect(1000)
+	log.Info("开启GRPC服务")
+	e.server.Stop()
 }
 
 func (e *endpoint) Serve(w func(in Packet) (out Packet)) {
-	e.mqttWorker = w
+	e.messageWorker = w
 }
 
-func (e *endpoint) sendReply(data Packet) error {
-	token := e.mqttClient.Publish(
-		e.mqttTopicReply,
-		e.scoped.MqttQoS,
-		e.scoped.MqttRetained,
-		data.Bytes())
-	if token.Wait() && nil != token.Error() {
-		return errors.WithMessage(token.Error(), "发送消息出错")
-	} else {
-		return nil
+////
+
+type executor struct {
+	ExecuteServer
+	handler func(in Packet) (out Packet)
+}
+
+func (ex *executor) Execute(c ctx.Context, i *Data) (o *Data, e error) {
+	done := make(chan *Data, 1)
+	select {
+	case done <- &Data{Frames: ex.handler(PacketOfBytes(i.Frames))}:
+		return <-done, nil
+
+	case <-c.Done():
+		return nil, errors.New("execute timeout")
 	}
 }

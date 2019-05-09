@@ -15,7 +15,8 @@ func main() {
 		//config := ctx.LoadConfig()
 		// 向系统注册节点
 		opts := edgex.EndpointOptions{
-			Id: "EXAMPLE-PINGPONG",
+			Name: "EXAMPLE-PINGPONG",
+			Addr: "0.0.0.0:5570",
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
@@ -28,7 +29,7 @@ func main() {
 		endpoint.Startup()
 		defer endpoint.Shutdown()
 
-		ctx.Log().Debugf("创建Endpoint节点: [%s]", opts.Id)
+		ctx.Log().Debugf("创建Endpoint节点: [%s]", opts.Name)
 
 		return ctx.AwaitTerm()
 	})

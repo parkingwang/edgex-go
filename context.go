@@ -2,7 +2,6 @@ package edgex
 
 import (
 	"github.com/BurntSushi/toml"
-	"github.com/yoojia/edgex/util"
 	"go.uber.org/zap"
 	"os"
 	"os/signal"
@@ -54,13 +53,13 @@ func Run(handler func(ctx Context) error) {
 
 //// Context实现
 
-type context struct {
+type contextImpl struct {
 	scoped      *GlobalScoped
 	serviceName string
 	serviceId   string
 }
 
-func (c *context) LoadConfig() map[string]interface{} {
+func (c *contextImpl) LoadConfig() map[string]interface{} {
 	out := make(map[string]interface{})
 	if _, err := toml.DecodeFile("application.toml", &out); nil != err {
 		log.Error("读取配置文件(application.toml)出错: ", err)
@@ -68,7 +67,7 @@ func (c *context) LoadConfig() map[string]interface{} {
 	return out
 }
 
-func (c *context) NewTrigger(opts TriggerOptions) Trigger {
+func (c *contextImpl) NewTrigger(opts TriggerOptions) Trigger {
 	checkContextInitialize(c)
 	c.serviceName = "Endpoint"
 	c.serviceId = opts.Name
@@ -79,19 +78,17 @@ func (c *context) NewTrigger(opts TriggerOptions) Trigger {
 	}
 }
 
-func (c *context) NewEndpoint(opts EndpointOptions) Endpoint {
+func (c *contextImpl) NewEndpoint(opts EndpointOptions) Endpoint {
 	checkContextInitialize(c)
 	c.serviceName = "Endpoint"
-	c.serviceId = opts.Id
+	c.serviceId = opts.Addr
 	return &endpoint{
 		scoped:           c.scoped,
-		endpointId:       opts.Id,
-		mqttTopicRequest: topicOfEndpointRequestQ(opts.Id),
-		mqttTopicReply:   topicOfEndpointReplyQ(opts.Id),
+		endpointAddr:     opts.Addr,
 	}
 }
 
-func (c *context) NewDriver(opts DriverOptions) Driver {
+func (c *contextImpl) NewDriver(opts DriverOptions) Driver {
 	checkContextInitialize(c)
 	c.serviceName = "Driver"
 	c.serviceId = opts.Name
@@ -99,33 +96,32 @@ func (c *context) NewDriver(opts DriverOptions) Driver {
 		scoped:  c.scoped,
 		name:    opts.Name,
 		topics:  opts.Topics,
-		replies: new(util.MapX),
 	}
 }
 
-func (c *context) WaitChan() <-chan os.Signal {
+func (c *contextImpl) WaitChan() <-chan os.Signal {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 	signal.Ignore(syscall.SIGPIPE)
 	return sig
 }
 
-func (c *context) AwaitTerm() error {
+func (c *contextImpl) AwaitTerm() error {
 	<-c.WaitChan()
 	return nil
 }
 
-func (c *context) Log() *zap.SugaredLogger {
+func (c *contextImpl) Log() *zap.SugaredLogger {
 	return log
 }
 
 func newContext(global *GlobalScoped) Context {
-	return &context{
+	return &contextImpl{
 		scoped: global,
 	}
 }
 
-func checkContextInitialize(c *context) {
+func checkContextInitialize(c *contextImpl) {
 	if c.serviceName != "" {
 		log.Panicf("Context已作为[%]服务使用", c.serviceName)
 	}

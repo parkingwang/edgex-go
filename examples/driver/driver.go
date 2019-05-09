@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/yoojia/edgex"
 	"strconv"
 	"time"
@@ -23,12 +24,14 @@ func main() {
 
 		driver := ctx.NewDriver(opts)
 
+		const testEndpointAddr = "127.0.0.1:5570"
+
 		driver.Process(func(evt edgex.Packet) {
 			recv, _ := strconv.ParseInt(string(evt.Bytes()), 10, 64)
 
 			ctx.Log().Debug("Driver用时: ", time.Duration(time.Now().UnixNano()-recv))
 			execStart := time.Now()
-			_, err := driver.Execute("EXAMPLE-PINGPONG", evt, time.Second*3)
+			_, err := driver.Execute(testEndpointAddr, evt, time.Second*3)
 			if nil != err {
 				ctx.Log().Error("Execute发生错误: ", err)
 			} else {
@@ -41,25 +44,25 @@ func main() {
 		driver.Startup()
 		defer driver.Shutdown()
 
-		//timer := time.NewTicker(time.Millisecond * 500)
-		//for {
-		//	select {
-		//	case <-timer.C:
-		//		execStart := time.Now()
-		//		_, err := driver.Execute("EXAMPLE-PINGPONG",
-		//			edgex.PacketOfString(fmt.Sprintf("%v", time.Now().UnixNano())),
-		//			time.Second)
-		//		if nil != err {
-		//			ctx.Log().Error("ScheduleExecute发生错误: ", err)
-		//		} else {
-		//			ctx.Log().Debug("ScheduleExecute用时: ", time.Since(execStart))
-		//		}
-		//
-		//	case <-ctx.WaitChan():
-		//		timer.Stop()
-		//		return nil
-		//	}
-		//}
-		return ctx.AwaitTerm()
+		timer := time.NewTicker(time.Second)
+		for {
+			select {
+			case <-timer.C:
+				execStart := time.Now()
+				_, err := driver.Execute(testEndpointAddr,
+					edgex.PacketOfString(fmt.Sprintf("%v", time.Now().UnixNano())),
+					time.Second)
+				if nil != err {
+					ctx.Log().Error("ScheduleExecute发生错误: ", err)
+				} else {
+					ctx.Log().Debug("ScheduleExecute用时: ", time.Since(execStart))
+				}
+
+			case <-ctx.WaitChan():
+				timer.Stop()
+				return nil
+			}
+		}
+
 	})
 }

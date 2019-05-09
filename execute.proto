@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package edgex;
+
+message Data {
+    bytes frames = 1;
+}
+
+service Execute {
+    rpc Execute (Data) returns (Data) {
+    }
+}
+
+// protoc --go_out=plugins=grpc:. *.proto
