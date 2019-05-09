@@ -4,12 +4,14 @@ import (
 	"github.com/tidwall/evio"
 	"github.com/yoojia/edgex"
 	"github.com/yoojia/go-value"
+	"strings"
 )
 
 //
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
-//
+// 使用Evio库作为Socket服务端，支持 tcp, udp, unix 等通讯方式。
+// 服务端接收客户端推送的数据包，并以配置的Topic，将消息发送到MQTT服务器。
 
 func main() {
 	edgex.Run(func(ctx edgex.Context) error {
@@ -24,6 +26,23 @@ func main() {
 		})
 
 		var server evio.Events
+
+		opts := value.Of(config["SocketServerOptions"]).MustMap()
+		server.NumLoops = int(value.Of(opts["numLoops"]).Int64OrDefault(1))
+		if server.NumLoops > 1 {
+			lb := strings.ToLower(value.Of(opts["loadBalance"]).String())
+			switch lb {
+			case "random":
+				server.LoadBalance = evio.Random
+			case "roundrobin":
+				server.LoadBalance = evio.RoundRobin
+			case "leastconnections":
+				server.LoadBalance = evio.LeastConnections
+			default:
+				server.LoadBalance = evio.Random
+			}
+		}
+
 		server.Data = func(c evio.Conn, in []byte) (out []byte, action evio.Action) {
 			// 接收数据，并触发事件
 			if err := trigger.Triggered(edgex.PacketOfBytes(in)); nil != err {
