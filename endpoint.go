@@ -34,15 +34,15 @@ type endpoint struct {
 }
 
 func (e *endpoint) Startup() {
-	listen, err := net.Listen("tcp", e.endpointAddr)
-	if nil != err {
-		log.Panic("Endpoint listen failed: ", err)
-	}
 	e.server = grpc.NewServer()
 	RegisterExecuteServer(e.server, &executor{
 		handler: e.messageWorker,
 	})
 	go func() {
+		listen, err := net.Listen("tcp", e.endpointAddr)
+		if nil != err {
+			log.Panic("Endpoint listen failed: ", err)
+		}
 		log.Info("开启GRPC服务: ", e.endpointAddr)
 		if err := e.server.Serve(listen); nil != err {
 			log.Error("GRPC server stop: ", err)
