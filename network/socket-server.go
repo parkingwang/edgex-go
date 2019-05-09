@@ -61,6 +61,7 @@ func main() {
 			return
 		}
 
+		// 启用Trigger服务
 		trigger.Startup()
 		defer trigger.Shutdown()
 
