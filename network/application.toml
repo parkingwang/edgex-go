@@ -1,7 +1,17 @@
-# 使用Socket监听端口并接收原始字节数据
-
+# Trigger顶级必要的配置参数
+Desc = "使用Socket监听端口并接收原始字节数据"
 Name = "SocketServerTrigger"
 Topic = "tcp/001"
-Address = [
-    "tcp://0.0.0.0:5573"
-]
+Address = "0.0.0.0:5573"
+
+# SocketServer配置参数
+[SocketServerOptions]
+  # 服务端处理线程，默认为1，单线程
+  numLoops = 1 #
+  # 负载均衡，多线程时生效，取值：Random, RoundRobin, LeastConnections
+  loadBalance = "random"
+
+# HttpServer配置参数
+[HttpServerOptions]
+  readTimeout = "10s"
+  writeTimeout = "10s"
