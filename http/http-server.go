@@ -17,7 +17,7 @@ func main() {
 		config := ctx.LoadConfig()
 		name := value.Of(config["Name"]).String()
 		topic := value.Of(config["Topic"]).String()
-		address := value.Of(config["HttpAddress"]).String()
+		address := value.Of(config["Address"]).String()
 
 		trigger := ctx.NewTrigger(edgex.TriggerOptions{
 			Name:  name,

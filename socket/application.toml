@@ -2,13 +2,10 @@
 Desc = "使用Socket监听端口并接收原始字节数据"
 Name = "SocketServerTrigger"
 Topic = "tcp/001"
-
-SocketAddress = [
+Address = [
     "tcp://0.0.0.0:5570",
     "udp://0.0.0.0:5570"
 ]
-
-HttpAddress = "0.0.0.0:5573"
 
 # SocketServer配置参数
 [SocketServerOptions]
@@ -16,8 +13,3 @@ HttpAddress = "0.0.0.0:5573"
   numLoops = 1 #
   # 负载均衡，多线程时生效，取值：Random, RoundRobin, LeastConnections
   loadBalance = "random"
-
-# HttpServer配置参数
-[HttpServerOptions]
-  readTimeout = "10s"
-  writeTimeout = "10s"
