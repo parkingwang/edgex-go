@@ -42,18 +42,11 @@ func main() {
 			return
 		}
 
-		go func() {
-			ctx.Log().Debug("开启Evio服务端: ", address)
-			if err := evio.Serve(server, address...); err != nil {
-				ctx.Log().Error("停止Evio服务端出错: ", err)
-			} else {
-				ctx.Log().Debug("停止Evio服务端")
-			}
-		}()
-
 		trigger.Startup()
 		defer trigger.Shutdown()
 
-		return ctx.AwaitTerm()
+		ctx.Log().Debug("开启Evio服务端: ", address)
+		defer ctx.Log().Debug("停止Evio服务端")
+		return evio.Serve(server, address...)
 	})
 }
