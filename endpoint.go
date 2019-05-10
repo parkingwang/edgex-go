@@ -15,25 +15,25 @@ import (
 type Endpoint interface {
 	Lifecycle
 	// 处理消息并返回
-	Serve(func(in Packet) (out Packet))
+	Serve(func(in Message) (out Message))
 }
 
 type EndpointOptions struct {
-	Addr string
-	Name string
+	RpcAddr string
+	Name    string
 }
 
 //// Endpoint实现
 
-type endpoint struct {
+type implEndpoint struct {
 	Endpoint
 	scoped        *GlobalScoped
 	endpointAddr  string
-	messageWorker func(in Packet) (out Packet)
+	messageWorker func(in Message) (out Message)
 	server        *grpc.Server
 }
 
-func (e *endpoint) Startup() {
+func (e *implEndpoint) Startup() {
 	e.server = grpc.NewServer()
 	RegisterExecuteServer(e.server, &executor{
 		handler: e.messageWorker,
@@ -50,12 +50,12 @@ func (e *endpoint) Startup() {
 	}()
 }
 
-func (e *endpoint) Shutdown() {
+func (e *implEndpoint) Shutdown() {
 	log.Info("开启GRPC服务")
 	e.server.Stop()
 }
 
-func (e *endpoint) Serve(w func(in Packet) (out Packet)) {
+func (e *implEndpoint) Serve(w func(in Message) (out Message)) {
 	e.messageWorker = w
 }
 
@@ -63,13 +63,14 @@ func (e *endpoint) Serve(w func(in Packet) (out Packet)) {
 
 type executor struct {
 	ExecuteServer
-	handler func(in Packet) (out Packet)
+	handler func(in Message) (out Message)
 }
 
 func (ex *executor) Execute(c ctx.Context, i *Data) (o *Data, e error) {
 	done := make(chan *Data, 1)
+	in := NewMessageBytes(i.Frames)
 	select {
-	case done <- &Data{Frames: ex.handler(PacketOfBytes(i.Frames))}:
+	case done <- &Data{Frames: ex.handler(in).Bytes()}:
 		return <-done, nil
 
 	case <-c.Done():

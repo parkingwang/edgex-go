@@ -29,7 +29,7 @@ func main() {
 				if bs, err := ioutil.ReadAll(r.Body); nil != err {
 					ctx.Log().Error("读取HttpBody出错: ", err)
 				} else {
-					if err := trigger.Triggered(edgex.PacketOfBytes(bs)); nil != err {
+					if err := trigger.Triggered(edgex.NewMessageBytes(bs)); nil != err {
 						ctx.Log().Error("触发事件出错: ", err)
 					}
 				}

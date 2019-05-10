@@ -15,12 +15,12 @@ func main() {
 		//config := ctx.LoadConfig()
 		// 向系统注册节点
 		opts := edgex.EndpointOptions{
-			Name: "EXAMPLE-PINGPONG",
-			Addr: "0.0.0.0:5570",
+			Name:    "EXAMPLE-PINGPONG",
+			RpcAddr: "0.0.0.0:5570",
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
-		endpoint.Serve(func(in edgex.Packet) (out edgex.Packet) {
+		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
 			recv, _ := strconv.ParseInt(string(in.Bytes()), 10, 64)
 			ctx.Log().Debug("Endpoint用时: ", time.Duration(time.Now().UnixNano()-recv))
 			return in

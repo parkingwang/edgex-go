@@ -5,16 +5,25 @@ package edgex
 //
 
 // Packet消息
-type Packet []byte
-
-func PacketOfString(txt string) Packet {
-	return Packet([]byte(txt))
+type Message interface {
+	Bytes() []byte
 }
 
-func PacketOfBytes(b []byte) Packet {
-	return Packet(b)
+////
+
+type implMessage struct {
+	Message
+	frames []byte
 }
 
-func (p Packet) Bytes() []byte {
-	return []byte(p)
+func (m *implMessage) Bytes() []byte {
+	return m.frames
+}
+
+func NewMessageString(txt string) Message {
+	return NewMessageBytes([]byte(txt))
+}
+
+func NewMessageBytes(b []byte) Message {
+	return &implMessage{frames: b}
 }

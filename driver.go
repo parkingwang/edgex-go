@@ -16,10 +16,10 @@ import (
 type Driver interface {
 	Lifecycle
 	// 处理消息
-	Process(func(event Packet))
+	Process(func(event Message))
 	// 发起一个消息请求，并获取响应消息。
 	// 如果过程中发生错误，返回错误消息
-	Execute(endpointAddr string, in Packet, timeout time.Duration) (out Packet, err error)
+	Execute(endpointAddr string, in Message, timeout time.Duration) (out Message, err error)
 }
 
 type DriverOptions struct {
@@ -27,20 +27,20 @@ type DriverOptions struct {
 	Topics []string
 }
 
-//// Endpoint实现
+//// Driver实现
 
-type driver struct {
-	Endpoint
+type implDriver struct {
+	Driver
 	scoped *GlobalScoped
 	name   string
 	// MQTT
 	topics           []string
 	mqttClient       mqtt.Client
 	mqttTopicTrigger map[string]byte
-	mqttWorker       func(event Packet)
+	mqttWorker       func(event Message)
 }
 
-func (d *driver) Startup() {
+func (d *implDriver) Startup() {
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
 	opts.SetClientID(fmt.Sprintf("Driver-%s", d.name))
@@ -63,12 +63,12 @@ func (d *driver) Startup() {
 		log.Info("开启监听事件[TRIGGER]: ", topic)
 	}
 	d.mqttClient.SubscribeMultiple(d.mqttTopicTrigger, func(cli mqtt.Client, msg mqtt.Message) {
-		d.mqttWorker(PacketOfBytes(msg.Payload()))
+		d.mqttWorker(NewMessageBytes(msg.Payload()))
 	})
 
 }
 
-func (d *driver) Shutdown() {
+func (d *implDriver) Shutdown() {
 	topics := make([]string, 0)
 	for t := range d.mqttTopicTrigger {
 		topics = append(topics, t)
@@ -80,11 +80,11 @@ func (d *driver) Shutdown() {
 	d.mqttClient.Disconnect(1000)
 }
 
-func (d *driver) Process(f func(Packet)) {
+func (d *implDriver) Process(f func(Message)) {
 	d.mqttWorker = f
 }
 
-func (d *driver) Execute(endpointAddr string, in Packet, to time.Duration) (out Packet, err error) {
+func (d *implDriver) Execute(endpointAddr string, in Message, to time.Duration) (out Message, err error) {
 	log.Debug("GRPC调用Endpoint: ", endpointAddr)
 	remote, err := grpc.Dial(endpointAddr, grpc.WithInsecure())
 	if nil != err {
@@ -95,11 +95,11 @@ func (d *driver) Execute(endpointAddr string, in Packet, to time.Duration) (out 
 	defer cancel()
 
 	ret, err := client.Execute(ctx, &Data{
-		Frames: in,
+		Frames: in.Bytes(),
 	})
 
 	if nil != err && nil != ret {
-		return PacketOfBytes(ret.GetFrames()), nil
+		return NewMessageBytes(ret.GetFrames()), nil
 	} else {
 		return nil, err
 	}

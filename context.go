@@ -53,13 +53,13 @@ func Run(handler func(ctx Context) error) {
 
 //// Context实现
 
-type contextImpl struct {
+type implContext struct {
 	scoped      *GlobalScoped
 	serviceName string
 	serviceId   string
 }
 
-func (c *contextImpl) LoadConfig() map[string]interface{} {
+func (c *implContext) LoadConfig() map[string]interface{} {
 	out := make(map[string]interface{})
 	if _, err := toml.DecodeFile("application.toml", &out); nil != err {
 		log.Error("读取配置文件(application.toml)出错: ", err)
@@ -67,80 +67,83 @@ func (c *contextImpl) LoadConfig() map[string]interface{} {
 	return out
 }
 
-func (c *contextImpl) NewTrigger(opts TriggerOptions) Trigger {
+func (c *implContext) NewTrigger(opts TriggerOptions) Trigger {
 	checkContextInitialize(c)
 	checkRequired(opts.Name, "Trigger.Name MUST be specified")
 	checkRequired(opts.Topic, "Trigger.Topic MUST be specified")
 	c.serviceName = "Endpoint"
 	c.serviceId = opts.Name
-	return &trigger{
+	return &implTrigger{
 		scoped: c.scoped,
 		topic:  opts.Topic,
 		name:   opts.Name,
 	}
 }
 
-func (c *contextImpl) NewEndpoint(opts EndpointOptions) Endpoint {
+func (c *implContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	checkContextInitialize(c)
 	checkRequired(opts.Name, "Endpoint.Name MUST be specified")
-	checkRequired(opts.Addr, "Endpoint.Addr MUST be specified")
+	checkRequired(opts.RpcAddr, "Endpoint.RpcAddr MUST be specified")
 	c.serviceName = "Endpoint"
-	c.serviceId = opts.Addr
-	return &endpoint{
+	c.serviceId = opts.RpcAddr
+	return &implEndpoint{
 		scoped:       c.scoped,
-		endpointAddr: opts.Addr,
+		endpointAddr: opts.RpcAddr,
 	}
 }
 
-func (c *contextImpl) NewDriver(opts DriverOptions) Driver {
+func (c *implContext) NewDriver(opts DriverOptions) Driver {
 	checkContextInitialize(c)
 	checkRequired(opts.Name, "Endpoint.Name MUST be specified")
-	checkRequireds(opts.Topics, "Endpoint.Topics MUST be specified")
+	checkRequired(opts.Topics, "Endpoint.Topics MUST be specified")
 	c.serviceName = "Driver"
 	c.serviceId = opts.Name
-	return &driver{
+	return &implDriver{
 		scoped: c.scoped,
 		name:   opts.Name,
 		topics: opts.Topics,
 	}
 }
 
-func (c *contextImpl) WaitChan() <-chan os.Signal {
+func (c *implContext) WaitChan() <-chan os.Signal {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 	signal.Ignore(syscall.SIGPIPE)
 	return sig
 }
 
-func (c *contextImpl) AwaitTerm() error {
+func (c *implContext) AwaitTerm() error {
 	<-c.WaitChan()
 	return nil
 }
 
-func (c *contextImpl) Log() *zap.SugaredLogger {
+func (c *implContext) Log() *zap.SugaredLogger {
 	return log
 }
 
 func newContext(global *GlobalScoped) Context {
-	return &contextImpl{
+	return &implContext{
 		scoped: global,
 	}
 }
 
-func checkContextInitialize(c *contextImpl) {
+func checkContextInitialize(c *implContext) {
 	if c.serviceName != "" {
 		log.Panicf("Context已作为[%]服务使用", c.serviceName)
 	}
 }
 
-func checkRequired(value, message string) {
-	if "" == value {
-		log.Panic(message)
-	}
-}
+func checkRequired(value interface{}, message string) {
+	switch value.(type) {
+	case string:
+		if "" == value {
+			log.Panic(message)
+		}
 
-func checkRequireds(value []string, message string) {
-	if 0 == len(value) {
-		log.Panic(message)
+	case []string:
+		if 0 == len(value.([]string)) {
+			log.Panic(message)
+		}
 	}
+
 }

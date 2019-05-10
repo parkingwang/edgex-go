@@ -26,7 +26,7 @@ func main() {
 
 		const testEndpointAddr = "127.0.0.1:5570"
 
-		driver.Process(func(evt edgex.Packet) {
+		driver.Process(func(evt edgex.Message) {
 			recv, _ := strconv.ParseInt(string(evt.Bytes()), 10, 64)
 
 			ctx.Log().Debug("Driver用时: ", time.Duration(time.Now().UnixNano()-recv))
@@ -50,7 +50,7 @@ func main() {
 			case <-timer.C:
 				execStart := time.Now()
 				_, err := driver.Execute(testEndpointAddr,
-					edgex.PacketOfString(fmt.Sprintf("%v", time.Now().UnixNano())),
+					edgex.NewMessageString(fmt.Sprintf("%v", time.Now().UnixNano())),
 					time.Second)
 				if nil != err {
 					ctx.Log().Error("ScheduleExecute发生错误: ", err)

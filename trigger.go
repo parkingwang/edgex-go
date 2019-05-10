@@ -14,7 +14,7 @@ import (
 type Trigger interface {
 	Lifecycle
 	// 生产事件
-	Triggered(b Packet) error
+	Triggered(b Message) error
 }
 
 type TriggerOptions struct {
@@ -22,9 +22,9 @@ type TriggerOptions struct {
 	Topic string
 }
 
-//// trigger 产生事件
+//// trigger
 
-type trigger struct {
+type implTrigger struct {
 	Trigger
 	scoped *GlobalScoped
 	topic  string // Trigger产生的事件Topic
@@ -34,7 +34,7 @@ type trigger struct {
 	mqttTopic  string
 }
 
-func (t *trigger) Startup() {
+func (t *implTrigger) Startup() {
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
 	opts.SetClientID(fmt.Sprintf("Trigger-%s", t.name))
@@ -51,7 +51,7 @@ func (t *trigger) Startup() {
 	}
 }
 
-func (t *trigger) Triggered(b Packet) error {
+func (t *implTrigger) Triggered(b Message) error {
 	token := t.mqttClient.Publish(
 		t.mqttTopic,
 		t.scoped.MqttQoS,
@@ -64,6 +64,6 @@ func (t *trigger) Triggered(b Packet) error {
 	}
 }
 
-func (t *trigger) Shutdown() {
+func (t *implTrigger) Shutdown() {
 	t.mqttClient.Disconnect(1000)
 }
