@@ -8,3 +8,7 @@ Address = "0.0.0.0:5573"
 [HttpServerOptions]
   readTimeout = "10s"
   writeTimeout = "10s"
+
+# HttpClient配置参数
+[HttpClientOptions]
+  clientTimeout = "5s"
