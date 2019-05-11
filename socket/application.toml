@@ -2,6 +2,7 @@
 Desc = "使用Socket监听端口并接收原始字节数据"
 Name = "SocketServerTrigger"
 Topic = "tcp/001"
+Broadcast = false
 Address = [
     "tcp://0.0.0.0:5570",
     "udp://0.0.0.0:5570"

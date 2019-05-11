@@ -9,13 +9,16 @@ import (
 
 //
 // Author: 陈哈哈 yoojiachen@gmail.com
-//
+// 使用Socket客户端作为Endpoint，接收GRPC控制指令，并转发到指定Socket客户端
 
 func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 		config := ctx.LoadConfig()
 		name := value.Of(config["Name"]).String()
 		rpcAddress := value.Of(config["RpcAddress"]).String()
+		// 是否作为广播Endpoint。
+		// 如果设置为广播终端，不会接收Socket客户端的响应数据
+		broadcast := value.Of(config["Broadcast"]).BoolOrDefault(false)
 
 		sockOpts := value.Of(config["SocketClientOptions"]).MustMap()
 		targetAddress := value.Of(sockOpts["targetAddress"]).String()
@@ -47,11 +50,19 @@ func main() {
 		})
 
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			if ret, err := client.Execute(in.Bytes()); nil != err {
-				ctx.Log().Error("Execute failed", err)
-				return edgex.NewMessageString("ERR:" + err.Error())
+			if broadcast {
+				if _, err := client.Send(in.Bytes()); nil != err {
+					return edgex.NewMessageString("ERR:" + err.Error())
+				} else {
+					return edgex.NewMessageString("OK:BROADCAST")
+				}
 			} else {
-				return edgex.NewMessageBytes(ret)
+				if ret, err := client.Execute(in.Bytes()); nil != err {
+					ctx.Log().Error("Execute failed", err)
+					return edgex.NewMessageString("ERR:" + err.Error())
+				} else {
+					return edgex.NewMessageBytes(ret)
+				}
 			}
 		})
 
