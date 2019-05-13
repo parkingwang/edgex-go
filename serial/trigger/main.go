@@ -24,7 +24,7 @@ func main() {
 			Topic: topic,
 		})
 
-		rawOpts := value.Of(config["SerialOptions"]).MustMap()
+		rawOpts := value.Of(config["SerialPortOptions"]).MustMap()
 		serialOpts := utils.GetSerialConfig(rawOpts, time.Second*1)
 		port, err := serial.OpenPort(serialOpts)
 		if nil != err {

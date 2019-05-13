@@ -1,7 +1,5 @@
-# Trigger顶级必要的配置参数
-Desc = "使用串口监听端口并接收数据"
-Name = "HttpServerTrigger"
-Topic = "http/001"
+# 顶级必要的配置参数
+Name = "SerialServerEndpoint"
 RpcAddress = "0.0.0.0:5570"
 Broadcast = false
 
