@@ -1,6 +1,6 @@
 FROM busybox
 
-LABEL MAINTAINER Yoojia.Chen "yoojiachen@gmail.com"
+LABEL MAINTAINER="yoojiachen@gmail.com"
 
 # 执行文件名称，须与 name.txt 中一致
 COPY edgex-endpoint-serial /bin/
