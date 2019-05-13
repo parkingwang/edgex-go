@@ -11,6 +11,8 @@ require (
 	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
 	github.com/tidwall/evio v1.0.2
+	github.com/yoojia/go-at v0.1.0-pre.0
+	github.com/yoojia/go-jsonx v1.1.1
 	github.com/yoojia/go-value v0.0.3+incompatible
 	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/multierr v1.1.0 // indirect

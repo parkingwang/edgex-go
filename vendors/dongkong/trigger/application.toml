@@ -1,0 +1,9 @@
+# 顶级必要的配置参数
+Name = "DongKongTrigger"
+Topic = "dongkong/events"
+
+# SocketServer配置参数
+[SocketServerOptions]
+  address = [
+      "udp://0.0.0.0:5570"
+  ]
