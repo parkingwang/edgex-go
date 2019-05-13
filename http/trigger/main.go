@@ -17,7 +17,6 @@ func main() {
 		config := ctx.LoadConfig()
 		name := value.Of(config["Name"]).String()
 		topic := value.Of(config["Topic"]).String()
-		address := value.Of(config["Address"]).String()
 
 		trigger := ctx.NewTrigger(edgex.TriggerOptions{
 			Name:  name,
@@ -42,9 +41,9 @@ func main() {
 		})
 
 		opts := value.Of(config["HttpServerOptions"]).MustMap()
-
+		serverAddr := value.Of(opts["listenAddress"]).String()
 		server := &http.Server{
-			Addr:           address,
+			Addr:           serverAddr,
 			Handler:        handler,
 			ReadTimeout:    value.Of(opts["readTimeout"]).DurationOfDefault(3 * time.Second),
 			WriteTimeout:   value.Of(opts["writeTimeout"]).DurationOfDefault(3 * time.Second),
@@ -55,7 +54,7 @@ func main() {
 		trigger.Startup()
 		defer trigger.Shutdown()
 
-		ctx.Log().Debug("开启Http服务端: ", address)
+		ctx.Log().Debug("开启Http服务端: ", serverAddr)
 		defer ctx.Log().Debug("停止Http服务端")
 		return server.ListenAndServe()
 	})

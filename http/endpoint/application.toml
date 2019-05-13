@@ -1,0 +1,12 @@
+# Endpoint顶级必要的配置参数
+Desc = "使用Http客户端将RPC的数据POST到远程服务器"
+Name = "HttpServerEndpoint"
+Topic = "http/001"
+RpcAddress = "0.0.0.0:5570"
+Broadcast = false
+
+# HttpClient配置参数
+[HttpClientOptions]
+  targetUrl = "http://remote-server.com/post-path"
+  contentType = "application/json"
+  clientTimeout = "5s"

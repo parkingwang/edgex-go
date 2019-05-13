@@ -2,15 +2,9 @@
 Desc = "使用Http监听端口并接收POST原始字节数据"
 Name = "HttpServerTrigger"
 Topic = "http/001"
-Address = "0.0.0.0:5573"
-RpcAddress = "0.0.0.0:5573"
-Broadcast = false
 
 # HttpServer配置参数
 [HttpServerOptions]
+  listenAddress = "0.0.0.0:5571"
   readTimeout = "10s"
   writeTimeout = "10s"
-
-# HttpClient配置参数
-[HttpClientOptions]
-  clientTimeout = "5s"
