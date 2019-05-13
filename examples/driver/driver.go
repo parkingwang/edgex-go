@@ -58,7 +58,7 @@ func main() {
 					ctx.Log().Debug("ScheduleExecute用时: ", time.Since(execStart))
 				}
 
-			case <-ctx.WaitChan():
+			case <-ctx.TermChan():
 				timer.Stop()
 				return nil
 			}

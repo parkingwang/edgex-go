@@ -43,7 +43,7 @@ func main() {
 		buffer := make([]byte, value.Of(rawOpts["bufferSize"]).Int64OrDefault(1024))
 		for {
 			select {
-			case <-ctx.WaitChan():
+			case <-ctx.TermChan():
 				return port.Close()
 
 			default:

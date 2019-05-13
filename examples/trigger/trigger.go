@@ -34,7 +34,7 @@ func main() {
 					ctx.Log().Error("Trigger发送消息失败")
 				}
 
-			case <-ctx.WaitChan():
+			case <-ctx.TermChan():
 				timer.Stop()
 				return nil
 			}

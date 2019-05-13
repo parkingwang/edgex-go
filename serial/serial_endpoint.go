@@ -59,6 +59,6 @@ func main() {
 			}
 		})
 
-		return ctx.AwaitTerm()
+		return ctx.TermAwait()
 	})
 }

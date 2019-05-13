@@ -31,6 +31,6 @@ func main() {
 
 		ctx.Log().Debugf("创建Endpoint节点: [%s]", opts.Name)
 
-		return ctx.AwaitTerm()
+		return ctx.TermAwait()
 	})
 }

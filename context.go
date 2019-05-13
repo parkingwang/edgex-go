@@ -29,10 +29,10 @@ type Context interface {
 	NewDriver(opts DriverOptions) Driver
 
 	// 返回等待通道
-	WaitChan() <-chan os.Signal
+	TermChan() <-chan os.Signal
 
 	// 阻塞等待终止信号
-	AwaitTerm() error
+	TermAwait() error
 }
 
 ////
@@ -105,15 +105,15 @@ func (c *implContext) NewDriver(opts DriverOptions) Driver {
 	}
 }
 
-func (c *implContext) WaitChan() <-chan os.Signal {
+func (c *implContext) TermChan() <-chan os.Signal {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 	signal.Ignore(syscall.SIGPIPE)
 	return sig
 }
 
-func (c *implContext) AwaitTerm() error {
-	<-c.WaitChan()
+func (c *implContext) TermAwait() error {
+	<-c.TermChan()
 	return nil
 }
 

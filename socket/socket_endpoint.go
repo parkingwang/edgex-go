@@ -71,6 +71,6 @@ func main() {
 		endpoint.Startup()
 		defer endpoint.Shutdown()
 
-		return ctx.AwaitTerm()
+		return ctx.TermAwait()
 	})
 }
