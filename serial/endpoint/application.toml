@@ -1,5 +1,5 @@
 # 顶级必要的配置参数
-Name = "SerialServerEndpoint"
+Name = "SerialClientEndpoint"
 RpcAddress = "0.0.0.0:5570"
 Broadcast = false
 

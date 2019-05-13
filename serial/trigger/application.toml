@@ -1,5 +1,5 @@
 # 顶级必要的配置参数
-Name = "SerialClientTrigger"
+Name = "SerialServerTrigger"
 Topic = "http/001"
 
 # SerialPort配置参数

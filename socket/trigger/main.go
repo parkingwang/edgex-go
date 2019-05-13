@@ -18,7 +18,6 @@ func main() {
 		config := ctx.LoadConfig()
 		name := value.Of(config["Name"]).String()
 		topic := value.Of(config["Topic"]).String()
-		address := value.Of(config["Address"]).MustStringArray()
 
 		trigger := ctx.NewTrigger(edgex.TriggerOptions{
 			Name:  name,
@@ -65,6 +64,7 @@ func main() {
 		trigger.Startup()
 		defer trigger.Shutdown()
 
+		address := value.Of(opts["address"]).MustStringArray()
 		ctx.Log().Debug("开启Evio服务端: ", address)
 		defer ctx.Log().Debug("停止Evio服务端")
 		return evio.Serve(server, address...)
