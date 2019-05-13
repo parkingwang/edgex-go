@@ -7,7 +7,7 @@ Broadcast = false
 
 # SerialPort配置参数
 [SerialPortOptions]
-  serialPort = "COM4"
+  serialPort = "/dev/ttyUSB0"
   readTimeout = "1s"
   bufferSize = 64
   baudRate = 115200

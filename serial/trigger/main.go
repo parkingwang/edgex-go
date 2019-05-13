@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/tarm/serial"
 	"github.com/yoojia/edgex"
+	utils "github.com/yoojia/edgex/serial"
 	"github.com/yoojia/go-value"
 	"os"
 	"time"
@@ -24,7 +25,7 @@ func main() {
 		})
 
 		rawOpts := value.Of(config["SerialOptions"]).MustMap()
-		serialOpts := getSerialConfig(rawOpts, time.Second*1)
+		serialOpts := utils.GetSerialConfig(rawOpts, time.Second*1)
 		port, err := serial.OpenPort(serialOpts)
 		if nil != err {
 			ctx.Log().Panic("打开串口出错: ", err)

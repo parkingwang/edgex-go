@@ -1,4 +1,4 @@
-package main
+package serial
 
 import (
 	"github.com/tarm/serial"
@@ -11,7 +11,7 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-func getSerialConfig(config map[string]interface{}, timeout time.Duration) *serial.Config {
+func GetSerialConfig(config map[string]interface{}, timeout time.Duration) *serial.Config {
 	parity := serial.ParityNone
 	switch strings.ToUpper(value.Of(config["parity"]).String()) {
 	case "N", "NONE":
