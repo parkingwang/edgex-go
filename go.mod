@@ -9,6 +9,7 @@ require (
 	github.com/kavu/go_reuseport v1.4.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.3.0 // indirect
+	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
 	github.com/tidwall/evio v1.0.2
 	github.com/yoojia/go-value v0.0.3+incompatible
 	go.uber.org/atomic v1.4.0 // indirect
