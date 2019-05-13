@@ -51,7 +51,7 @@ func (e *implEndpoint) Startup() {
 }
 
 func (e *implEndpoint) Shutdown() {
-	log.Info("开启GRPC服务")
+	log.Info("停止GRPC服务")
 	e.server.Stop()
 }
 
