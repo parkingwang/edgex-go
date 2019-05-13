@@ -1,6 +1,8 @@
 package edgex
 
 import (
+	"errors"
+	"fmt"
 	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
 	"os"
@@ -51,6 +53,16 @@ func Run(handler func(ctx Context) error) {
 	}
 }
 
+const (
+	AppConfEnvKey   = "EdgeX.Config"
+	DefaultConfName = "application.toml"
+	DefaultConfFile = "/etc/edgex/application.toml"
+)
+
+var (
+	ErrConfigNotExist = errors.New("config not exists")
+)
+
 //// Context实现
 
 type implContext struct {
@@ -60,18 +72,32 @@ type implContext struct {
 }
 
 func (c *implContext) LoadConfig() map[string]interface{} {
-	out := make(map[string]interface{})
-	if _, err := toml.DecodeFile("application.toml", &out); nil != err {
-		log.Error("读取配置文件(application.toml)出错: ", err)
+	searchConfig := func(files ...string) (f string, err error) {
+		for _, file := range files {
+			if _, err := os.Stat(file); nil == err {
+				return file, nil
+			}
+		}
+		return "", ErrConfigNotExist
 	}
-	return out
+	config := make(map[string]interface{})
+	file, err := searchConfig(DefaultConfName, DefaultConfFile, os.Getenv(AppConfEnvKey))
+	if nil != err {
+		log.Panic("未设置任何配置文件")
+	} else {
+		log.Debug("加载配置文件：", file)
+	}
+	if _, err := toml.DecodeFile(file, &config); nil != err {
+		log.Error(fmt.Sprintf("读取配置文件(%s)出错: ", file), err)
+	}
+	return config
 }
 
 func (c *implContext) NewTrigger(opts TriggerOptions) Trigger {
 	checkContextInitialize(c)
 	checkRequired(opts.Name, "Trigger.Name MUST be specified")
 	checkRequired(opts.Topic, "Trigger.Topic MUST be specified")
-	c.serviceName = "Endpoint"
+	c.serviceName = "Trigger"
 	c.serviceId = opts.Name
 	return &implTrigger{
 		scoped: c.scoped,
