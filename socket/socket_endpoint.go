@@ -51,15 +51,17 @@ func main() {
 
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
 			if broadcast {
-				if _, err := client.Send(in.Bytes()); nil != err {
-					return edgex.NewMessageString("ERR:" + err.Error())
+				if n, err := client.Send(in.Bytes()); nil != err {
+					return edgex.NewMessageString("EX=ERR:" + err.Error())
+				} else if n != in.Size() {
+					return edgex.NewMessageString("EX=ERR:WRITE_NOT_FINISHED")
 				} else {
-					return edgex.NewMessageString("OK:BROADCAST")
+					return edgex.NewMessageString("EX=OK:BROADCAST")
 				}
 			} else {
 				if ret, err := client.Execute(in.Bytes()); nil != err {
 					ctx.Log().Error("Execute failed", err)
-					return edgex.NewMessageString("ERR:" + err.Error())
+					return edgex.NewMessageString("EX=ERR:" + err.Error())
 				} else {
 					return edgex.NewMessageBytes(ret)
 				}

@@ -7,6 +7,7 @@ package edgex
 // Packet消息
 type Message interface {
 	Bytes() []byte
+	Size() int
 }
 
 ////
@@ -18,6 +19,10 @@ type implMessage struct {
 
 func (m *implMessage) Bytes() []byte {
 	return m.frames
+}
+
+func (m *implMessage) Size() int {
+	return len(m.frames)
 }
 
 func NewMessageString(txt string) Message {

@@ -38,14 +38,14 @@ func main() {
 			resp, err := client.Post(targetUrl, contentType, bytes.NewReader(in.Bytes()))
 			if nil != err {
 				ctx.Log().Error("创建Post请求出错: ", err)
-				return edgex.NewMessageString("ERR:" + err.Error())
+				return edgex.NewMessageString("EX=ERR:" + err.Error())
 			}
 			if broadcast {
-				return edgex.NewMessageString("OK:BROADCAST")
+				return edgex.NewMessageString("EX=OK:BROADCAST")
 			}
 			if bs, err := ioutil.ReadAll(resp.Body); nil != err {
 				ctx.Log().Error("读取Post请求响应出错: ", err)
-				return edgex.NewMessageString("ERR:" + err.Error())
+				return edgex.NewMessageString("EX=ERR:" + err.Error())
 			} else {
 				return edgex.NewMessageBytes(bs)
 			}
