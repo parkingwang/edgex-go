@@ -37,7 +37,7 @@ func main() {
 				return []byte("EX=ERR:INVALID_CMD_SIZE"), action
 			}
 			// 非监控数据，忽略
-			if cmd.FuncId() != dongk.DkFunIdBoardState {
+			if cmd.FuncId != dongk.DkFunIdBoardState {
 				ctx.Log().Debug("接收到非监控状态数据")
 				return []byte("EX=ERR:INVALID_STATE"), action
 			}
@@ -47,9 +47,9 @@ func main() {
 			// 2. 门磁、按钮、设备启动、远程开门记录
 			// 3. 报警记录
 			// Reader一个按顺序读取字节数组的包装类
-			reader := edgex.WrapByteReader(cmd.Data()[:], binary.LittleEndian)
+			reader := edgex.WrapByteReader(cmd.Data[:], binary.LittleEndian)
 			json := jsonx.NewFatJSON()
-			json.Field("sn", cmd.SerialNum())
+			json.Field("sn", cmd.SerialNum)
 			json.Field("card", hex.EncodeToString(reader.GetBytesSize(4)))
 			reader.GetBytesSize(7) // 丢弃timestamp数据
 			json.Field("index", reader.GetUint32())

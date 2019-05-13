@@ -31,54 +31,38 @@ const (
 
 // 东控门禁主板指令
 type Command struct {
-	magic    byte     // 1
-	funcId   byte     // 1
-	reversed uint16   // 2
-	sn       uint32   // 4
-	data     [32]byte // 32
-	seqId    uint32   // 4
-	extra    [20]byte // 20
-}
-
-func (dk *Command) FuncId() byte {
-	return dk.funcId
-}
-
-func (dk *Command) SerialNum() uint32 {
-	return dk.sn
-}
-
-func (dk *Command) Data() [32]byte {
-	return dk.data
-}
-
-func (dk *Command) SeqId() uint32 {
-	return dk.seqId
+	Magic     byte     // 1
+	FuncId    byte     // 1
+	reversed  uint16   // 2
+	SerialNum uint32   // 4
+	Data      [32]byte // 32
+	SeqId     uint32   // 4
+	Extra     [20]byte // 20
 }
 
 func (dk *Command) Bytes() []byte {
 	// 东控数据包使用小字节序
 	br := edgex.NewByteWriter(binary.LittleEndian)
-	br.PutByte(dk.magic)
-	br.PutByte(dk.funcId)
+	br.PutByte(dk.Magic)
+	br.PutByte(dk.FuncId)
 	br.PutUint16(dk.reversed)
-	br.PutUint32(dk.sn)
-	br.PutBytes(dk.data[:])
-	br.PutUint32(dk.seqId)
-	br.PutBytes(dk.extra[:])
+	br.PutUint32(dk.SerialNum)
+	br.PutBytes(dk.Data[:])
+	br.PutUint32(dk.SeqId)
+	br.PutBytes(dk.Extra[:])
 	return br.Bytes()
 }
 
 // 创建DK指令
 func NewCommand0(magic, funcId byte, nop uint16, serial uint32, seqId uint32, data [32]byte, extra [20]byte) *Command {
 	return &Command{
-		magic:    magic,
-		funcId:   funcId,
-		reversed: nop,
-		sn:       serial,
-		data:     data,
-		seqId:    seqId,
-		extra:    extra,
+		Magic:     magic,
+		FuncId:    funcId,
+		reversed:  nop,
+		SerialNum: serial,
+		Data:      data,
+		SeqId:     seqId,
+		Extra:     extra,
 	}
 }
 

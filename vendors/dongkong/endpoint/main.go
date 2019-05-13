@@ -8,7 +8,6 @@ import (
 	"github.com/yoojia/go-at"
 	"github.com/yoojia/go-value"
 	"net"
-	"os"
 	"strconv"
 	"time"
 )
@@ -28,77 +27,118 @@ func main() {
 		readTimeout := value.Of(sockOpts["readTimeout"]).DurationOfDefault(time.Second)
 		writeTimeout := value.Of(sockOpts["writeTimeout"]).DurationOfDefault(time.Second)
 
-		// 向系统注册节点
-		opts := edgex.EndpointOptions{
-			Name:    name,
-			RpcAddr: rpcAddress,
-		}
-		endpoint := ctx.NewEndpoint(opts)
-
-		ctx.Log().Debugf("连接目标地址: [udp://%s]", remoteAddress)
-
-		addr, err := net.ResolveUDPAddr("udp", remoteAddress)
-		if nil != err {
-			return errors.WithMessage(err, "Resolve udp address failed")
-		}
-		udpConn, err := net.DialUDP("udp", nil, addr)
-		if nil != err {
-			return errors.WithMessage(err, "UDP dial failed")
-		}
-
 		boardOpts := value.Of(config["BoardOptions"]).MustMap()
 		serialNumber := uint32(value.Of(boardOpts["serialNumber"]).MustInt64())
 
-		parser := at.NewAtRegister()
-		parser.Add("OPEN", func(args ...string) (data []byte, err error) {
-			switchId, err := strconv.ParseInt(args[0], 10, 64)
-			if nil != err {
-				return nil, errors.New("INVALID_SWITCH_ID:" + args[0])
-			}
-			return dongk.NewCommand(dongk.DkFunIdRemoteOpen, serialNumber, 0, [32]byte{byte(switchId)}).Bytes(),
-				nil
-		})
+		// AT指令解析
+		registry := at.NewAtRegister()
+		registryAt(registry, serialNumber)
+
+		ctx.Log().Debugf("连接目标地址: [udp://%s]", remoteAddress)
+		conn, err := makeUdpConn(remoteAddress)
+		if nil != err {
+			return err
+		}
 
 		buffer := make([]byte, 64)
+		endpoint := ctx.NewEndpoint(edgex.EndpointOptions{
+			Name:    name,
+			RpcAddr: rpcAddress,
+		})
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			// 转控制指令，转换成DK指令
-			dkCmd, err := parser.Apply(string(in.Bytes()))
+			cmd, err := registry.Apply(string(in.Bytes()))
 			if nil != err {
 				return edgex.NewMessageString("EX=ERR:" + err.Error())
 			}
-
-			cmd, _ := dongk.ParseCommand(dkCmd)
-
 			// Write
-			udpConn.SetWriteDeadline(time.Now().Add(writeTimeout))
-			if _, err := udpConn.Write(cmd.Bytes()); nil != err {
+			if err := tryWrite(conn, cmd, writeTimeout); nil != err {
 				return edgex.NewMessageString("EX=ERR:" + err.Error())
 			}
+			// Read
+			var n = int(0)
 			for i := 0; i < 3; i++ {
-				udpConn.SetReadDeadline(time.Now().Add(readTimeout))
-				if _, err := udpConn.Read(buffer); nil != err {
-					if pe, ok := err.(*os.PathError); ok && pe.Timeout() {
-						<-time.After(time.Second)
-						continue
-					} else {
-						return edgex.NewMessageString("EX=ERR:" + err.Error())
-					}
+				if n, err = tryRead(conn, buffer, readTimeout); nil != err {
+					ctx.Log().Error("读取数据出错:", err)
+					<-time.After(time.Second)
+				} else {
+					break
 				}
-				// parse
+			}
+			// parse
+			if n > 0 {
 				if retCmd, err := dongk.ParseCommand(buffer); nil != err {
 					return edgex.NewMessageString("EX=ERR:" + err.Error())
-				} else if retCmd.Data()[0] == 0x01 {
-					return edgex.NewMessageString(fmt.Sprintf("EX=OK:%d", cmd.FuncId()))
+				} else if retCmd.Data[0] == 0x01 {
+					return edgex.NewMessageString(fmt.Sprintf("EX=OK"))
 				} else {
 					return edgex.NewMessageString("EX=ERR:NOT_OK")
 				}
+			} else {
+				return edgex.NewMessageString("EX=ERR:NO_REPLY")
 			}
-			return edgex.NewMessageString("EX=ERR:EMPTY_RESPONSE")
+
 		})
 
 		endpoint.Startup()
 		defer endpoint.Shutdown()
 
 		return ctx.TermAwait()
+	})
+}
+
+func makeUdpConn(remoteAddr string) (*net.UDPConn, error) {
+	addr, err := net.ResolveUDPAddr("udp", remoteAddr)
+	if nil != err {
+		return nil, errors.WithMessage(err, "Resolve udp address failed")
+	}
+	return net.DialUDP("udp", nil, addr)
+}
+
+func tryWrite(conn *net.UDPConn, bs []byte, to time.Duration) error {
+	if err := conn.SetWriteDeadline(time.Now().Add(to)); nil != err {
+		return err
+	}
+	if _, err := conn.Write(bs); nil != err {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func tryRead(conn *net.UDPConn, buffer []byte, to time.Duration) (n int, err error) {
+	if err := conn.SetReadDeadline(time.Now().Add(to)); nil != err {
+		return 0, err
+	}
+	return conn.Read(buffer)
+}
+
+func registryAt(registry *at.AtRegister, serialNumber uint32) {
+	// AT+OPEN=SWITCH_ID
+	registry.Add("OPEN", func(args ...string) (data []byte, err error) {
+		switchId, err := strconv.ParseInt(args[0], 10, 64)
+		if nil != err {
+			return nil, errors.New("INVALID_SWITCH_ID:" + args[0])
+		}
+		return dongk.NewCommand(dongk.DkFunIdRemoteOpen,
+			serialNumber,
+			0,
+			[32]byte{byte(switchId)}).Bytes(),
+			nil
+	})
+	// AT+DELAY=SWITCH_ID,DELAY_SEC
+	registry.Add("DELAY", func(args ...string) (data []byte, err error) {
+		switchId, err := strconv.ParseInt(args[0], 10, 64)
+		if nil != err {
+			return nil, errors.New("INVALID_SWITCH_ID:" + args[0])
+		}
+		sec, err := strconv.ParseInt(args[1], 10, 64)
+		if nil != err {
+			return nil, errors.New("INVALID_DELAY_SEC:" + args[1])
+		}
+		return dongk.NewCommand(dongk.DkFunIdSwitchDelay,
+			serialNumber,
+			0,
+			[32]byte{byte(switchId), byte(sec)}, ).Bytes(),
+			nil
 	})
 }
