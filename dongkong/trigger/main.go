@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"github.com/tidwall/evio"
 	"github.com/yoojia/edgex"
-	"github.com/yoojia/edgex/vendors/dongkong"
+	dongk "github.com/yoojia/edgex/dongkong"
 	"github.com/yoojia/go-jsonx"
 	"github.com/yoojia/go-value"
 )

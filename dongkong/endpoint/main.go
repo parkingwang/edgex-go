@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/yoojia/edgex"
-	"github.com/yoojia/edgex/vendors/dongkong"
+	dongk "github.com/yoojia/edgex/dongkong"
 	"github.com/yoojia/go-at"
 	"github.com/yoojia/go-value"
 	"net"

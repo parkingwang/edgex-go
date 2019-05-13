@@ -7,6 +7,8 @@ modules=( \
 "serial/trigger" \
 "socket/endpoint" \
 "socket/trigger" \
+"dongkong/endpoint" \
+"dongkong/trigger" \
 )
 
 makeModule() {

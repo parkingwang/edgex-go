@@ -26,6 +26,7 @@ github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07 h1:UyzmZLoiDWMRywV4DUY
 github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07/go.mod h1:kDXzergiv9cbyO7IOYJZWg1U88JhDg3PB6klq9Hg2pA=
 github.com/tidwall/evio v1.0.2 h1:vhPp5nVS5PZfR0CfV5ixqDEf+BKQFcaR1W1XeLLkvRE=
 github.com/tidwall/evio v1.0.2/go.mod h1:cYtY49LddNrlpsOmW7qJnqM8B2gOjrFrzT8+Fnb/GKs=
+github.com/yoojia/go-at v0.1.0-pre.0 h1:sW1rf4WqcdmXpaI4rQa5BsaJAATpAV6VibGmFERHMxg=
 github.com/yoojia/go-at v0.1.0-pre.0/go.mod h1:xCXmScyGWWG3pmPcDbSqDGwAME3XjenxjBQIa5JeoR0=
 github.com/yoojia/go-jsonx v1.1.1/go.mod h1:Y8rQbOLwD0uOND+rbv6UlRCMWqFcUPgiAAYaNFHwe7E=
 github.com/yoojia/go-value v0.0.3+incompatible h1:2/sepIVTpghtoXr4fOCjNantZDXwrvftI9+N8KMGvyI=
