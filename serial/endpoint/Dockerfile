@@ -2,11 +2,15 @@ FROM busybox
 
 LABEL MAINTAINER Yoojia.Chen "yoojiachen@gmail.com"
 
-COPY edgex-endpoint.bin /app/
-COPY application.toml /app/
-WORKDIR /app/
+# 执行文件名称，须与 name.txt 中一致
+COPY edgex-endpoint-serial /bin/
 
-# 端口参考配置文件的RPC通讯端口
-EXPOSE 5573
+COPY application.toml /etc/edgex/
 
-ENTRYPOINT ["./edgex-endpoint.bin"]
+# 端口参考配置文件的通讯端口
+EXPOSE 5570
+
+# 串口设备
+VOLUME ["/dev/ttyUSB0"]
+
+ENTRYPOINT ["edgex-endpoint-serial"]

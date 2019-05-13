@@ -1,9 +1,9 @@
+BINARY=$(shell cat name.txt)
+
 IMAGE_TAG?=latest
 IMAGE_ORG?=yoojia
-IMAGE_APP=edgex-trigger-http
+IMAGE_APP=${BINARY}
 
-# Ref to Dockerfile
-BINARY=edgex-trigger
 # Build opts
 BUILD_ARCH=amd64
 BUILD_ENV?=CGO_ENABLED=0 GOOS=linux GOARCH=${BUILD_ARCH}
@@ -11,16 +11,15 @@ BUILD_ENV?=CGO_ENABLED=0 GOOS=linux GOARCH=${BUILD_ARCH}
 all: build package.zip
 
 
-build: $(SRC)
-	@echo "Go BUILD $@"
-	@${BUILD_ENV} go build ${LD_FLAGS} -o ${BINARY}.raw.bin .
-	rm -f ${BINARY}.bin
-	upx -o ${BINARY}.bin ${BINARY}.raw.bin
-	rm -f ${BINARY}.raw.bin
-
+build:
+	@echo "Go BUILD ${BINARY}"
+	@${BUILD_ENV} go build ${LD_FLAGS} -o ${BINARY}.raw .
+	rm -f ${BINARY}
+	upx -o ${BINARY} ${BINARY}.raw
+	rm -f ${BINARY}.raw
 
 package.zip: build
-	zip -r package.zip ${BINARY}.bin application.toml
+	zip -r package.zip ${BINARY} application.toml
 
 
 image: build
@@ -29,5 +28,5 @@ image: build
 
 .PHONY: clean all
 clean:
-	rm *.bin *.zip
+	rm -f ${BINARY} package.zip
 
