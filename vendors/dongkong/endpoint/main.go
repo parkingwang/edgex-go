@@ -90,7 +90,7 @@ func main() {
 				} else if retCmd.Data()[0] == 0x01 {
 					return edgex.NewMessageString(fmt.Sprintf("EX=OK:%d", cmd.FuncId()))
 				} else {
-					return edgex.NewMessageString("EX=ERR:" + err.Error())
+					return edgex.NewMessageString("EX=ERR:NOT_OK")
 				}
 			}
 			return edgex.NewMessageString("EX=ERR:EMPTY_RESPONSE")
