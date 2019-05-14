@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/BurntSushi/toml v0.3.1
+	github.com/albenik/bcd v0.0.0-20170831201648-635201416bc7 // indirect
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/golang/protobuf v1.3.1
 	github.com/kavu/go_reuseport v1.4.0 // indirect
