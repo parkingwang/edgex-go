@@ -72,10 +72,18 @@ type ByteWriter struct {
 }
 
 func NewByteWriter(order binary.ByteOrder) *ByteWriter {
+	return WrapByteBufferWriter(bytes.NewBuffer(make([]byte, 0)), order)
+}
+
+func WrapByteWriter(buffer []byte, order binary.ByteOrder) *ByteWriter {
+	return WrapByteBufferWriter(bytes.NewBuffer(buffer), order)
+}
+
+func WrapByteBufferWriter(buffer *bytes.Buffer, order binary.ByteOrder) *ByteWriter {
 	return &ByteWriter{
 		wrapper: &wrapper{
 			order:  order,
-			buffer: bytes.NewBuffer(make([]byte, 0)),
+			buffer: buffer,
 		},
 	}
 }
