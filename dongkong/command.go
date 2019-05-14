@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/nextabc-lab/edgex"
-	"strconv"
 )
 
 //
@@ -53,6 +52,11 @@ func (dk *Command) Bytes() []byte {
 	return br.Bytes()
 }
 
+// Success 返回接收报文的成功标记位状态
+func (dk *Command) Success() bool {
+	return 0x01 == dk.Data[0]
+}
+
 // 创建DK指令
 func NewCommand0(magic, funcId byte, nop uint16, serial uint32, seqId uint32, data [32]byte, extra [20]byte) *Command {
 	return &Command{
@@ -78,17 +82,16 @@ func NewCommand(funcId byte, serialId uint32, seqId uint32, data [32]byte) *Comm
 		[20]byte{})
 }
 
-// 解析DK数据指令。如果数据指令长度不是64位，返回错误
+// 解析DK数据指令。
 func ParseCommand(frame []byte) (*Command, error) {
-	size := len(frame)
-	if 64 != size {
-		return nil, errors.New("东控指令帧长度错误:" + strconv.FormatInt(int64(size), 10))
+	if len(frame) < 9 {
+		return nil, errors.New("invalid bytes len")
 	}
 	br := edgex.WrapByteReader(frame, binary.LittleEndian)
 	magic := br.GetByte()
 	funId := br.GetByte()
 	reserved := br.GetUint16()
-	serial := br.GetUint32()
+	serialNum := br.GetUint32()
 	data := [32]byte{}
 	copy(data[:], br.GetBytesSize(32))
 	seqId := br.GetUint32()
@@ -98,7 +101,7 @@ func ParseCommand(frame []byte) (*Command, error) {
 		magic,
 		funId,
 		reserved,
-		serial,
+		serialNum,
 		seqId,
 		data,
 		extra,
