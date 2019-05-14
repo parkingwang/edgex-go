@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/nextabc-lab/edgex"
+	"github.com/nextabc-lab/edgex/dongkong"
 	"github.com/pkg/errors"
-	"github.com/yoojia/edgex"
-	dongk "github.com/yoojia/edgex/dongkong"
 	"github.com/yoojia/go-at"
 	"github.com/yoojia/go-value"
 	"net"
@@ -120,9 +120,9 @@ func registryAt(registry *at.AtRegister, serialNumber uint32) {
 			return nil, errors.New("INVALID_SWITCH_ID:" + args[0])
 		}
 		return dongk.NewCommand(dongk.DkFunIdRemoteOpen,
-			serialNumber,
-			0,
-			[32]byte{byte(switchId)}).Bytes(),
+				serialNumber,
+				0,
+				[32]byte{byte(switchId)}).Bytes(),
 			nil
 	})
 	// AT+DELAY=SWITCH_ID,DELAY_SEC
@@ -136,9 +136,9 @@ func registryAt(registry *at.AtRegister, serialNumber uint32) {
 			return nil, errors.New("INVALID_DELAY_SEC:" + args[1])
 		}
 		return dongk.NewCommand(dongk.DkFunIdSwitchDelay,
-			serialNumber,
-			0,
-			[32]byte{byte(switchId), byte(sec)}, ).Bytes(),
+				serialNumber,
+				0,
+				[32]byte{byte(switchId), byte(sec)}).Bytes(),
 			nil
 	})
 }

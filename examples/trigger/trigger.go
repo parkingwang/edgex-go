@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/yoojia/edgex"
+	"github.com/nextabc-lab/edgex"
 	"time"
 )
 

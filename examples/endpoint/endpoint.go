@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/yoojia/edgex"
+	"github.com/nextabc-lab/edgex"
 	"strconv"
 	"time"
 )

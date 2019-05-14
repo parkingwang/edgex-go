@@ -1,4 +1,4 @@
-module github.com/yoojia/edgex
+module github.com/nextabc-lab/edgex
 
 go 1.12
 

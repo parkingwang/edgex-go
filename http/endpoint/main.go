@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"github.com/yoojia/edgex"
+	"github.com/nextabc-lab/edgex"
 	"github.com/yoojia/go-value"
 	"io/ioutil"
 	"net/http"

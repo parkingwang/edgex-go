@@ -3,7 +3,7 @@ package dongk
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/yoojia/edgex"
+	"github.com/nextabc-lab/edgex"
 	"strconv"
 )
 

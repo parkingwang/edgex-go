@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/nextabc-lab/edgex"
+	utils "github.com/nextabc-lab/edgex/serial"
 	"github.com/tarm/serial"
-	"github.com/yoojia/edgex"
-	utils "github.com/yoojia/edgex/serial"
 	"github.com/yoojia/go-value"
 	"os"
 	"time"

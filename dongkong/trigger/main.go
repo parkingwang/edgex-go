@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"github.com/nextabc-lab/edgex"
+	"github.com/nextabc-lab/edgex/dongkong"
 	"github.com/tidwall/evio"
-	"github.com/yoojia/edgex"
-	dongk "github.com/yoojia/edgex/dongkong"
 	"github.com/yoojia/go-jsonx"
 	"github.com/yoojia/go-value"
 )

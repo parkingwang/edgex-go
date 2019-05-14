@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/nextabc-lab/edgex"
 	"github.com/pkg/errors"
-	"github.com/yoojia/edgex"
 	"net"
 	"sync"
 	"sync/atomic"
