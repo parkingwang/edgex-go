@@ -3,6 +3,7 @@ package edgex
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 )
 
 //
@@ -45,7 +46,7 @@ func (r *ByteReader) LoadBytes(out []byte) (n int, err error) {
 
 func (r *ByteReader) GetBytesSize(size int) []byte {
 	out := make([]byte, size)
-	if _, err := r.LoadBytes(out); nil != err {
+	if _, err := r.LoadBytes(out); nil != err && err != io.EOF {
 		panic(err)
 	}
 	return out
