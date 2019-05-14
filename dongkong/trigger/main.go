@@ -37,7 +37,7 @@ func main() {
 				return []byte("EX=ERR:INVALID_CMD_SIZE"), action
 			}
 			// 非监控数据，忽略
-			if cmd.FuncId != dongk.DkFunIdBoardState {
+			if cmd.FuncId != dongk.FunIdBoardState {
 				ctx.Log().Debug("接收到非监控状态数据")
 				return []byte("EX=ERR:INVALID_STATE"), action
 			}

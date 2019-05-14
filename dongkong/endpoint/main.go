@@ -8,7 +8,6 @@ import (
 	"github.com/yoojia/go-at"
 	"github.com/yoojia/go-value"
 	"net"
-	"strconv"
 	"time"
 )
 
@@ -31,8 +30,8 @@ func main() {
 		serialNumber := uint32(value.Of(boardOpts["serialNumber"]).MustInt64())
 
 		// AT指令解析
-		registry := at.NewAtRegister()
-		registryAt(registry, serialNumber)
+		atRegistry := at.NewAtRegister()
+		atCommands(atRegistry, serialNumber)
 
 		ctx.Log().Debugf("连接目标地址: [udp://%s]", remoteAddress)
 		conn, err := makeUdpConn(remoteAddress)
@@ -46,12 +45,12 @@ func main() {
 			RpcAddr: rpcAddress,
 		})
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			cmd, err := registry.Apply(string(in.Bytes()))
+			inCmd, err := atRegistry.Apply(string(in.Bytes()))
 			if nil != err {
 				return edgex.NewMessageString("EX=ERR:" + err.Error())
 			}
 			// Write
-			if err := tryWrite(conn, cmd, writeTimeout); nil != err {
+			if err := tryWrite(conn, inCmd, writeTimeout); nil != err {
 				return edgex.NewMessageString("EX=ERR:" + err.Error())
 			}
 			// Read
@@ -66,9 +65,9 @@ func main() {
 			}
 			// parse
 			if n > 0 {
-				if retCmd, err := dongk.ParseCommand(buffer); nil != err {
+				if outCmd, err := dongk.ParseCommand(buffer); nil != err {
 					return edgex.NewMessageString("EX=ERR:" + err.Error())
-				} else if retCmd.Data[0] == 0x01 {
+				} else if outCmd.Success() {
 					return edgex.NewMessageString(fmt.Sprintf("EX=OK"))
 				} else {
 					return edgex.NewMessageString("EX=ERR:NOT_OK")
@@ -110,35 +109,4 @@ func tryRead(conn *net.UDPConn, buffer []byte, to time.Duration) (n int, err err
 		return 0, err
 	}
 	return conn.Read(buffer)
-}
-
-func registryAt(registry *at.AtRegister, serialNumber uint32) {
-	// AT+OPEN=SWITCH_ID
-	registry.Add("OPEN", func(args ...string) (data []byte, err error) {
-		switchId, err := strconv.ParseInt(args[0], 10, 64)
-		if nil != err {
-			return nil, errors.New("INVALID_SWITCH_ID:" + args[0])
-		}
-		return dongk.NewCommand(dongk.DkFunIdRemoteOpen,
-				serialNumber,
-				0,
-				[32]byte{byte(switchId)}).Bytes(),
-			nil
-	})
-	// AT+DELAY=SWITCH_ID,DELAY_SEC
-	registry.Add("DELAY", func(args ...string) (data []byte, err error) {
-		switchId, err := strconv.ParseInt(args[0], 10, 64)
-		if nil != err {
-			return nil, errors.New("INVALID_SWITCH_ID:" + args[0])
-		}
-		sec, err := strconv.ParseInt(args[1], 10, 64)
-		if nil != err {
-			return nil, errors.New("INVALID_DELAY_SEC:" + args[1])
-		}
-		return dongk.NewCommand(dongk.DkFunIdSwitchDelay,
-				serialNumber,
-				0,
-				[32]byte{byte(switchId), byte(sec)}).Bytes(),
-			nil
-	})
 }
