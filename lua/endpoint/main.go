@@ -8,7 +8,7 @@ import (
 
 //
 // Author: 陈哈哈 yoojiachen@gmail.com
-// 使用Libav命令客户端作为Endpoint，接收GRPC控制指令，并转发到指定Socket客户端
+// 使用Lua脚本引擎客户端作为Endpoint，接收GRPC控制指令，并返回执行结果
 
 func main() {
 	edgex.Run(func(ctx edgex.Context) error {
