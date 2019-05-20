@@ -9,6 +9,7 @@ modules=( \
 "socket/trigger" \
 "dongkong/endpoint" \
 "dongkong/trigger" \
+"lua/endpoint" \
 )
 
 makeModule() {

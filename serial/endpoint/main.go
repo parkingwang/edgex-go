@@ -45,18 +45,18 @@ func main() {
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
 			if n, err := port.Write(in.Bytes()); nil != err {
 				ctx.Log().Error("串口写数据出错: ", err)
-				return edgex.NewMessageString("ERR:" + err.Error())
+				return edgex.NewMessageString(name, "ERR:"+err.Error())
 			} else if n != in.Size() {
-				return edgex.NewMessageString("EX=ERR:WRITE_NOT_FINISHED")
+				return edgex.NewMessageString(name, "EX=ERR:WRITE_NOT_FINISHED")
 			}
 			if broadcast {
-				return edgex.NewMessageString("EX=OK:BROADCAST")
+				return edgex.NewMessageString(name, "EX=OK:BROADCAST")
 			}
 			// Read
 			if n, err := port.Read(buffer); nil != err {
-				return edgex.NewMessageString("EX=ERR:" + err.Error())
+				return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
 			} else {
-				return edgex.NewMessageBytes(buffer[:n])
+				return edgex.NewMessage([]byte(name), buffer[:n])
 			}
 		})
 

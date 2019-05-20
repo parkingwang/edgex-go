@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"github.com/nextabc-lab/edgex"
 	"github.com/nextabc-lab/edgex/dongkong"
 	"github.com/tidwall/evio"
@@ -55,13 +56,17 @@ func main() {
 			json.Field("index", reader.GetUint32())
 			json.Field("type", reader.GetByte())
 			json.Field("state", reader.GetByte())
-			json.Field("doorId", reader.GetByte())
-			json.Field("direct", reader.GetByte())
+			doorId := reader.GetByte()
+			direct := reader.GetByte()
+			json.Field("doorId", doorId)
+			json.Field("direct", direct)
 			json.Field("reason", reader.GetByte())
 			bytes := json.Bytes()
 			// 最后执行控制指令：刷卡数据
 			if len(bytes) >= len(`{"A":0}`) {
-				if err := trigger.Triggered(edgex.NewMessageBytes(in)); nil != err {
+				// 消息地址： 设备序列号/门号/方向
+				addr := fmt.Sprintf("%d/%d/%d", cmd.SerialNum, doorId, direct)
+				if err := trigger.Triggered(edgex.NewMessage([]byte(addr), in)); nil != err {
 					ctx.Log().Error("触发事件出错: ", err)
 					return []byte("EX=ERR:" + err.Error()), action
 				} else {

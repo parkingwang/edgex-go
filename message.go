@@ -1,12 +1,46 @@
 package edgex
 
+import (
+	"bytes"
+)
+
 //
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
-// Packet消息
+const (
+	FrameHeaderSize = 2
+	FrameVarBits    = 0xED
+)
+
+// Header 头部
+type Header struct {
+	VarBits byte
+	NameLen byte
+}
+
+func wrapHeader(d []byte) Header {
+	return Header{
+		VarBits: d[0],
+		NameLen: d[1],
+	}
+}
+
+// Message 消息
 type Message interface {
+	// Bytes 返回消息全部字节
 	Bytes() []byte
+
+	// Header 返回消息的Header
+	Header() Header
+
+	// Body 返回消息体字节
+	Body() []byte
+
+	// Name 返回消息体创建源组件名字
+	Name() []byte
+
+	// Size 返回Frame消息体的大小
 	Size() int
 }
 
@@ -14,21 +48,60 @@ type Message interface {
 
 type implMessage struct {
 	Message
-	frames []byte
+	head []byte
+	name []byte
+	body []byte
+}
+
+func (m *implMessage) Name() []byte {
+	return m.name
+}
+
+func (m *implMessage) Header() Header {
+	return Header{
+		m.head[0],
+		m.head[1],
+	}
+}
+
+func (m *implMessage) Body() []byte {
+	return m.body
 }
 
 func (m *implMessage) Bytes() []byte {
-	return m.frames
+	frames := new(bytes.Buffer)
+	frames.Write(m.head)
+	frames.Write(m.name)
+	frames.Write(m.body)
+	return frames.Bytes()
 }
 
 func (m *implMessage) Size() int {
-	return len(m.frames)
+	return len(m.body)
 }
 
-func NewMessageString(txt string) Message {
-	return NewMessageBytes([]byte(txt))
+func NewMessageString(addr, txt string) Message {
+	return NewMessage([]byte(addr), []byte(txt))
 }
 
-func NewMessageBytes(b []byte) Message {
-	return &implMessage{frames: b}
+func NewMessage(name []byte, body []byte) Message {
+	size := len(name)
+	if byte(size) > 0xFF {
+		log.Panic("Name len too large, was: ", size)
+	}
+	return &implMessage{
+		head: []byte{FrameVarBits, byte(size)},
+		name: name,
+		body: body,
+	}
+}
+
+func ParseMessage(data []byte) Message {
+	headBytes := data[:FrameHeaderSize]
+	head := wrapHeader(headBytes)
+	return &implMessage{
+		head: headBytes,
+		name: data[FrameHeaderSize : FrameHeaderSize+head.NameLen],
+		body: data[FrameHeaderSize+head.NameLen:],
+	}
 }

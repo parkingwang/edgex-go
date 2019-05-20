@@ -34,17 +34,19 @@ func main() {
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
 			// 先函数，后参数，正序入栈:
 			script.Push(script.GetGlobal("endpointMain"))
+			// Arg 1
 			script.Push(lua.LString(string(in.Bytes())))
+			// Call
 			if err := script.PCall(1, 2, nil); nil != err {
-				return edgex.NewMessageString("EX=ERR:" + err.Error())
+				return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
 			} else {
 				retData := script.ToString(1)
 				retErr := script.ToString(2)
 				script.Pop(2)
 				if "" != retErr {
-					return edgex.NewMessageString("EX=ERR:" + retErr)
+					return edgex.NewMessageString(name, "EX=ERR:"+retErr)
 				} else {
-					return edgex.NewMessageString(retData)
+					return edgex.NewMessageString(name, retData)
 				}
 			}
 		})

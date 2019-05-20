@@ -44,7 +44,7 @@ func main() {
 
 		server.Data = func(c evio.Conn, in []byte) (out []byte, action evio.Action) {
 			// 接收数据，并触发事件
-			if err := trigger.Triggered(edgex.NewMessageBytes(in)); nil != err {
+			if err := trigger.Triggered(edgex.NewMessage([]byte(name), in)); nil != err {
 				ctx.Log().Error("触发事件出错: ", err)
 			}
 			return []byte("EX=OK:RECV\r\n"), action

@@ -25,10 +25,10 @@ func main() {
 
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if "POST" == r.Method {
-				if bs, err := ioutil.ReadAll(r.Body); nil != err {
+				if data, err := ioutil.ReadAll(r.Body); nil != err {
 					ctx.Log().Error("读取HttpBody出错: ", err)
 				} else {
-					if err := trigger.Triggered(edgex.NewMessageBytes(bs)); nil != err {
+					if err := trigger.Triggered(edgex.NewMessage([]byte(name), data)); nil != err {
 						ctx.Log().Error("触发事件出错: ", err)
 					}
 				}

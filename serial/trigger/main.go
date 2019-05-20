@@ -58,7 +58,7 @@ func main() {
 						return err
 					}
 				} else {
-					if err := trigger.Triggered(edgex.NewMessageBytes(buffer[:n])); nil != err {
+					if err := trigger.Triggered(edgex.NewMessage([]byte(name), buffer[:n])); nil != err {
 						ctx.Log().Error("Trigger发送出错: ", err)
 					}
 				}

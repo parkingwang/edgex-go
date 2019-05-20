@@ -47,11 +47,11 @@ func main() {
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
 			inCmd, err := atRegistry.Apply(string(in.Bytes()))
 			if nil != err {
-				return edgex.NewMessageString("EX=ERR:" + err.Error())
+				return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
 			}
 			// Write
 			if err := tryWrite(conn, inCmd, writeTimeout); nil != err {
-				return edgex.NewMessageString("EX=ERR:" + err.Error())
+				return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
 			}
 			// Read
 			var n = int(0)
@@ -66,14 +66,14 @@ func main() {
 			// parse
 			if n > 0 {
 				if outCmd, err := dongk.ParseCommand(buffer); nil != err {
-					return edgex.NewMessageString("EX=ERR:" + err.Error())
+					return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
 				} else if outCmd.Success() {
-					return edgex.NewMessageString(fmt.Sprintf("EX=OK"))
+					return edgex.NewMessageString(name, fmt.Sprintf("EX=OK"))
 				} else {
-					return edgex.NewMessageString("EX=ERR:NOT_OK")
+					return edgex.NewMessageString(name, "EX=ERR:NOT_OK")
 				}
 			} else {
-				return edgex.NewMessageString("EX=ERR:NO_REPLY")
+				return edgex.NewMessageString(name, "EX=ERR:NO_REPLY")
 			}
 
 		})

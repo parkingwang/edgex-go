@@ -63,7 +63,7 @@ func (d *implDriver) Startup() {
 		log.Info("开启监听事件[TRIGGER]: ", topic)
 	}
 	d.mqttClient.SubscribeMultiple(d.mqttTopicTrigger, func(cli mqtt.Client, msg mqtt.Message) {
-		d.mqttWorker(NewMessageBytes(msg.Payload()))
+		d.mqttWorker(ParseMessage(msg.Payload()))
 	})
 
 }
@@ -99,7 +99,7 @@ func (d *implDriver) Execute(endpointAddr string, in Message, to time.Duration) 
 	})
 
 	if nil != err && nil != ret {
-		return NewMessageBytes(ret.GetFrames()), nil
+		return NewMessage(in.Name(), ret.GetFrames()), nil
 	} else {
 		return nil, err
 	}

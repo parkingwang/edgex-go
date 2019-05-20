@@ -68,7 +68,7 @@ type executor struct {
 
 func (ex *executor) Execute(c ctx.Context, i *Data) (o *Data, e error) {
 	done := make(chan *Data, 1)
-	in := NewMessageBytes(i.Frames)
+	in := ParseMessage(i.Frames)
 	select {
 	case done <- &Data{Frames: ex.handler(in).Bytes()}:
 		return <-done, nil
