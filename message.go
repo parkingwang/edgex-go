@@ -19,13 +19,6 @@ type Header struct {
 	NameLen byte
 }
 
-func wrapHeader(d []byte) Header {
-	return Header{
-		VarBits: d[0],
-		NameLen: d[1],
-	}
-}
-
 // Message 消息
 type Message interface {
 	// Bytes 返回消息全部字节
@@ -40,7 +33,7 @@ type Message interface {
 	// Name 返回消息体创建源组件名字
 	Name() []byte
 
-	// Size 返回Frame消息体的大小
+	// Size 返回Body消息体的大小
 	Size() int
 }
 
@@ -97,10 +90,13 @@ func NewMessage(name []byte, body []byte) Message {
 }
 
 func ParseMessage(data []byte) Message {
-	headBytes := data[:FrameHeaderSize]
-	head := wrapHeader(headBytes)
+	d := data[:FrameHeaderSize]
+	head := Header{
+		VarBits: d[0],
+		NameLen: d[1],
+	}
 	return &implMessage{
-		head: headBytes,
+		head: d,
 		name: data[FrameHeaderSize : FrameHeaderSize+head.NameLen],
 		body: data[FrameHeaderSize+head.NameLen:],
 	}
