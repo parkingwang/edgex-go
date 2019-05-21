@@ -1,6 +1,7 @@
-FROM busybox
+ARG BUSYBOX_IMG=busybox
+FROM $BUSYBOX_IMG
 
-LABEL MAINTAINER Yoojia.Chen "yoojiachen@gmail.com"
+LABEL MAINTAINER="yoojiachen@gmail.com"
 
 # 执行文件名称，须与 name.txt 中一致
 COPY edgex-endpoint-http /bin/

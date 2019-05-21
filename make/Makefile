@@ -13,25 +13,35 @@ all: build package.zip
 
 
 build:
-	@echo "Go BUILD ${BINARY}"
-	@${BUILD_ENV} go build ${LD_FLAGS} -o ${BINARY}.raw .
-	rm -f ${BINARY}
-	upx -o ${BINARY} ${BINARY}.raw
-	rm -f ${BINARY}.raw
+	@echo ">>> Go BUILD $(BINARY)"
+	@$(BUILD_ENV) go build $(LD_FLAGS) -o $(BINARY).raw .
+	rm -f $(BINARY)
+	upx -o $(BINARY) $(BINARY).raw
+	rm -f $(BINARY).raw
+
 
 package.zip: build
-	zip -r package.zip ${BINARY} application.toml
+	zip -r package.zip $(BINARY) application.toml
 
 
-image: build
-	@echo "Docker IMAGE: $<"
-	sudo docker build -t ${IMAGE_NAME} .
+image: _build_image
+	@echo ">>> Docker IMAGE: $<"
 
+
+# 构建Image
+_build_image: build
+ifeq ("$(BUILD_ARCH)", "arm")
+	sudo docker build --build-arg BUSYBOX_IMG=arm32v7/busybox -t $(IMAGE_NAME) .
+else
+	sudo docker build -t $(IMAGE_NAME) .
+endif
+
+# 推送Image到Registry
 push:
-	@echo "Docker PUSH IMAGE: $<"
-	sudo docker push ${IMAGE_NAME}
+	@echo ">>> Docker PUSH IMAGE: $<"
+	sudo docker push $(IMAGE_NAME)
 
 .PHONY: clean all
 clean:
-	rm -f ${BINARY} package.zip
+	rm -f $(BINARY) package.zip
 
