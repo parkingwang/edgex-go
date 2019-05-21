@@ -49,13 +49,16 @@ func main() {
 			select {
 			case <-timer.C:
 				execStart := time.Now()
-				_, err := driver.Execute(testEndpointAddr,
+				rep, err := driver.Execute(testEndpointAddr,
 					edgex.NewMessageString(opts.Name, fmt.Sprintf("%v", time.Now().UnixNano())),
 					time.Second)
 				if nil != err {
 					ctx.Log().Error("ScheduleExecute发生错误: ", err)
 				} else {
 					ctx.Log().Debug("ScheduleExecute用时: ", time.Since(execStart))
+					name := string(rep.Name())
+					body := string(rep.Body())
+					ctx.Log().Debug("Name: " + name + ", Body: " + body)
 				}
 
 			case <-ctx.TermChan():

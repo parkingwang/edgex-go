@@ -74,7 +74,6 @@ func (d *implDriver) Startup() {
 	d.mqttClient.SubscribeMultiple(d.mqttTopicTrigger, func(cli mqtt.Client, msg mqtt.Message) {
 		d.mqttWorker(ParseMessage(msg.Payload()))
 	})
-
 }
 
 func (d *implDriver) Shutdown() {
@@ -97,7 +96,7 @@ func (d *implDriver) Execute(endpointAddr string, in Message, to time.Duration) 
 	log.Debug("GRPC调用Endpoint: ", endpointAddr)
 	remote, err := grpc.Dial(endpointAddr, grpc.WithInsecure())
 	if nil != err {
-		return nil, errors.WithMessage(err, "GRPC DIAL ERROR")
+		return nil, errors.WithMessage(err, "gRPC_DIAL_ERROR")
 	}
 	client := NewExecuteClient(remote)
 	ctx, cancel := context.WithTimeout(context.Background(), to)
@@ -107,9 +106,10 @@ func (d *implDriver) Execute(endpointAddr string, in Message, to time.Duration) 
 		Frames: in.getFrames(),
 	})
 
-	if nil != err && nil != ret {
-		return ParseMessage(ret.GetFrames()), nil
-	} else {
+	if nil != err {
 		return nil, err
+	} else {
+		return ParseMessage(ret.GetFrames()), nil
 	}
+
 }
