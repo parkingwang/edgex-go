@@ -70,7 +70,7 @@ func (ex *executor) Execute(c ctx.Context, i *Data) (o *Data, e error) {
 	done := make(chan *Data, 1)
 	in := ParseMessage(i.GetFrames())
 	select {
-	case done <- &Data{Frames: ex.handler(in).Bytes()}:
+	case done <- &Data{Frames: ex.handler(in).getFrames()}:
 		return <-done, nil
 
 	case <-c.Done():

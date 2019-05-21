@@ -28,7 +28,7 @@ func TestNewMessage(t *testing.T) {
 	if !reflect.DeepEqual([]byte{0xAA, 0xBB, 0xCC}, body) {
 		t.Error("Body not match", body)
 	}
-	fmt.Println(hex.EncodeToString(msg.Bytes()))
+	fmt.Println(hex.EncodeToString(msg.getFrames()))
 }
 
 func TestParseMessage(t *testing.T) {

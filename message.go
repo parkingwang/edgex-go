@@ -22,8 +22,8 @@ type Header struct {
 
 // Message 消息
 type Message interface {
-	// Bytes 返回消息全部字节
-	Bytes() []byte
+	// getFrames 返回消息全部字节
+	getFrames() []byte
 
 	// Header 返回消息的Header
 	Header() Header
@@ -62,7 +62,7 @@ func (m *implMessage) Body() []byte {
 	return m.body
 }
 
-func (m *implMessage) Bytes() []byte {
+func (m *implMessage) getFrames() []byte {
 	frames := new(bytes.Buffer)
 	frames.Write(m.head)
 	frames.Write(m.name)

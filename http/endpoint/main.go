@@ -35,7 +35,7 @@ func main() {
 		}
 
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			resp, err := client.Post(targetUrl, contentType, bytes.NewReader(in.Bytes()))
+			resp, err := client.Post(targetUrl, contentType, bytes.NewReader(in.Body()))
 			if nil != err {
 				ctx.Log().Error("创建Post请求出错: ", err)
 				return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
@@ -43,11 +43,11 @@ func main() {
 			if broadcast {
 				return edgex.NewMessageString(name, "EX=OK:BROADCAST")
 			}
-			if bs, err := ioutil.ReadAll(resp.Body); nil != err {
+			if data, err := ioutil.ReadAll(resp.Body); nil != err {
 				ctx.Log().Error("读取Post请求响应出错: ", err)
 				return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
 			} else {
-				return edgex.NewMessage([]byte(name), bs)
+				return edgex.NewMessage([]byte(name), data)
 			}
 		})
 

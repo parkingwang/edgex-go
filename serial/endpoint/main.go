@@ -43,7 +43,7 @@ func main() {
 
 		buffer := make([]byte, value.Of(rawOpts["bufferSize"]).Int64OrDefault(1024))
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			if n, err := port.Write(in.Bytes()); nil != err {
+			if n, err := port.Write(in.Body()); nil != err {
 				ctx.Log().Error("串口写数据出错: ", err)
 				return edgex.NewMessageString(name, "ERR:"+err.Error())
 			} else if n != in.Size() {

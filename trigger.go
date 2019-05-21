@@ -66,7 +66,7 @@ func (t *implTrigger) Triggered(b Message) error {
 		t.mqttTopic,
 		t.scoped.MqttQoS,
 		t.scoped.MqttRetained,
-		b.Bytes())
+		b.getFrames())
 	if token.Wait() && nil != token.Error() {
 		return errors.WithMessage(token.Error(), "发送消息出错")
 	} else {

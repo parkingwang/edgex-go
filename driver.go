@@ -104,7 +104,7 @@ func (d *implDriver) Execute(endpointAddr string, in Message, to time.Duration) 
 	defer cancel()
 
 	ret, err := client.Execute(ctx, &Data{
-		Frames: in.Bytes(),
+		Frames: in.getFrames(),
 	})
 
 	if nil != err && nil != ret {

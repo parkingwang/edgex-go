@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/nextabc-lab/edgex"
 	"github.com/yoojia/go-value"
-	lua "github.com/yuin/gopher-lua"
+	"github.com/yuin/gopher-lua"
 )
 
 //
@@ -35,7 +35,7 @@ func main() {
 			// 先函数，后参数，正序入栈:
 			script.Push(script.GetGlobal("endpointMain"))
 			// Arg 1
-			script.Push(lua.LString(string(in.Bytes())))
+			script.Push(lua.LString(string(in.Body())))
 			// Call
 			if err := script.PCall(1, 2, nil); nil != err {
 				return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
