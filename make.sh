@@ -1,17 +1,16 @@
 #!/bin/bash
 
-# "http/endpoint" \
-#"http/trigger" \
-#"serial/endpoint" \
-#"serial/trigger" \
-#"socket/endpoint" \
-#"socket/trigger" \
-#"dongkong/endpoint" \
-#"dongkong/trigger" \
-#"lua/endpoint" \
-
 modules=( \
-"echo/endpoint" \
+"http/endpoint" \
+"http/trigger" \
+"serial/endpoint" \
+"serial/trigger" \
+"socket/endpoint" \
+"socket/trigger" \
+"dongkong/endpoint" \
+"dongkong/trigger" \
+"lua" \
+"echo" \
 )
 
 makeModule() {
