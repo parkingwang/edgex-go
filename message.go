@@ -9,8 +9,9 @@ import (
 //
 
 const (
-	FrameHeaderSize = 2
-	FrameVarBits    = 0xED
+	FrameHeaderSize  = 2
+	FrameVarBits     = 0xED
+	FrameNameMaxSize = 127
 )
 
 // Header 头部
@@ -79,7 +80,7 @@ func NewMessageString(name, body string) Message {
 
 func NewMessage(name []byte, body []byte) Message {
 	size := len(name)
-	if byte(size) > 0xFF {
+	if size > FrameNameMaxSize {
 		log.Panic("Name len too large, was: ", size)
 	}
 	return &implMessage{
