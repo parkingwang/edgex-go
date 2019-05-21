@@ -99,7 +99,7 @@ func (d *implDriver) Execute(endpointAddr string, in Message, to time.Duration) 
 	})
 
 	if nil != err && nil != ret {
-		return NewMessage(in.Name(), ret.GetFrames()), nil
+		return ParseMessage(ret.GetFrames()), nil
 	} else {
 		return nil, err
 	}
