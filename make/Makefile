@@ -1,12 +1,13 @@
 BINARY?=$(shell cat name.txt)
 
-IMAGE_TAG?=201905A
-IMAGE_ORG?=registry.cn-shenzhen.aliyuncs.com/nextabc
-IMAGE_APP=${BINARY}
-
 # Build opts
-BUILD_ARCH=amd64
+BUILD_ARCH=$(shell echo ${OSARCH})
 BUILD_ENV?=CGO_ENABLED=0 GOOS=linux GOARCH=${BUILD_ARCH}
+
+IMAGE_TAG?=201905.1-${BUILD_ARCH}
+IMAGE_ORG?=registry.cn-shenzhen.aliyuncs.com/nextabc
+IMAGE_NAME=${IMAGE_ORG}/${BINARY}:${IMAGE_TAG}
+
 
 all: build package.zip
 
@@ -24,13 +25,11 @@ package.zip: build
 
 image: build
 	@echo "Docker IMAGE: $<"
-	sudo docker build -t $(IMAGE_ORG)/$(IMAGE_APP):$(IMAGE_TAG) .
-	sudo docker tag $(IMAGE_ORG)/$(IMAGE_APP):$(IMAGE_TAG) $(IMAGE_ORG)/$(IMAGE_APP):latest
+	sudo docker build -t ${IMAGE_NAME} .
 
-push: image
+push:
 	@echo "Docker PUSH IMAGE: $<"
-	sudo docker push $(IMAGE_ORG)/$(IMAGE_APP):$(IMAGE_TAG)
-	sudo docker push $(IMAGE_ORG)/$(IMAGE_APP):latest
+	sudo docker push ${IMAGE_NAME}
 
 .PHONY: clean all
 clean:

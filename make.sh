@@ -15,7 +15,8 @@ modules=( \
 makeModule() {
     for dir in ${modules[@]} ; do
         cd ${dir}
-        ./make.sh $*
+        OSARCH=arm ./make.sh $*
+        OSARCH=amd64 ./make.sh $*
         cd -
     done
 }
