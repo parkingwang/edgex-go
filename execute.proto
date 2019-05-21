@@ -1,6 +1,8 @@
 syntax = "proto3";
 
 package edgex;
+option java_package = "edgex";
+option java_multiple_files = true;
 
 message Data {
     bytes frames = 1;
