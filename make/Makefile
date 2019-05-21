@@ -1,6 +1,6 @@
 BINARY?=$(shell cat name.txt)
 
-IMAGE_TAG?=latest
+IMAGE_TAG?=201905A
 IMAGE_ORG?=registry.cn-shenzhen.aliyuncs.com/nextabc
 IMAGE_APP=${BINARY}
 
@@ -25,10 +25,12 @@ package.zip: build
 image: build
 	@echo "Docker IMAGE: $<"
 	sudo docker build -t $(IMAGE_ORG)/$(IMAGE_APP):$(IMAGE_TAG) .
+	sudo docker tag $(IMAGE_ORG)/$(IMAGE_APP):$(IMAGE_TAG) $(IMAGE_ORG)/$(IMAGE_APP):latest
 
 push: image
 	@echo "Docker PUSH IMAGE: $<"
 	sudo docker push $(IMAGE_ORG)/$(IMAGE_APP):$(IMAGE_TAG)
+	sudo docker push $(IMAGE_ORG)/$(IMAGE_APP):latest
 
 .PHONY: clean all
 clean:
