@@ -79,12 +79,12 @@ func NewMessageString(name, body string) Message {
 }
 
 func NewMessage(name []byte, body []byte) Message {
-	size := len(name)
-	if size > FrameNameMaxSize {
-		log.Panic("Name len too large, was: ", size)
+	nameLen := len(name)
+	if nameLen > FrameNameMaxSize {
+		log.Panic("Name length too large, was: ", nameLen)
 	}
 	return &implMessage{
-		head: []byte{FrameVarBits, byte(size)},
+		head: []byte{FrameVarBits, byte(nameLen)},
 		name: name,
 		body: body,
 	}

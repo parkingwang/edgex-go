@@ -2,8 +2,6 @@ package main
 
 import (
 	"github.com/nextabc-lab/edgex"
-	"strconv"
-	"time"
 )
 
 //
@@ -16,14 +14,15 @@ func main() {
 		// 向系统注册节点
 		opts := edgex.EndpointOptions{
 			Name:    "EXAMPLE-PINGPONG",
-			RpcAddr: "0.0.0.0:5570",
+			RpcAddr: "0.0.0.0:6670",
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			recv, _ := strconv.ParseInt(string(in.Body()), 10, 64)
-			ctx.Log().Debug("Endpoint用时: ", time.Duration(time.Now().UnixNano()-recv))
-			return in
+			name := string(in.Name())
+			body := string(in.Body())
+			ctx.Log().Debugf("接收到数据, From: %s, Body: %s ", name, body)
+			return edgex.NewMessageString("ABCD", "ECHO")
 		})
 
 		endpoint.Startup()
