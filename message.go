@@ -73,8 +73,8 @@ func (m *implMessage) Size() int {
 	return len(m.body)
 }
 
-func NewMessageString(addr, txt string) Message {
-	return NewMessage([]byte(addr), []byte(txt))
+func NewMessageString(name, body string) Message {
+	return NewMessage([]byte(name), []byte(body))
 }
 
 func NewMessage(name []byte, body []byte) Message {
