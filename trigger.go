@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
+	"time"
 )
 
 //
@@ -44,10 +45,19 @@ func (t *implTrigger) Startup() {
 	t.mqttTopic = topicOfTrigger(t.topic)
 	t.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", t.scoped.MqttBroker)
-	if token := t.mqttClient.Connect(); token.Wait() && token.Error() != nil {
-		log.Panic("Mqtt客户端连接出错：", token.Error())
-	} else {
-		log.Info("Mqtt客户端连接成功, TriggerTopic: ", t.mqttTopic)
+
+	// 连续重试
+	for retry := 0; retry < t.scoped.MqttMaxRetry; retry++ {
+		if token := t.mqttClient.Connect(); token.Wait() && token.Error() != nil {
+			log.Error("Mqtt客户端连接出错：", token.Error())
+			<-time.After(time.Second)
+		} else {
+			log.Info("Mqtt客户端连接成功, TriggerTopic: ", t.mqttTopic)
+			break
+		}
+	}
+	if !t.mqttClient.IsConnected() {
+		log.Panic("Mqtt客户端连接无法连接Broker")
 	}
 }
 

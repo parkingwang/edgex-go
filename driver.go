@@ -49,10 +49,19 @@ func (d *implDriver) Startup() {
 
 	d.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", d.scoped.MqttBroker)
-	if token := d.mqttClient.Connect(); token.Wait() && token.Error() != nil {
-		log.Panic("Mqtt客户端连接出错：", token.Error())
-	} else {
-		log.Info("Mqtt客户端连接成功")
+
+	// 连续重试
+	for retry := 0; retry < d.scoped.MqttMaxRetry; retry++ {
+		if token := d.mqttClient.Connect(); token.Wait() && token.Error() != nil {
+			log.Error("Mqtt客户端连接出错：", token.Error())
+			<-time.After(time.Second)
+		} else {
+			log.Info("Mqtt客户端连接成功")
+			break
+		}
+	}
+	if !d.mqttClient.IsConnected() {
+		log.Panic("Mqtt客户端连接无法连接Broker")
 	}
 
 	// 监听所有Trigger的UserTopic

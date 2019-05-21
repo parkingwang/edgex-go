@@ -40,7 +40,7 @@ type Context interface {
 ////
 
 func Run(handler func(ctx Context) error) {
-	broker, ok := os.LookupEnv("MQTT.broker")
+	broker, ok := os.LookupEnv("MQTTBroker")
 	if !ok {
 		broker = "tcp://mqtt-broker.edgex.io:1883"
 	}
