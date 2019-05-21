@@ -1,3 +1,3 @@
 #!/bin/bash
 
-make -f ../../make/Makefile $*
+make -f ../make/Makefile $*
