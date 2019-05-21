@@ -29,7 +29,7 @@ func main() {
 		for {
 			select {
 			case c := <-timer.C:
-				pkg := edgex.NewMessageString("TEST", fmt.Sprintf("%d", c.UnixNano()))
+				pkg := edgex.NewMessageString(opts.Name, fmt.Sprintf("%d", c.UnixNano()))
 				if e := trigger.Triggered(pkg); nil != e {
 					ctx.Log().Error("Trigger发送消息失败")
 				}

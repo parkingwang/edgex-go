@@ -21,7 +21,7 @@ func main() {
 		endpoint := ctx.NewEndpoint(opts)
 
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			recv, _ := strconv.ParseInt(string(in.Bytes()), 10, 64)
+			recv, _ := strconv.ParseInt(string(in.Body()), 10, 64)
 			ctx.Log().Debug("Endpoint用时: ", time.Duration(time.Now().UnixNano()-recv))
 			return in
 		})

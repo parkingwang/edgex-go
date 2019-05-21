@@ -26,12 +26,12 @@ func main() {
 
 		const testEndpointAddr = "127.0.0.1:5570"
 
-		driver.Process(func(evt edgex.Message) {
-			recv, _ := strconv.ParseInt(string(evt.Bytes()), 10, 64)
+		driver.Process(func(msg edgex.Message) {
+			recv, _ := strconv.ParseInt(string(msg.Body()), 10, 64)
 
 			ctx.Log().Debug("Driver用时: ", time.Duration(time.Now().UnixNano()-recv))
 			execStart := time.Now()
-			_, err := driver.Execute(testEndpointAddr, evt, time.Second*3)
+			_, err := driver.Execute(testEndpointAddr, msg, time.Second*3)
 			if nil != err {
 				ctx.Log().Error("Execute发生错误: ", err)
 			} else {
@@ -50,7 +50,7 @@ func main() {
 			case <-timer.C:
 				execStart := time.Now()
 				_, err := driver.Execute(testEndpointAddr,
-					edgex.NewMessageString(fmt.Sprintf("%v", time.Now().UnixNano())),
+					edgex.NewMessageString(opts.Name, fmt.Sprintf("%v", time.Now().UnixNano())),
 					time.Second)
 				if nil != err {
 					ctx.Log().Error("ScheduleExecute发生错误: ", err)
