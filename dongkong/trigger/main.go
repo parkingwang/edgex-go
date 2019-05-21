@@ -66,7 +66,7 @@ func main() {
 			if len(bytes) >= len(`{"A":0}`) {
 				// 消息地址： 设备序列号/门号/方向
 				addr := fmt.Sprintf("%d/%d/%d", cmd.SerialNum, doorId, direct)
-				if err := trigger.Triggered(edgex.NewMessage([]byte(addr), in)); nil != err {
+				if err := trigger.Triggered(edgex.NewMessage([]byte(addr), bytes)); nil != err {
 					ctx.Log().Error("触发事件出错: ", err)
 					return []byte("EX=ERR:" + err.Error()), action
 				} else {

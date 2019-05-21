@@ -44,13 +44,15 @@ func main() {
 			Name:    name,
 			RpcAddr: rpcAddress,
 		})
-		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			inCmd, err := atRegistry.Apply(string(in.Bytes()))
+		endpoint.Serve(func(msg edgex.Message) (out edgex.Message) {
+			atCmd := string(msg.Body())
+			ctx.Log().Debug("接收到控制指令: " + atCmd)
+			cmd, err := atRegistry.Apply(atCmd)
 			if nil != err {
 				return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
 			}
 			// Write
-			if err := tryWrite(conn, inCmd, writeTimeout); nil != err {
+			if err := tryWrite(conn, cmd, writeTimeout); nil != err {
 				return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
 			}
 			// Read
