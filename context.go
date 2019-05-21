@@ -42,7 +42,7 @@ type Context interface {
 func Run(handler func(ctx Context) error) {
 	broker, ok := os.LookupEnv("MQTT.broker")
 	if !ok {
-		broker = "tcp://localhost:1883"
+		broker = "tcp://mqtt-broker.edgex.io:1883"
 	}
 	scoped := NewDefaultGlobalScoped(broker)
 	ctx := newContext(scoped)
