@@ -116,3 +116,11 @@ func ParseCommand(frame []byte) (*Command, error) {
 		extra,
 	), nil
 }
+
+func DirectName(b byte) string {
+	if 1 == b {
+		return "IN"
+	} else {
+		return "OUT"
+	}
+}
