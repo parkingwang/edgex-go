@@ -15,6 +15,11 @@ import (
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
+const (
+	// 设备地址格式：　TRIGGER/SN/DOOR_ID/DIRECT
+	DEVICE_ADDR = "TRIGGER/%d/%d/%s"
+)
+
 func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 		config := ctx.LoadConfig()
@@ -51,7 +56,9 @@ func main() {
 			reader := edgex.WrapByteReader(cmd.Data[:], binary.LittleEndian)
 			json := jsonx.NewFatJSON()
 			json.Field("sn", cmd.SerialNum)
-			json.Field("card", hex.EncodeToString(reader.GetBytesSize(4)))
+			card := reader.GetBytesSize(4)
+			json.Field("card", binary.LittleEndian.Uint32(card))
+			json.Field("cardHex", hex.EncodeToString(card))
 			reader.GetBytesSize(7) // 丢弃timestamp数据
 			json.Field("index", reader.GetUint32())
 			json.Field("type", reader.GetByte())
@@ -59,22 +66,17 @@ func main() {
 			doorId := reader.GetByte()
 			direct := reader.GetByte()
 			json.Field("doorId", doorId)
-			json.Field("direct", direct)
+			json.Field("direct", dongk.DirectName(direct))
 			json.Field("reason", reader.GetByte())
 			bytes := json.Bytes()
 			// 最后执行控制指令：刷卡数据
-			if len(bytes) >= len(`{"A":0}`) {
-				// 消息地址： 设备序列号/门号/方向
-				addr := fmt.Sprintf("%d/%d/%d", cmd.SerialNum, doorId, direct)
-				if err := trigger.Triggered(edgex.NewMessage([]byte(addr), bytes)); nil != err {
-					ctx.Log().Error("触发事件出错: ", err)
-					return []byte("EX=ERR:" + err.Error()), action
-				} else {
-					return []byte("EX=OK:DK_EVENT"), action
-				}
+			// 地址： TRIGGER/序列号/门号/方向
+			deviceName := fmt.Sprintf(DEVICE_ADDR, cmd.SerialNum, doorId, dongk.DirectName(direct))
+			if err := trigger.Triggered(edgex.NewMessage([]byte(deviceName), bytes)); nil != err {
+				ctx.Log().Error("触发事件出错: ", err)
+				return []byte("EX=ERR:" + err.Error()), action
 			} else {
-				ctx.Log().Error("无刷卡事件数据")
-				return []byte("EX=ERR:EMPTY_EVENT"), action
+				return []byte("EX=OK:DK_EVENT"), action
 			}
 
 		}
