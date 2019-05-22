@@ -69,9 +69,13 @@ type executor struct {
 func (ex *executor) Execute(c ctx.Context, i *Data) (o *Data, e error) {
 	done := make(chan *Data, 1)
 	in := ParseMessage(i.GetFrames())
+	go func() {
+		frames := ex.handler(in).getFrames()
+		done <- &Data{Frames: frames}
+	}()
 	select {
-	case done <- &Data{Frames: ex.handler(in).getFrames()}:
-		return <-done, nil
+	case v := <-done:
+		return v, nil
 
 	case <-c.Done():
 		return nil, errors.New("execute timeout")
