@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/nextabc-lab/edgex"
 	"github.com/nextabc-lab/edgex/dongkong"
@@ -18,7 +19,7 @@ import (
 func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 		config := ctx.LoadConfig()
-		name := value.Of(config["Name"]).String()
+		deviceName := value.Of(config["Name"]).String()
 		rpcAddress := value.Of(config["RpcAddress"]).String()
 
 		sockOpts := value.Of(config["SocketClientOptions"]).MustMap()
@@ -41,7 +42,7 @@ func main() {
 
 		buffer := make([]byte, 64)
 		endpoint := ctx.NewEndpoint(edgex.EndpointOptions{
-			Name:    name,
+			Name:    deviceName,
 			RpcAddr: rpcAddress,
 		})
 		endpoint.Serve(func(msg edgex.Message) (out edgex.Message) {
@@ -49,18 +50,19 @@ func main() {
 			ctx.Log().Debug("接收到控制指令: " + atCmd)
 			cmd, err := atRegistry.Apply(atCmd)
 			if nil != err {
-				return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
+				return edgex.NewMessageString(deviceName, "EX=ERR:"+err.Error())
 			}
+			ctx.Log().Debug("东控指令码: " + hex.EncodeToString(cmd))
 			// Write
 			if err := tryWrite(conn, cmd, writeTimeout); nil != err {
-				return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
+				return edgex.NewMessageString(deviceName, "EX=ERR:"+err.Error())
 			}
 			// Read
 			var n = int(0)
-			for i := 0; i < 3; i++ {
+			for i := 0; i < 2; i++ {
 				if n, err = tryRead(conn, buffer, readTimeout); nil != err {
-					ctx.Log().Error("读取数据出错:", err)
-					<-time.After(time.Second)
+					ctx.Log().Errorf("读取设备响应数据出错[%d]: %s", i, err.Error())
+					<-time.After(time.Millisecond * 500)
 				} else {
 					break
 				}
@@ -68,14 +70,14 @@ func main() {
 			// parse
 			if n > 0 {
 				if outCmd, err := dongk.ParseCommand(buffer); nil != err {
-					return edgex.NewMessageString(name, "EX=ERR:"+err.Error())
+					return edgex.NewMessageString(deviceName, "EX=ERR:"+err.Error())
 				} else if outCmd.Success() {
-					return edgex.NewMessageString(name, fmt.Sprintf("EX=OK"))
+					return edgex.NewMessageString(deviceName, fmt.Sprintf("EX=OK"))
 				} else {
-					return edgex.NewMessageString(name, "EX=ERR:NOT_OK")
+					return edgex.NewMessageString(deviceName, "EX=ERR:NOT_OK")
 				}
 			} else {
-				return edgex.NewMessageString(name, "EX=ERR:NO_REPLY")
+				return edgex.NewMessageString(deviceName, "EX=ERR:NO_REPLY")
 			}
 
 		})
