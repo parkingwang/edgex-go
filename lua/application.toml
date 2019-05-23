@@ -1,4 +1,0 @@
-# 顶级必要的配置参数
-Name = "LuaScriptEndpoint"
-RpcAddress = "0.0.0.0:5570"
-Script = "sample-endpoint.lua"

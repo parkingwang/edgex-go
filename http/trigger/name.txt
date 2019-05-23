@@ -1,1 +1,0 @@
-edgex-trigger-http

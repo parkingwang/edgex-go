@@ -1,9 +1,0 @@
-# 顶级必要的配置参数
-Name = "HttpServerTrigger"
-Topic = "http/001"
-
-# HttpServer配置参数
-[HttpServerOptions]
-  listenAddress = "0.0.0.0:5571"
-  readTimeout = "10s"
-  writeTimeout = "10s"
