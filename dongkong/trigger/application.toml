@@ -2,6 +2,10 @@
 Name = "DongKongTrigger"
 Topic = "dongkong/events"
 
+# 东控主板配置参数
+[BoardOptions]
+  serialNumber = 123456
+
 # SocketServer配置参数
 [SocketServerOptions]
   address = [

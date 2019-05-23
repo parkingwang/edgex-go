@@ -37,6 +37,11 @@ const (
 	SwitchDelayAlwaysOnline = 0x03 // 在线控制，默认方式
 )
 
+const (
+	DirectIn  = 1
+	DirectOut = 2
+)
+
 // 东控门禁主板指令
 type Command struct {
 	Magic     byte     // 1

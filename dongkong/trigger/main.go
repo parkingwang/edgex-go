@@ -9,6 +9,7 @@ import (
 	"github.com/tidwall/evio"
 	"github.com/yoojia/go-jsonx"
 	"github.com/yoojia/go-value"
+	"time"
 )
 
 //
@@ -17,17 +18,22 @@ import (
 
 const (
 	// 设备地址格式：　TRIGGER/SN/DOOR_ID/DIRECT
-	DEVICE_ADDR = "TRIGGER/%d/%d/%s"
+	deviceAddr = "TRIGGER/%d/%d/%s"
+	// 设备数量： 4门进出，共8个输入设备
+	deviceCount = 8
 )
 
 func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 		config := ctx.LoadConfig()
-		name := value.Of(config["Name"]).String()
+		triggerName := value.Of(config["Name"]).String()
 		topic := value.Of(config["Topic"]).String()
 
+		boardOpts := value.Of(config["BoardOptions"]).MustMap()
+		serialNumber := uint32(value.Of(boardOpts["serialNumber"]).MustInt64())
+
 		trigger := ctx.NewTrigger(edgex.TriggerOptions{
-			Name:  name,
+			Name:  triggerName,
 			Topic: topic,
 		})
 
@@ -46,6 +52,10 @@ func main() {
 			if cmd.FuncId != dongk.FunIdBoardState {
 				ctx.Log().Debug("接收到非监控状态数据")
 				return []byte("EX=ERR:INVALID_STATE"), action
+			}
+			if cmd.SerialNum != serialNumber {
+				ctx.Log().Debug("接收到未知序列号数据")
+				return []byte("EX=ERR:UNKNOWN_SN"), action
 			}
 			// 控制指令数据：
 			// 0. 无记录
@@ -71,7 +81,7 @@ func main() {
 			bytes := json.Bytes()
 			// 最后执行控制指令：刷卡数据
 			// 地址： TRIGGER/序列号/门号/方向
-			deviceName := fmt.Sprintf(DEVICE_ADDR, cmd.SerialNum, doorId, dongk.DirectName(direct))
+			deviceName := fmt.Sprintf(deviceAddr, cmd.SerialNum, doorId, dongk.DirectName(direct))
 			if err := trigger.Triggered(edgex.NewMessage([]byte(deviceName), bytes)); nil != err {
 				ctx.Log().Error("触发事件出错: ", err)
 				return []byte("EX=ERR:" + err.Error()), action
@@ -95,9 +105,38 @@ func main() {
 		trigger.Startup()
 		defer trigger.Shutdown()
 
+		// 上报设备状态
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		go func() {
+			doors := make([]edgex.Message, 4)
+			for i := 0; i < len(doors); i++ {
+				doorId := i + 1
+				doors[i] = edgex.NewMessage([]byte(triggerName), makeReaderInfo(serialNumber, doorId, dongk.DirectIn))
+				doors[i*2+1] = edgex.NewMessage([]byte(triggerName), makeReaderInfo(serialNumber, doorId, dongk.DirectOut))
+			}
+			for range ticker.C {
+				ctx.Log().Debug("开始上报设备状态消息")
+				for _, door := range doors {
+					if err := trigger.NotifyAlive(door); nil != err {
+						ctx.Log().Error("上报状态消息出错", err)
+					}
+				}
+			}
+		}()
+
 		address := value.Of(opts["address"]).MustStringArray()
 		ctx.Log().Debug("开启Evio服务端: ", address)
 		defer ctx.Log().Debug("停止Evio服务端")
 		return evio.Serve(server, address...)
 	})
+}
+
+func makeReaderInfo(sn uint32, doorId, direct int) []byte {
+	directName := dongk.DirectName(byte(direct))
+	json := jsonx.NewFatJSON()
+	json.Field("name", fmt.Sprintf("TRIGGER/%d/%d/%s", sn, doorId, directName))
+	json.Field("desc", fmt.Sprintf("%d号门%s读卡器", doorId, directName))
+	json.Field("command", "AT")
+	return json.Bytes()
 }

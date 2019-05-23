@@ -7,6 +7,7 @@ import (
 	"github.com/nextabc-lab/edgex/dongkong"
 	"github.com/pkg/errors"
 	"github.com/yoojia/go-at"
+	"github.com/yoojia/go-jsonx"
 	"github.com/yoojia/go-value"
 	"net"
 	"time"
@@ -45,6 +46,8 @@ func main() {
 			Name:    deviceName,
 			RpcAddr: rpcAddress,
 		})
+
+		// 处理控制指令
 		endpoint.Serve(func(msg edgex.Message) (out edgex.Message) {
 			atCmd := string(msg.Body())
 			ctx.Log().Debug("接收到控制指令: " + atCmd)
@@ -85,6 +88,24 @@ func main() {
 		endpoint.Startup()
 		defer endpoint.Shutdown()
 
+		// 上报设备状态
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		go func() {
+			doors := make([]edgex.Message, 4)
+			for i := 0; i < 4; i++ {
+				doors[i] = edgex.NewMessage([]byte(deviceName), makeDoorInfo(serialNumber, i+1))
+			}
+			for range ticker.C {
+				ctx.Log().Debug("开始上报设备状态消息")
+				for _, door := range doors {
+					if err := endpoint.NotifyAlive(door); nil != err {
+						ctx.Log().Error("上报状态消息出错", err)
+					}
+				}
+			}
+		}()
+
 		return ctx.TermAwait()
 	})
 }
@@ -113,4 +134,12 @@ func tryRead(conn *net.UDPConn, buffer []byte, to time.Duration) (n int, err err
 		return 0, err
 	}
 	return conn.Read(buffer)
+}
+
+func makeDoorInfo(sn uint32, doorId int) []byte {
+	json := jsonx.NewFatJSON()
+	json.Field("name", fmt.Sprintf("ENDPOINT/%d/%d", sn, doorId))
+	json.Field("desc", fmt.Sprintf("%d号门/控制开关", doorId))
+	json.Field("command", fmt.Sprintf("AT+OPEN=%d", doorId))
+	return json.Bytes()
 }
