@@ -54,7 +54,7 @@ func Run(handler func(ctx Context) error) {
 }
 
 const (
-	AppConfEnvKey   = "EdgeX.Config"
+	AppConfEnvKey   = "EDGE_X_CONFIG"
 	DefaultConfName = "application.toml"
 	DefaultConfFile = "/etc/edgex/application.toml"
 )
@@ -114,14 +114,15 @@ func (c *implContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	c.serviceId = opts.RpcAddr
 	return &implEndpoint{
 		scoped:       c.scoped,
+		name:         opts.Name,
 		endpointAddr: opts.RpcAddr,
 	}
 }
 
 func (c *implContext) NewDriver(opts DriverOptions) Driver {
 	checkContextInitialize(c)
-	checkRequired(opts.Name, "Endpoint.Name MUST be specified")
-	checkRequired(opts.Topics, "Endpoint.Topics MUST be specified")
+	checkRequired(opts.Name, "Driver.Name MUST be specified")
+	checkRequired(opts.Topics, "Driver.Topics MUST be specified")
 	c.serviceName = "Driver"
 	c.serviceId = opts.Name
 	return &implDriver{

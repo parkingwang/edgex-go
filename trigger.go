@@ -16,6 +16,9 @@ type Trigger interface {
 	Lifecycle
 	// 生产事件
 	Triggered(b Message) error
+
+	// 发送Alive广播
+	NotifyAlive(m Message) error
 }
 
 type TriggerOptions struct {
@@ -39,7 +42,7 @@ func (t *implTrigger) Startup() {
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
 	opts.SetClientID(fmt.Sprintf("Trigger-%s", t.name))
-	opts.SetWill(topicOfWill("Trigger", t.name), "offline", 1, true)
+	opts.SetWill(topicOfOffline("Trigger", t.name), "offline", 1, true)
 	setMqttDefaults(opts, t.scoped)
 
 	t.mqttTopic = topicOfTrigger(t.topic)
@@ -68,7 +71,20 @@ func (t *implTrigger) Triggered(b Message) error {
 		t.scoped.MqttRetained,
 		b.getFrames())
 	if token.Wait() && nil != token.Error() {
-		return errors.WithMessage(token.Error(), "发送消息出错")
+		return errors.WithMessage(token.Error(), "发送事件消息出错")
+	} else {
+		return nil
+	}
+}
+
+func (t *implTrigger) NotifyAlive(m Message) error {
+	token := t.mqttClient.Publish(
+		topicOfAlive("Trigger", t.name),
+		0,
+		true,
+		m.getFrames())
+	if token.Wait() && nil != token.Error() {
+		return errors.WithMessage(token.Error(), "发送Alive消息出错")
 	} else {
 		return nil
 	}

@@ -10,10 +10,9 @@ import (
 //
 
 const (
-	topicTrigger             = "$EDGEX/EVENTS/${user-topic}"
-	topicEndpointRequestQ    = "$EDGEX/EP-REQ/${epid}"
-	topicEndpointReplyPrefix = "$EDGEX/EP-REP/"
-	topicEndpointReplyQ      = topicEndpointReplyPrefix + "${epid}"
+	topicDevicesOffline = "$EDGEX/DEVICES/OFFLINE/%s/%s"
+	topicDevicesAlive   = "$EDGEX/DEVICES/ALIVE/%s/%s"
+	topicTrigger        = "$EDGEX/EVENTS/${user-topic}"
 )
 
 func topicOfTrigger(topic string) string {
@@ -23,20 +22,12 @@ func topicOfTrigger(topic string) string {
 	return topicFormat(topicTrigger, "${user-topic}", topic)
 }
 
-func topicOfWill(typeName, name string) string {
-	return fmt.Sprintf("$EDGEX/WILL/%s/%s", typeName, name)
+func topicOfOffline(typeName, name string) string {
+	return fmt.Sprintf(topicDevicesOffline, typeName, name)
 }
 
-func topicOfEndpointRequestQ(endpointId string) string {
-	return topicFormat(topicEndpointRequestQ, "${epid}", endpointId)
-}
-
-func topicOfEndpointReplyQ(endpointId string) string {
-	return topicFormat(topicEndpointReplyQ, "${epid}", endpointId)
-}
-
-func endpointIdOfReplyQ(topic string) string {
-	return topic[len(topicEndpointReplyPrefix):]
+func topicOfAlive(typeName, name string) string {
+	return fmt.Sprintf(topicDevicesAlive, typeName, name)
 }
 
 func topicFormat(tpl, key, value string) string {

@@ -44,7 +44,7 @@ func (d *implDriver) Startup() {
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
 	opts.SetClientID(fmt.Sprintf("Driver-%s", d.name))
-	opts.SetWill(topicOfWill("Driver", d.name), "offline", 1, true)
+	opts.SetWill(topicOfOffline("Driver", d.name), "offline", 1, true)
 	setMqttDefaults(opts, d.scoped)
 
 	d.mqttClient = mqtt.NewClient(opts)
