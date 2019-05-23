@@ -1,4 +1,4 @@
-module github.com/nextabc-lab/edgex
+module github.com/nextabc-lab/edgex-go
 
 go 1.12
 
