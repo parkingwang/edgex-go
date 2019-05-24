@@ -18,8 +18,8 @@ func main() {
 			RpcAddr: "0.0.0.0:6670",
 			InspectFunc: func() edgex.Inspect {
 				return edgex.Inspect{
-					OS:   runtime.GOOS,
-					Arch: runtime.GOARCH,
+					HostOS:   runtime.GOOS,
+					HostArch: runtime.GOARCH,
 					Devices: []edgex.Device{
 						{
 							Name:    "ENDPOINT/EXAMPLE-PINGPONG",

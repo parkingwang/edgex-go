@@ -19,8 +19,8 @@ func main() {
 			Topic: "example/timer",
 			InspectFunc: func() edgex.Inspect {
 				return edgex.Inspect{
-					OS:   runtime.GOOS,
-					Arch: runtime.GOARCH,
+					HostOS:   runtime.GOOS,
+					HostArch: runtime.GOARCH,
 					Devices: []edgex.Device{
 						{
 							Name:    "TRIGGER/EXAMPLE-TIMER",

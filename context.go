@@ -53,6 +53,18 @@ func Run(handler func(ctx Context) error) {
 	}
 }
 
+func CreateContext(scoped *GlobalScoped) Context {
+	return newContext(scoped)
+}
+
+func CreateDefaultContext() Context {
+	broker, ok := os.LookupEnv("MQTTBroker")
+	if !ok {
+		broker = "tcp://mqtt-broker.edgex.io:1883"
+	}
+	return CreateContext(NewDefaultGlobalScoped(broker))
+}
+
 const (
 	AppConfEnvKey   = "EDGE_X_CONFIG"
 	DefaultConfName = "application.toml"
