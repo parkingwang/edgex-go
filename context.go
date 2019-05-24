@@ -101,9 +101,10 @@ func (c *implContext) NewTrigger(opts TriggerOptions) Trigger {
 	c.serviceName = "Trigger"
 	c.serviceId = opts.Name
 	return &implTrigger{
-		scoped: c.scoped,
-		topic:  opts.Topic,
-		name:   opts.Name,
+		scoped:      c.scoped,
+		topic:       opts.Topic,
+		name:        opts.Name,
+		inspectFunc: opts.InspectFunc,
 	}
 }
 
