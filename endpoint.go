@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"net"
+	"time"
 )
 
 //
@@ -32,9 +33,10 @@ type EndpointOptions struct {
 
 type implEndpoint struct {
 	Endpoint
-	name        string
-	scoped      *GlobalScoped
-	inspectFunc func() Inspect
+	name          string
+	scoped        *GlobalScoped
+	inspectFunc   func() Inspect
+	inspectTicker *time.Ticker
 	// gRPC
 	endpointAddr  string
 	messageWorker func(in Message) (out Message)
@@ -72,11 +74,18 @@ func (e *implEndpoint) Startup() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
 		mqttSendInspectMessage(e.mqttClient, e.inspectFunc)
+		go func() {
+			e.inspectTicker = time.NewTicker(time.Minute)
+			for range e.inspectTicker.C {
+				mqttSendInspectMessage(e.mqttClient, e.inspectFunc)
+			}
+		}()
 	}
 }
 
 func (e *implEndpoint) Shutdown() {
 	log.Info("停止GRPC服务")
+	e.inspectTicker.Stop()
 	e.rpcServer.Stop()
 	e.mqttClient.Disconnect(1000)
 }

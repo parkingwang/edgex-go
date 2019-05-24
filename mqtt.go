@@ -24,6 +24,7 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
 ////
 
 func mqttSendInspectMessage(client mqtt.Client, inspectFunc func() Inspect) {
+	log.Debug("发送Inspect消息")
 	inspect, err := json.Marshal(inspectFunc())
 	if nil != err {
 		log.Panic("Inspect数据错误", err)
