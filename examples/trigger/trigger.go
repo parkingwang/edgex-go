@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/nextabc-lab/edgex-go"
+	"runtime"
 	"time"
 )
 
@@ -16,6 +17,19 @@ func main() {
 		opts := edgex.TriggerOptions{
 			Name:  "EXAMPLE-TIMER",
 			Topic: "example/timer",
+			InspectFunc: func() edgex.Inspect {
+				return edgex.Inspect{
+					OS:   runtime.GOOS,
+					Arch: runtime.GOARCH,
+					Devices: []edgex.Device{
+						{
+							Name:    "TRIGGER/EXAMPLE-TIMER",
+							Virtual: false,
+							Desc:    "演示Trigger",
+						},
+					},
+				}
+			},
 		}
 		trigger := ctx.NewTrigger(opts)
 
@@ -25,17 +39,17 @@ func main() {
 		ctx.Log().Debugf("创建Trigger节点: [%s]", opts.Name)
 
 		timer := time.NewTicker(time.Millisecond * 10)
+		defer timer.Stop()
 
 		for {
 			select {
 			case c := <-timer.C:
 				pkg := edgex.NewMessageString(opts.Name, fmt.Sprintf("%d", c.UnixNano()))
-				if e := trigger.Triggered(pkg); nil != e {
+				if e := trigger.SendEventMessage(pkg); nil != e {
 					ctx.Log().Error("Trigger发送消息失败")
 				}
 
 			case <-ctx.TermChan():
-				timer.Stop()
 				return nil
 			}
 		}

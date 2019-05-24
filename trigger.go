@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
-	"time"
 )
 
 //
@@ -14,25 +13,26 @@ import (
 // Trigger 触发器，用于产生事件
 type Trigger interface {
 	Lifecycle
-	// 生产事件
-	Triggered(b Message) error
-
-	// 发送Alive广播
-	NotifyAlive(m Message) error
+	// 发送事件消息
+	SendEventMessage(b Message) error
+	// 发送Alive消息
+	SendAliveMessage(m Message) error
 }
 
 type TriggerOptions struct {
-	Name  string
-	Topic string
+	Name        string
+	Topic       string
+	InspectFunc func() Inspect
 }
 
 //// trigger
 
 type implTrigger struct {
 	Trigger
-	scoped *GlobalScoped
-	topic  string // Trigger产生的事件Topic
-	name   string // Trigger的名称
+	scoped      *GlobalScoped
+	topic       string // Trigger产生的事件Topic
+	name        string // Trigger的名称
+	inspectFunc func() Inspect
 	// MQTT
 	mqttClient mqtt.Client
 	mqttTopic  string
@@ -43,28 +43,20 @@ func (t *implTrigger) Startup() {
 	opts := mqtt.NewClientOptions()
 	opts.SetClientID(fmt.Sprintf("Trigger-%s", t.name))
 	opts.SetWill(topicOfOffline("Trigger", t.name), "offline", 1, true)
-	setMqttDefaults(opts, t.scoped)
-
+	mqttSetOptions(opts, t.scoped)
 	t.mqttTopic = topicOfTrigger(t.topic)
 	t.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", t.scoped.MqttBroker)
-
 	// 连续重试
-	for retry := 0; retry < t.scoped.MqttMaxRetry; retry++ {
-		if token := t.mqttClient.Connect(); token.Wait() && token.Error() != nil {
-			log.Error("Mqtt客户端连接出错：", token.Error())
-			<-time.After(time.Second)
-		} else {
-			log.Info("Mqtt客户端连接成功, TriggerTopic: ", t.mqttTopic)
-			break
-		}
-	}
+	mqttRetryConnect(t.mqttClient, t.scoped.MqttMaxRetry)
 	if !t.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
+	} else {
+		mqttSendInspectMessage(t.mqttClient, t.inspectFunc)
 	}
 }
 
-func (t *implTrigger) Triggered(b Message) error {
+func (t *implTrigger) SendEventMessage(b Message) error {
 	token := t.mqttClient.Publish(
 		t.mqttTopic,
 		t.scoped.MqttQoS,
@@ -77,17 +69,8 @@ func (t *implTrigger) Triggered(b Message) error {
 	}
 }
 
-func (t *implTrigger) NotifyAlive(m Message) error {
-	token := t.mqttClient.Publish(
-		topicOfAlive("Trigger", t.name),
-		0,
-		true,
-		m.getFrames())
-	if token.Wait() && nil != token.Error() {
-		return errors.WithMessage(token.Error(), "发送Alive消息出错")
-	} else {
-		return nil
-	}
+func (t *implTrigger) SendAliveMessage(alive Message) error {
+	return mqttSendAliveMessage(t.mqttClient, "Trigger", t.name, alive)
 }
 
 func (t *implTrigger) Shutdown() {

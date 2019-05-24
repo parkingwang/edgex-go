@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/nextabc-lab/edgex-go"
+	"runtime"
 )
 
 //
@@ -15,6 +16,20 @@ func main() {
 		opts := edgex.EndpointOptions{
 			Name:    "EXAMPLE-PINGPONG",
 			RpcAddr: "0.0.0.0:6670",
+			InspectFunc: func() edgex.Inspect {
+				return edgex.Inspect{
+					OS:   runtime.GOOS,
+					Arch: runtime.GOARCH,
+					Devices: []edgex.Device{
+						{
+							Name:    "ENDPOINT/EXAMPLE-PINGPONG",
+							Virtual: false,
+							Desc:    "演示终端",
+							Command: "ECHO",
+						},
+					},
+				}
+			},
 		}
 		endpoint := ctx.NewEndpoint(opts)
 

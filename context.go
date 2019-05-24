@@ -97,6 +97,7 @@ func (c *implContext) NewTrigger(opts TriggerOptions) Trigger {
 	checkContextInitialize(c)
 	checkRequired(opts.Name, "Trigger.Name MUST be specified")
 	checkRequired(opts.Topic, "Trigger.Topic MUST be specified")
+	checkRequired(opts.InspectFunc, "Trigger.InspectFunc MUST be specified")
 	c.serviceName = "Trigger"
 	c.serviceId = opts.Name
 	return &implTrigger{
@@ -110,12 +111,14 @@ func (c *implContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	checkContextInitialize(c)
 	checkRequired(opts.Name, "Endpoint.Name MUST be specified")
 	checkRequired(opts.RpcAddr, "Endpoint.RpcAddr MUST be specified")
+	checkRequired(opts.InspectFunc, "Endpoint.InspectFunc MUST be specified")
 	c.serviceName = "Endpoint"
 	c.serviceId = opts.RpcAddr
 	return &implEndpoint{
 		scoped:       c.scoped,
 		name:         opts.Name,
 		endpointAddr: opts.RpcAddr,
+		inspectFunc:  opts.InspectFunc,
 	}
 }
 
@@ -169,6 +172,11 @@ func checkRequired(value interface{}, message string) {
 
 	case []string:
 		if 0 == len(value.([]string)) {
+			log.Panic(message)
+		}
+
+	default:
+		if nil == value {
 			log.Panic(message)
 		}
 	}

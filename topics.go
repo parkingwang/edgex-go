@@ -10,6 +10,7 @@ import (
 //
 
 const (
+	topicDevicesInspect = "$EDGEX/DEVICES/INSPECT"
 	topicDevicesOffline = "$EDGEX/DEVICES/OFFLINE/%s/%s"
 	topicDevicesAlive   = "$EDGEX/DEVICES/ALIVE/%s/%s"
 	topicTrigger        = "$EDGEX/EVENTS/${user-topic}"
