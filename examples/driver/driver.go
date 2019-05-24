@@ -19,6 +19,7 @@ func main() {
 			Topics: []string{
 				"example/+",
 				"scheduled/+",
+				edgex.TopicDeviceInspect,
 			},
 		}
 

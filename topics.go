@@ -10,25 +10,32 @@ import (
 //
 
 const (
-	topicDevicesInspect = "$EDGEX/DEVICES/INSPECT"
-	topicDevicesOffline = "$EDGEX/DEVICES/OFFLINE/%s/%s"
-	topicDevicesAlive   = "$EDGEX/DEVICES/ALIVE/%s/%s"
-	topicTrigger        = "$EDGEX/EVENTS/${user-topic}"
+	tDevicesInspect = "$EDGEX/DEVICES/INSPECT"
+	tDevicesOffline = "$EDGEX/DEVICES/OFFLINE/%s/%s"
+	tDevicesAlive   = "$EDGEX/DEVICES/ALIVE/%s/%s"
+	tTrigger        = "$EDGEX/EVENTS/${user-topic}"
+)
+
+const (
+	TopicDeviceInspect = tDevicesInspect
+	TopicDeviceOffline = "$EDGEX/DEVICES/OFFLINE/#"
+	TopicDeviceALIVE   = "$EDGEX/DEVICES/ALIVE/#"
+	TopicDeviceEvents  = "$EDGEX/EVENTS/#"
 )
 
 func topicOfTrigger(topic string) string {
 	if strings.HasPrefix(topic, "/") {
 		log.Panicf("Topic MUST NOT starts with '/', was: %s", topic)
 	}
-	return topicFormat(topicTrigger, "${user-topic}", topic)
+	return topicFormat(tTrigger, "${user-topic}", topic)
 }
 
 func topicOfOffline(typeName, name string) string {
-	return fmt.Sprintf(topicDevicesOffline, typeName, name)
+	return fmt.Sprintf(tDevicesOffline, typeName, name)
 }
 
 func topicOfAlive(typeName, name string) string {
-	return fmt.Sprintf(topicDevicesAlive, typeName, name)
+	return fmt.Sprintf(tDevicesAlive, typeName, name)
 }
 
 func topicFormat(tpl, key, value string) string {

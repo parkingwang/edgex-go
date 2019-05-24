@@ -29,7 +29,7 @@ func mqttSendInspectMessage(client mqtt.Client, inspectFunc func() Inspect) {
 		log.Panic("Inspect数据错误", err)
 	}
 	token := client.Publish(
-		topicDevicesInspect,
+		tDevicesInspect,
 		0,
 		true,
 		inspect,
