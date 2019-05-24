@@ -7,7 +7,6 @@ import (
 	"go.uber.org/zap"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 )
 
@@ -95,12 +94,12 @@ func (c *implContext) LoadConfig() map[string]interface{} {
 }
 
 func (c *implContext) NewTrigger(opts TriggerOptions) Trigger {
-	checkContextInitialize(c)
+	c.checkInit()
 	checkRequired(opts.Name, "Trigger.Name MUST be specified")
 	checkRequired(opts.Topic, "Trigger.Topic MUST be specified")
 	checkRequired(opts.InspectFunc, "Trigger.InspectFunc MUST be specified")
 	c.serviceType = "Trigger"
-	c.serviceName = checkName(opts.Name)
+	c.serviceName = checkNameFormat(opts.Name)
 	return &implTrigger{
 		scoped:      c.scoped,
 		topic:       opts.Topic,
@@ -110,12 +109,12 @@ func (c *implContext) NewTrigger(opts TriggerOptions) Trigger {
 }
 
 func (c *implContext) NewEndpoint(opts EndpointOptions) Endpoint {
-	checkContextInitialize(c)
+	c.checkInit()
 	checkRequired(opts.Name, "Endpoint.Name MUST be specified")
 	checkRequired(opts.RpcAddr, "Endpoint.RpcAddr MUST be specified")
 	checkRequired(opts.InspectFunc, "Endpoint.InspectFunc MUST be specified")
 	c.serviceType = "Endpoint"
-	c.serviceName = checkName(opts.Name)
+	c.serviceName = checkNameFormat(opts.Name)
 	return &implEndpoint{
 		scoped:       c.scoped,
 		name:         opts.Name,
@@ -125,11 +124,11 @@ func (c *implContext) NewEndpoint(opts EndpointOptions) Endpoint {
 }
 
 func (c *implContext) NewDriver(opts DriverOptions) Driver {
-	checkContextInitialize(c)
+	c.checkInit()
 	checkRequired(opts.Name, "Driver.Name MUST be specified")
 	checkRequired(opts.Topics, "Driver.Topics MUST be specified")
 	c.serviceType = "Driver"
-	c.serviceName = checkName(opts.Name)
+	c.serviceName = checkNameFormat(opts.Name)
 	return &implDriver{
 		scoped: c.scoped,
 		name:   opts.Name,
@@ -159,35 +158,8 @@ func newContext(global *GlobalScoped) Context {
 	}
 }
 
-func checkName(name string) string {
-	if "" == name || strings.Contains(name, "/") {
-		log.Panic("服务名称中不能包含'/'字符")
-	}
-	return name
-}
-
-func checkContextInitialize(c *implContext) {
+func (c *implContext) checkInit() {
 	if c.serviceType != "" {
 		log.Panicf("Context已作为[%]服务使用", c.serviceType)
 	}
-}
-
-func checkRequired(value interface{}, message string) {
-	switch value.(type) {
-	case string:
-		if "" == value {
-			log.Panic(message)
-		}
-
-	case []string:
-		if 0 == len(value.([]string)) {
-			log.Panic(message)
-		}
-
-	default:
-		if nil == value {
-			log.Panic(message)
-		}
-	}
-
 }
