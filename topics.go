@@ -17,7 +17,7 @@ const (
 )
 
 const (
-	TopicDeviceInspect = tDevicesInspect
+	TopicDeviceInspect = "$EDGEX/DEVICES/INSPECT/#"
 	TopicDeviceOffline = "$EDGEX/DEVICES/OFFLINE/#"
 	TopicDeviceALIVE   = "$EDGEX/DEVICES/ALIVE/#"
 	TopicDeviceEvents  = "$EDGEX/EVENTS/#"
