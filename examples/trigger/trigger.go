@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/nextabc-lab/edgex"
+	"github.com/nextabc-lab/edgex-go"
 	"time"
 )
 

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/nextabc-lab/edgex"
+	"github.com/nextabc-lab/edgex-go"
 )
 
 //
