@@ -23,9 +23,9 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
 
 ////
 
-func mqttSendInspectMessage(client mqtt.Client, inspectFunc func() Inspect) {
+func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc func() Inspect) {
 	log.Debug("发送Inspect消息")
-	inspect, err := json.Marshal(inspectFunc())
+	data, err := json.Marshal(inspectFunc())
 	if nil != err {
 		log.Panic("Inspect数据错误", err)
 	}
@@ -33,7 +33,7 @@ func mqttSendInspectMessage(client mqtt.Client, inspectFunc func() Inspect) {
 		tDevicesInspect,
 		0,
 		true,
-		inspect,
+		NewMessage([]byte(deviceName), data).getFrames(),
 	)
 	if token.Wait() && nil != token.Error() {
 		log.Panic("发送Inspect消息出错", token.Error())

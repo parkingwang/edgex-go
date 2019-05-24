@@ -73,11 +73,11 @@ func (e *implEndpoint) Startup() {
 	if !e.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
-		mqttSendInspectMessage(e.mqttClient, e.inspectFunc)
+		mqttSendInspectMessage(e.mqttClient, e.name, e.inspectFunc)
 		go func() {
 			e.inspectTicker = time.NewTicker(time.Minute)
 			for range e.inspectTicker.C {
-				mqttSendInspectMessage(e.mqttClient, e.inspectFunc)
+				mqttSendInspectMessage(e.mqttClient, e.name, e.inspectFunc)
 			}
 		}()
 	}
