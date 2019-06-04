@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
+	"os"
 	"time"
 )
 
@@ -26,7 +27,11 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
 func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc func() Inspect) {
 	log.Debug("发送Inspect消息")
 	inspect := inspectFunc()
+	gRpcAddr := os.Getenv("GRPC_DEVICE_ADDR")
 	for _, i := range inspect.Devices {
+		if "" == i.Address {
+			i.Address = gRpcAddr
+		}
 		checkNameFormat(i.Name)
 	}
 	data, err := json.Marshal(inspect)
