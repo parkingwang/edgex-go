@@ -56,7 +56,7 @@ func (t *implTrigger) Startup() {
 	} else {
 		mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
 		go func() {
-			t.inspectTicker = time.NewTicker(time.Minute)
+			t.inspectTicker = time.NewTicker(time.Minute * 5)
 			for range t.inspectTicker.C {
 				mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
 			}

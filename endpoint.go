@@ -75,7 +75,7 @@ func (e *implEndpoint) Startup() {
 	} else {
 		mqttSendInspectMessage(e.mqttClient, e.name, e.inspectFunc)
 		go func() {
-			e.inspectTicker = time.NewTicker(time.Minute)
+			e.inspectTicker = time.NewTicker(time.Minute * 5)
 			for range e.inspectTicker.C {
 				mqttSendInspectMessage(e.mqttClient, e.name, e.inspectFunc)
 			}

@@ -24,7 +24,7 @@ type Device struct {
 	Type       string                 `json:"type"`       // 设备类型
 	Virtual    bool                   `json:"virtual"`    // 是否为虚拟设备，即通过代理后转换的设备
 	Command    string                 `json:"command"`    // 设备控制命令
-	Address    string                 `json:"address"`    // 控制通讯地址
 	EventTopic string                 `json:"eventTopic"` // 发送事件Topic
-	Attrs      map[string]interface{} `json:"attrs"`
+	Attrs      map[string]interface{} `json:"attrs"`      // 属性
+	Address    string                 `json:"address"`    // 控制通讯地址
 }

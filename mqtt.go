@@ -25,19 +25,20 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
 ////
 
 func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc func() Inspect) {
-	gRpcAddr := os.Getenv("GRPC_DEVICE_ADDR")
-	log.Debug("发送Inspect消息, [ENV]GRPC_DEVICE_ADDR: " + gRpcAddr)
+	gRpcAddr, addrOK := os.LookupEnv("GRPC_DEVICE_ADDR")
 	inspect := inspectFunc()
-	for _, i := range inspect.Devices {
-		if "" == i.Address {
-			i.Address = gRpcAddr
+	for _, dev := range inspect.Devices {
+		// 更新每个设备的gRpc地址
+		if addrOK {
+			dev.Address = gRpcAddr
 		}
-		checkNameFormat(i.Name)
+		checkNameFormat(dev.Name)
 	}
 	data, err := json.Marshal(inspect)
 	if nil != err {
 		log.Panic("Inspect数据序列化错误", err)
 	}
+	log.Debug("发送DeviceInspect消息, GRPC_DEVICE_ADDR: " + gRpcAddr + ", DATA: " + string(data))
 	token := client.Publish(
 		tDevicesInspect,
 		0,
