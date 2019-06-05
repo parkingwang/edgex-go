@@ -27,10 +27,12 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
 func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc func() Inspect) {
 	gRpcAddr, addrOK := os.LookupEnv("GRPC_DEVICE_ADDR")
 	inspect := inspectFunc()
-	for _, dev := range inspect.Devices {
+	for i, dev := range inspect.Devices {
 		// 更新每个设备的gRpc地址
 		if addrOK {
 			dev.Address = gRpcAddr
+			// !!修改操作，非引用。注意更新。
+			inspect.Devices[i] = dev
 		}
 		checkNameFormat(dev.Name)
 	}
