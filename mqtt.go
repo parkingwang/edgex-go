@@ -52,6 +52,22 @@ func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc f
 	}
 }
 
+func mqttTickInspectTimer(timer *time.Timer, fn func()) {
+	tick := 1
+	for range timer.C {
+		fn()
+		tick += 5
+		du := time.Second * time.Duration(tick)
+		if du > time.Minute*5 {
+			du = time.Minute * 5
+		}
+		if !timer.Stop() {
+			<-timer.C
+		}
+		timer.Reset(du)
+	}
+}
+
 func mqttSendAliveMessage(client mqtt.Client, typeName, devName string, alive Message) error {
 	token := client.Publish(
 		topicOfAlive(typeName, devName),

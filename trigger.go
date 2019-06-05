@@ -30,11 +30,11 @@ type TriggerOptions struct {
 
 type implTrigger struct {
 	Trigger
-	scoped        *GlobalScoped
-	topic         string // Trigger产生的事件Topic
-	name          string // Trigger的名称
-	inspectFunc   func() Inspect
-	inspectTicker *time.Ticker
+	scoped       *GlobalScoped
+	topic        string // Trigger产生的事件Topic
+	name         string // Trigger的名称
+	inspectFunc  func() Inspect
+	inspectTimer *time.Timer
 	// MQTT
 	mqttClient mqtt.Client
 	mqttTopic  string
@@ -55,12 +55,10 @@ func (t *implTrigger) Startup() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
 		mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
-		go func() {
-			t.inspectTicker = time.NewTicker(time.Minute * 5)
-			for range t.inspectTicker.C {
-				mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
-			}
-		}()
+		t.inspectTimer = time.NewTimer(time.Second)
+		mqttTickInspectTimer(t.inspectTimer, func() {
+			mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
+		})
 	}
 }
 
@@ -82,6 +80,9 @@ func (t *implTrigger) SendAliveMessage(alive Message) error {
 }
 
 func (t *implTrigger) Shutdown() {
-	t.inspectTicker.Stop()
+	if !t.inspectTimer.Stop() {
+		<-t.inspectTimer.C
+	}
+	t.inspectTimer.Stop()
 	t.mqttClient.Disconnect(1000)
 }
