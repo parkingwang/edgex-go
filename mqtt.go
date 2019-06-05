@@ -25,9 +25,9 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
 ////
 
 func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc func() Inspect) {
-	log.Debug("发送Inspect消息")
-	inspect := inspectFunc()
 	gRpcAddr := os.Getenv("GRPC_DEVICE_ADDR")
+	log.Debug("发送Inspect消息, [ENV]GRPC_DEVICE_ADDR: " + gRpcAddr)
+	inspect := inspectFunc()
 	for _, i := range inspect.Devices {
 		if "" == i.Address {
 			i.Address = gRpcAddr
@@ -36,7 +36,7 @@ func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc f
 	}
 	data, err := json.Marshal(inspect)
 	if nil != err {
-		log.Panic("Inspect数据错误", err)
+		log.Panic("Inspect数据序列化错误", err)
 	}
 	token := client.Publish(
 		tDevicesInspect,

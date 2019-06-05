@@ -37,12 +37,25 @@ type Context interface {
 	TermAwait() error
 }
 
+const (
+	MqttBrokerEnvKey  = "MQTT_BROKER_ADDR"
+	MqttBrokerDefault = "tcp://mqtt-broker.edgex.io:1883"
+
+	AppConfEnvKey   = "EDGE_X_CONFIG"
+	DefaultConfName = "application.toml"
+	DefaultConfFile = "/etc/edgex/application.toml"
+)
+
+var (
+	ErrConfigNotExist = errors.New("config not exists")
+)
+
 ////
 
 func Run(handler func(ctx Context) error) {
-	broker, ok := os.LookupEnv("MQTTBroker")
+	broker, ok := os.LookupEnv(MqttBrokerEnvKey)
 	if !ok {
-		broker = "tcp://mqtt-broker.edgex.io:1883"
+		broker = MqttBrokerDefault
 	}
 	scoped := NewDefaultGlobalScoped(broker)
 	ctx := newContext(scoped)
@@ -58,22 +71,12 @@ func CreateContext(scoped *GlobalScoped) Context {
 }
 
 func CreateDefaultContext() Context {
-	broker, ok := os.LookupEnv("MQTTBroker")
+	broker, ok := os.LookupEnv(MqttBrokerEnvKey)
 	if !ok {
-		broker = "tcp://mqtt-broker.edgex.io:1883"
+		broker = MqttBrokerDefault
 	}
 	return CreateContext(NewDefaultGlobalScoped(broker))
 }
-
-const (
-	AppConfEnvKey   = "EDGE_X_CONFIG"
-	DefaultConfName = "application.toml"
-	DefaultConfFile = "/etc/edgex/application.toml"
-)
-
-var (
-	ErrConfigNotExist = errors.New("config not exists")
-)
 
 //// Context实现
 
