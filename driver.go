@@ -78,7 +78,7 @@ func (d *implDriver) Shutdown() {
 	if token := d.mqttClient.Unsubscribe(topics...); token.Wait() && nil != token.Error() {
 		log.Error("取消监听事件出错：", token.Error())
 	}
-	d.mqttClient.Disconnect(1000)
+	d.mqttClient.Disconnect(d.scoped.MqttQuitMillSec)
 }
 
 func (d *implDriver) Process(f func(Message)) {

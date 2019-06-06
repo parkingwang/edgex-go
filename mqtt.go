@@ -13,10 +13,6 @@ import (
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
-const (
-	InspectMaxPeriod = time.Minute * 30
-)
-
 func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
 	opts.AddBroker(scoped.MqttBroker)
 	opts.SetKeepAlive(scoped.MqttKeepAlive)
@@ -57,23 +53,22 @@ func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc f
 	}
 }
 
-func mqttAsyncTickInspect(context context.Context, inspectTask func()) {
-	timer := time.NewTimer(time.Second)
-	defer timer.Stop()
+func mqttAsyncTickInspect(shutdown context.Context, inspectTask func()) {
+	// 在1分钟内上报Inspect消息
+	ticker := time.NewTicker(time.Second * 5)
+	defer ticker.Stop()
 
 	tick := 1
 	for {
 		select {
-		case <-timer.C:
+		case <-ticker.C:
 			inspectTask()
-			tick += 5
-			du := time.Second * time.Duration(tick)
-			if du > InspectMaxPeriod {
-				du = InspectMaxPeriod
+			tick++
+			if tick >= 12 {
+				return
 			}
-			timer.Reset(du)
 
-		case <-context.Done():
+		case <-shutdown.Done():
 			return
 		}
 	}

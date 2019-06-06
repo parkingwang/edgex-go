@@ -18,6 +18,7 @@ type GlobalScoped struct {
 	MqttAutoReconnect     bool
 	MqttCleanSession      bool
 	MqttMaxRetry          int
+	MqttQuitMillSec       uint
 }
 
 func NewDefaultGlobalScoped(broker string) *GlobalScoped {
@@ -32,5 +33,6 @@ func NewDefaultGlobalScoped(broker string) *GlobalScoped {
 		MqttAutoReconnect:     true,
 		MqttCleanSession:      true,
 		MqttMaxRetry:          120,
+		MqttQuitMillSec:       500,
 	}
 }

@@ -35,18 +35,21 @@ type implEndpoint struct {
 	name   string
 	scoped *GlobalScoped
 	// Inspect
-	inspectFunc    func() Inspect
-	inspectContext context.Context
-	inspectCancel  context.CancelFunc
+	inspectFunc func() Inspect
 	// gRPC
 	endpointAddr  string
 	messageWorker func(in Message) (out Message)
 	rpcServer     *grpc.Server
 	// MQTT
 	mqttClient mqtt.Client
+	// Shutdown
+	shutdownContext context.Context
+	shutdownCancel  context.CancelFunc
 }
 
 func (e *implEndpoint) Startup() {
+	e.shutdownContext, e.shutdownCancel = context.WithCancel(context.Background())
+
 	e.rpcServer = grpc.NewServer()
 	RegisterExecuteServer(e.rpcServer, &executor{
 		handler: e.messageWorker,
@@ -78,8 +81,7 @@ func (e *implEndpoint) Startup() {
 	} else {
 		// 异步发送Inspect消息
 		mqttSendInspectMessage(e.mqttClient, e.name, e.inspectFunc)
-		e.inspectContext, e.inspectCancel = context.WithCancel(context.Background())
-		go mqttAsyncTickInspect(e.inspectContext, func() {
+		go mqttAsyncTickInspect(e.shutdownContext, func() {
 			mqttSendInspectMessage(e.mqttClient, e.name, e.inspectFunc)
 		})
 	}
@@ -87,9 +89,9 @@ func (e *implEndpoint) Startup() {
 
 func (e *implEndpoint) Shutdown() {
 	log.Info("停止GRPC服务")
-	e.inspectCancel()
+	e.shutdownCancel()
 	e.rpcServer.Stop()
-	e.mqttClient.Disconnect(1000)
+	e.mqttClient.Disconnect(e.scoped.MqttQuitMillSec)
 }
 
 func (e *implEndpoint) Serve(w func(in Message) (out Message)) {

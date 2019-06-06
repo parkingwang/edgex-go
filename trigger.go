@@ -34,15 +34,17 @@ type implTrigger struct {
 	topic  string // Trigger产生的事件Topic
 	name   string // Trigger的名称
 	// Inspect
-	inspectFunc    func() Inspect
-	inspectContext context.Context
-	inspectCancel  context.CancelFunc
+	inspectFunc func() Inspect
 	// MQTT
 	mqttClient mqtt.Client
 	mqttTopic  string
+	// Shutdown
+	shutdownContext context.Context
+	shutdownCancel  context.CancelFunc
 }
 
 func (t *implTrigger) Startup() {
+	t.shutdownContext, t.shutdownCancel = context.WithCancel(context.Background())
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
 	opts.SetClientID(fmt.Sprintf("Trigger-%s", t.name))
@@ -59,8 +61,8 @@ func (t *implTrigger) Startup() {
 	} else {
 		// 异步发送Inspect消息
 		mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
-		t.inspectContext, t.inspectCancel = context.WithCancel(context.Background())
-		go mqttAsyncTickInspect(t.inspectContext, func() {
+
+		go mqttAsyncTickInspect(t.shutdownContext, func() {
 			mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
 		})
 	}
@@ -84,6 +86,6 @@ func (t *implTrigger) SendAliveMessage(alive Message) error {
 }
 
 func (t *implTrigger) Shutdown() {
-	t.inspectCancel()
-	t.mqttClient.Disconnect(1000)
+	t.shutdownCancel()
+	t.mqttClient.Disconnect(t.scoped.MqttQuitMillSec)
 }
