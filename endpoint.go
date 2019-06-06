@@ -1,13 +1,12 @@
 package edgex
 
 import (
-	ctx "context"
+	"context"
 	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"net"
-	"time"
 )
 
 //
@@ -33,10 +32,12 @@ type EndpointOptions struct {
 
 type implEndpoint struct {
 	Endpoint
-	name         string
-	scoped       *GlobalScoped
-	inspectFunc  func() Inspect
-	inspectTimer *time.Timer
+	name   string
+	scoped *GlobalScoped
+	// Inspect
+	inspectFunc    func() Inspect
+	inspectContext context.Context
+	inspectCancel  context.CancelFunc
 	// gRPC
 	endpointAddr  string
 	messageWorker func(in Message) (out Message)
@@ -68,16 +69,17 @@ func (e *implEndpoint) Startup() {
 	mqttSetOptions(opts, e.scoped)
 	e.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", e.scoped.MqttBroker)
+
 	// 连续重试
-	mqttAwaitConnection(e.mqttClient)
+	mqttAwaitConnection(e.mqttClient, e.scoped.MqttMaxRetry)
 
 	if !e.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
 		// 异步发送Inspect消息
 		mqttSendInspectMessage(e.mqttClient, e.name, e.inspectFunc)
-		e.inspectTimer = time.NewTimer(time.Second)
-		go mqttAsyncTickInspect(e.inspectTimer, func() {
+		e.inspectContext, e.inspectCancel = context.WithCancel(context.Background())
+		go mqttAsyncTickInspect(e.inspectContext, func() {
 			mqttSendInspectMessage(e.mqttClient, e.name, e.inspectFunc)
 		})
 	}
@@ -85,10 +87,7 @@ func (e *implEndpoint) Startup() {
 
 func (e *implEndpoint) Shutdown() {
 	log.Info("停止GRPC服务")
-	if !e.inspectTimer.Stop() {
-		<-e.inspectTimer.C
-	}
-	e.inspectTimer.Stop()
+	e.inspectCancel()
 	e.rpcServer.Stop()
 	e.mqttClient.Disconnect(1000)
 }
@@ -108,7 +107,7 @@ type executor struct {
 	handler func(in Message) (out Message)
 }
 
-func (ex *executor) Execute(c ctx.Context, i *Data) (o *Data, e error) {
+func (ex *executor) Execute(c context.Context, i *Data) (o *Data, e error) {
 	done := make(chan *Data, 1)
 	in := ParseMessage(i.GetFrames())
 	go func() {

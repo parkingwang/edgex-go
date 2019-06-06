@@ -1,6 +1,7 @@
 package edgex
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
@@ -52,19 +53,25 @@ func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc f
 	}
 }
 
-func mqttAsyncTickInspect(timer *time.Timer, fn func()) {
+func mqttAsyncTickInspect(context context.Context, inspectTask func()) {
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+
 	tick := 1
-	for range timer.C {
-		fn()
-		tick += 5
-		du := time.Second * time.Duration(tick)
-		if du > time.Minute*5 {
-			du = time.Minute * 5
+	for {
+		select {
+		case <-timer.C:
+			inspectTask()
+			tick += 5
+			du := time.Second * time.Duration(tick)
+			if du > time.Minute*5 {
+				du = time.Minute * 5
+			}
+			timer.Reset(du)
+
+		case <-context.Done():
+			return
 		}
-		if !timer.Stop() {
-			<-timer.C
-		}
-		timer.Reset(du)
 	}
 }
 
@@ -81,25 +88,18 @@ func mqttSendAliveMessage(client mqtt.Client, typeName, devName string, alive Me
 	}
 }
 
-func mqttAwaitConnection(client mqtt.Client) {
+func mqttAwaitConnection(client mqtt.Client, maxRetry int) {
 	timer := time.NewTimer(time.Second)
-	defer func() {
-		if !timer.Stop() {
-			<-timer.C
-		}
-		timer.Stop()
-	}()
-	tick := 1
-	for range timer.C {
+	defer timer.Stop()
+	for i := 1; i <= maxRetry; i++ {
+		<-timer.C
 		if token := client.Connect(); token.Wait() && token.Error() != nil {
-			const msg = "Mqtt客户端连接失败："
-			if tick > 30 {
-				log.Debug(msg, token.Error())
+			if i == maxRetry {
+				log.Errorf("[%d] Mqtt客户端连接失败，最大次数：%v", i, token.Error())
 			} else {
-				log.Error(msg, token.Error())
+				log.Debugf("[%d] Mqtt客户端尝试重新连接，失败：%v", i, token.Error())
 			}
-			timer.Reset(time.Second * time.Duration(tick))
-			tick++
+			timer.Reset(time.Second * time.Duration(i))
 		} else {
 			log.Info("Mqtt客户端连接成功")
 			break

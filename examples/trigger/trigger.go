@@ -23,7 +23,7 @@ func main() {
 					HostArch: runtime.GOARCH,
 					Devices: []edgex.Device{
 						{
-							Name:    "TRIGGER/EXAMPLE-TIMER",
+							Name:    "TRIGGER-EXAMPLE-TIMER",
 							Virtual: false,
 							Desc:    "演示Trigger",
 						},

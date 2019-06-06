@@ -1,10 +1,10 @@
 package edgex
 
 import (
+	"context"
 	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
-	"time"
 )
 
 //
@@ -30,11 +30,13 @@ type TriggerOptions struct {
 
 type implTrigger struct {
 	Trigger
-	scoped       *GlobalScoped
-	topic        string // Trigger产生的事件Topic
-	name         string // Trigger的名称
-	inspectFunc  func() Inspect
-	inspectTimer *time.Timer
+	scoped *GlobalScoped
+	topic  string // Trigger产生的事件Topic
+	name   string // Trigger的名称
+	// Inspect
+	inspectFunc    func() Inspect
+	inspectContext context.Context
+	inspectCancel  context.CancelFunc
 	// MQTT
 	mqttClient mqtt.Client
 	mqttTopic  string
@@ -50,15 +52,15 @@ func (t *implTrigger) Startup() {
 	t.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", t.scoped.MqttBroker)
 	// 连续重试
-	mqttAwaitConnection(t.mqttClient)
+	mqttAwaitConnection(t.mqttClient, t.scoped.MqttMaxRetry)
 
 	if !t.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
 		// 异步发送Inspect消息
 		mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
-		t.inspectTimer = time.NewTimer(time.Second)
-		go mqttAsyncTickInspect(t.inspectTimer, func() {
+		t.inspectContext, t.inspectCancel = context.WithCancel(context.Background())
+		go mqttAsyncTickInspect(t.inspectContext, func() {
 			mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
 		})
 	}
@@ -82,9 +84,6 @@ func (t *implTrigger) SendAliveMessage(alive Message) error {
 }
 
 func (t *implTrigger) Shutdown() {
-	if !t.inspectTimer.Stop() {
-		<-t.inspectTimer.C
-	}
-	t.inspectTimer.Stop()
+	t.inspectCancel()
 	t.mqttClient.Disconnect(1000)
 }
