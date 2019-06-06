@@ -13,6 +13,10 @@ import (
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
+const (
+	InspectMaxPeriod = time.Minute * 30
+)
+
 func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
 	opts.AddBroker(scoped.MqttBroker)
 	opts.SetKeepAlive(scoped.MqttKeepAlive)
@@ -64,8 +68,8 @@ func mqttAsyncTickInspect(context context.Context, inspectTask func()) {
 			inspectTask()
 			tick += 5
 			du := time.Second * time.Duration(tick)
-			if du > time.Minute*5 {
-				du = time.Minute * 5
+			if du > InspectMaxPeriod {
+				du = InspectMaxPeriod
 			}
 			timer.Reset(du)
 
