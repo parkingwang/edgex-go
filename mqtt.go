@@ -48,11 +48,11 @@ func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc f
 		NewMessage([]byte(deviceName), data).getFrames(),
 	)
 	if token.Wait() && nil != token.Error() {
-		log.Panic("发送Inspect消息出错", token.Error())
+		log.Error("发送Inspect消息出错", token.Error())
 	}
 }
 
-func mqttTickInspectTimer(timer *time.Timer, fn func()) {
+func mqttAsyncTickInspect(timer *time.Timer, fn func()) {
 	tick := 1
 	for range timer.C {
 		fn()
@@ -81,11 +81,25 @@ func mqttSendAliveMessage(client mqtt.Client, typeName, devName string, alive Me
 	}
 }
 
-func mqttRetryConnect(client mqtt.Client, max int) {
-	for retry := 0; retry < max; retry++ {
+func mqttAwaitConnection(client mqtt.Client) {
+	timer := time.NewTimer(time.Second)
+	defer func() {
+		if !timer.Stop() {
+			<-timer.C
+		}
+		timer.Stop()
+	}()
+	tick := 1
+	for range timer.C {
 		if token := client.Connect(); token.Wait() && token.Error() != nil {
-			log.Error("Mqtt客户端连接出错：", token.Error())
-			<-time.After(time.Second)
+			const msg = "Mqtt客户端连接失败："
+			if tick > 30 {
+				log.Debug(msg, token.Error())
+			} else {
+				log.Error(msg, token.Error())
+			}
+			timer.Reset(time.Second * time.Duration(tick))
+			tick++
 		} else {
 			log.Info("Mqtt客户端连接成功")
 			break

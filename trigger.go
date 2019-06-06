@@ -50,13 +50,15 @@ func (t *implTrigger) Startup() {
 	t.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", t.scoped.MqttBroker)
 	// 连续重试
-	mqttRetryConnect(t.mqttClient, t.scoped.MqttMaxRetry)
+	mqttAwaitConnection(t.mqttClient)
+
 	if !t.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
+		// 异步发送Inspect消息
 		mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
 		t.inspectTimer = time.NewTimer(time.Second)
-		mqttTickInspectTimer(t.inspectTimer, func() {
+		go mqttAsyncTickInspect(t.inspectTimer, func() {
 			mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
 		})
 	}
