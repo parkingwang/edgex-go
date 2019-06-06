@@ -51,15 +51,8 @@ func (d *implDriver) Startup() {
 	log.Info("Mqtt客户端连接Broker: ", d.scoped.MqttBroker)
 
 	// 连续重试
-	for retry := 0; retry < d.scoped.MqttMaxRetry; retry++ {
-		if token := d.mqttClient.Connect(); token.Wait() && token.Error() != nil {
-			log.Error("Mqtt客户端连接出错：", token.Error())
-			<-time.After(time.Second)
-		} else {
-			log.Info("Mqtt客户端连接成功")
-			break
-		}
-	}
+	mqttAwaitConnection(d.mqttClient)
+
 	if !d.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	}
