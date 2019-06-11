@@ -7,7 +7,10 @@ import "strings"
 //
 
 func checkNameFormat(name string) string {
-	if "" == name || strings.Contains(name, "/") {
+	if "" == name {
+		log.Panic("名称是必须的")
+	}
+	if strings.Contains(name, "/") {
 		log.Panic("名称中不能包含'/'字符:" + name)
 	}
 	return name
