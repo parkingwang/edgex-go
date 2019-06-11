@@ -18,6 +18,9 @@ type Context interface {
 	// 返回Log对象
 	Log() *zap.SugaredLogger
 
+	// 当设置verbose环境变量
+	LogIfVerbose(fn func(log *zap.SugaredLogger))
+
 	// 加载配置
 	LoadConfig() map[string]interface{}
 
@@ -38,10 +41,12 @@ type Context interface {
 }
 
 const (
-	MqttBrokerEnvKey  = "MQTT_BROKER_ADDR"
+	EnvKeyBroker     = "EDGEX_MQTT_BROKER"
+	EnvKeyConfig     = "EDGEX_CONFIG"
+	EnvKeyLogVerbose = "EDGEX_LOG_VERBOSE"
+
 	MqttBrokerDefault = "tcp://mqtt-broker.edgex.io:1883"
 
-	AppConfEnvKey   = "EDGE_X_CONFIG"
 	DefaultConfName = "application.toml"
 	DefaultConfFile = "/etc/edgex/application.toml"
 )
@@ -53,7 +58,7 @@ var (
 ////
 
 func Run(handler func(ctx Context) error) {
-	broker, ok := os.LookupEnv(MqttBrokerEnvKey)
+	broker, ok := os.LookupEnv(EnvKeyBroker)
 	if !ok {
 		broker = MqttBrokerDefault
 	}
@@ -71,7 +76,7 @@ func CreateContext(scoped *GlobalScoped) Context {
 }
 
 func CreateDefaultContext() Context {
-	broker, ok := os.LookupEnv(MqttBrokerEnvKey)
+	broker, ok := os.LookupEnv(EnvKeyBroker)
 	if !ok {
 		broker = MqttBrokerDefault
 	}
@@ -84,6 +89,7 @@ type implContext struct {
 	scoped      *GlobalScoped
 	serviceType string
 	serviceName string
+	logVerbose  bool
 }
 
 func (c *implContext) LoadConfig() map[string]interface{} {
@@ -96,7 +102,7 @@ func (c *implContext) LoadConfig() map[string]interface{} {
 		return "", ErrConfigNotExist
 	}
 	config := make(map[string]interface{})
-	file, err := searchConfig(DefaultConfName, DefaultConfFile, os.Getenv(AppConfEnvKey))
+	file, err := searchConfig(DefaultConfName, DefaultConfFile, os.Getenv(EnvKeyConfig))
 	if nil != err {
 		log.Panic("未设置任何配置文件")
 	} else {
@@ -167,9 +173,16 @@ func (c *implContext) Log() *zap.SugaredLogger {
 	return log
 }
 
+func (c *implContext) LogIfVerbose(fn func(log *zap.SugaredLogger)) {
+	if c.logVerbose {
+		fn(log)
+	}
+}
+
 func newContext(global *GlobalScoped) Context {
 	return &implContext{
-		scoped: global,
+		scoped:     global,
+		logVerbose: "true" == os.Getenv(EnvKeyLogVerbose),
 	}
 }
 
