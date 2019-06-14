@@ -73,7 +73,7 @@ func (e *implEndpoint) Startup() {
 	}()
 	// MQTT Broker
 	opts := mqtt.NewClientOptions()
-	opts.SetClientID(fmt.Sprintf("Endpoint-%s", e.name))
+	opts.SetClientID(fmt.Sprintf("EDGEX-ENDPOINT:%s", e.name))
 	opts.SetWill(topicOfOffline("Endpoint", e.name), "offline", 1, true)
 	mqttSetOptions(opts, e.scoped)
 	e.mqttClient = mqtt.NewClient(opts)

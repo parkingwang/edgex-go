@@ -14,15 +14,15 @@ func main() {
 		//config := ctx.LoadConfig()
 		// 向系统注册节点
 		opts := edgex.EndpointOptions{
-			Name:    "EXAMPLE-PINGPONG",
+			Name:    "EXAMPLE-ENDPOINT",
 			RpcAddr: "0.0.0.0:6670",
 			InspectFunc: func() edgex.Inspect {
 				return edgex.Inspect{
 					HostOS:   runtime.GOOS,
 					HostArch: runtime.GOARCH,
-					Devices: []edgex.Device{
+					VirtualDevices: []edgex.VirtualDevice{
 						{
-							Name:    "ENDPOINT-EXAMPLE-PINGPONG",
+							Name:    "PINGPONG",
 							Virtual: false,
 							Desc:    "演示终端",
 							Command: "ECHO",

@@ -25,19 +25,20 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
 
 ////
 
-func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc func() Inspect) {
+func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectFunc func() Inspect) {
 	gRpcAddr, addrOK := os.LookupEnv("GRPC_DEVICE_ADDR")
-	inspect := inspectFunc()
-	for i, dev := range inspect.Devices {
-		// 更新每个设备的gRpc地址
+	inspectMsg := inspectFunc()
+	for i, vd := range inspectMsg.VirtualDevices {
+		// 更新每个设备的gRpc地址、子设备命名
 		if addrOK {
-			dev.Address = gRpcAddr
-			// !!修改操作，非引用。注意更新。
-			inspect.Devices[i] = dev
+			vd.Address = gRpcAddr
 		}
-		checkNameFormat(dev.Name)
+		vd.Name = nodeName + ":" + vd.Name
+		checkNameFormat(vd.Name)
+		// !!修改操作，非引用。注意更新。
+		inspectMsg.VirtualDevices[i] = vd
 	}
-	data, err := json.Marshal(inspect)
+	data, err := json.Marshal(inspectMsg)
 	if nil != err {
 		log.Panic("Inspect数据序列化错误", err)
 	}
@@ -46,7 +47,7 @@ func mqttSendInspectMessage(client mqtt.Client, deviceName string, inspectFunc f
 		tDevicesInspect,
 		0,
 		true,
-		NewMessage([]byte(deviceName), data).getFrames(),
+		NewMessage([]byte(nodeName), data).getFrames(),
 	)
 	if token.Wait() && nil != token.Error() {
 		log.Error("发送Inspect消息出错", token.Error())

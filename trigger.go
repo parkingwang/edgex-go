@@ -32,9 +32,9 @@ type TriggerOptions struct {
 
 type implTrigger struct {
 	Trigger
-	scoped *GlobalScoped
-	topic  string // Trigger产生的事件Topic
-	name   string // Trigger的名称
+	scoped   *GlobalScoped
+	topic    string // Trigger产生的事件Topic
+	nodeName string // Trigger的名称
 	// Inspect
 	inspectFunc func() Inspect
 	// MQTT
@@ -46,15 +46,15 @@ type implTrigger struct {
 }
 
 func (t *implTrigger) Name() string {
-	return t.name
+	return t.nodeName
 }
 
 func (t *implTrigger) Startup() {
 	t.shutdownContext, t.shutdownCancel = context.WithCancel(context.Background())
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
-	opts.SetClientID(fmt.Sprintf("Trigger-%s", t.name))
-	opts.SetWill(topicOfOffline("Trigger", t.name), "offline", 1, true)
+	opts.SetClientID(fmt.Sprintf("EDGEX-TRIGGER:%s", t.nodeName))
+	opts.SetWill(topicOfOffline("Trigger", t.nodeName), "offline", 1, true)
 	mqttSetOptions(opts, t.scoped)
 	t.mqttTopic = topicOfTrigger(t.topic)
 	t.mqttClient = mqtt.NewClient(opts)
@@ -66,10 +66,10 @@ func (t *implTrigger) Startup() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
 		// 异步发送Inspect消息
-		mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
+		mqttSendInspectMessage(t.mqttClient, t.nodeName, t.inspectFunc)
 
 		go mqttAsyncTickInspect(t.shutdownContext, func() {
-			mqttSendInspectMessage(t.mqttClient, t.name, t.inspectFunc)
+			mqttSendInspectMessage(t.mqttClient, t.nodeName, t.inspectFunc)
 		})
 	}
 }
@@ -88,7 +88,7 @@ func (t *implTrigger) SendEventMessage(b Message) error {
 }
 
 func (t *implTrigger) SendAliveMessage(alive Message) error {
-	return mqttSendAliveMessage(t.mqttClient, "Trigger", t.name, alive)
+	return mqttSendAliveMessage(t.mqttClient, "Trigger", t.nodeName, alive)
 }
 
 func (t *implTrigger) Shutdown() {

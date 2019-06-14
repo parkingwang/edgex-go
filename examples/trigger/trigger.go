@@ -15,15 +15,15 @@ func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 		// 向系统注册节点
 		opts := edgex.TriggerOptions{
-			Name:  "EXAMPLE-TIMER",
+			Name:  "EXAMPLE-TRIGGER",
 			Topic: "example/timer",
 			InspectFunc: func() edgex.Inspect {
 				return edgex.Inspect{
 					HostOS:   runtime.GOOS,
 					HostArch: runtime.GOARCH,
-					Devices: []edgex.Device{
+					VirtualDevices: []edgex.VirtualDevice{
 						{
-							Name:    "EXAMPLE-TIMER",
+							Name:    "MAIN-TIMER",
 							Virtual: false,
 							Desc:    "演示Trigger",
 						},

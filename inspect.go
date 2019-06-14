@@ -11,14 +11,14 @@ const (
 
 // Inspect消息是将节点相关信息的描述
 type Inspect struct {
-	HostOS     string   `json:"hostOS"`
-	HostArch   string   `json:"hostArch"`
-	Vendor     string   `json:"vendor"`     // 品牌名称
-	DriverName string   `json:"driverName"` // 服务驱动类型名
-	Devices    []Device `json:"devices"`    // 设备列表
+	HostOS         string          `json:"hostOS"`
+	HostArch       string          `json:"hostArch"`
+	Vendor         string          `json:"vendor"`     // 品牌名称
+	DriverName     string          `json:"driverName"` // 服务驱动类型名
+	VirtualDevices []VirtualDevice `json:"devices"`    // 设备列表
 }
 
-type Device struct {
+type VirtualDevice struct {
 	Name       string                 `json:"name"`       // 设备名称
 	Desc       string                 `json:"desc"`       // 设备描述信息
 	Type       string                 `json:"type"`       // 设备类型

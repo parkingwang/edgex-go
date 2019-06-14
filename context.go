@@ -106,7 +106,7 @@ func (c *implContext) NewTrigger(opts TriggerOptions) Trigger {
 	return &implTrigger{
 		scoped:      c.scoped,
 		topic:       opts.Topic,
-		name:        opts.Name,
+		nodeName:    opts.Name,
 		inspectFunc: opts.InspectFunc,
 	}
 }
