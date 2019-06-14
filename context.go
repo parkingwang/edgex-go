@@ -93,25 +93,7 @@ type implContext struct {
 }
 
 func (c *implContext) LoadConfig() map[string]interface{} {
-	searchConfig := func(files ...string) (f string, err error) {
-		for _, file := range files {
-			if _, err := os.Stat(file); nil == err {
-				return file, nil
-			}
-		}
-		return "", ErrConfigNotExist
-	}
-	config := make(map[string]interface{})
-	file, err := searchConfig(DefaultConfName, DefaultConfFile, os.Getenv(EnvKeyConfig))
-	if nil != err {
-		log.Panic("未设置任何配置文件")
-	} else {
-		log.Debug("加载配置文件：", file)
-	}
-	if _, err := toml.DecodeFile(file, &config); nil != err {
-		log.Error(fmt.Sprintf("读取配置文件(%s)出错: ", file), err)
-	}
-	return config
+	return LoadConfig()
 }
 
 func (c *implContext) NewTrigger(opts TriggerOptions) Trigger {
@@ -190,4 +172,26 @@ func (c *implContext) checkInit() {
 	if c.serviceType != "" {
 		log.Panicf("Context已作为[%]服务使用", c.serviceType)
 	}
+}
+
+func LoadConfig() map[string]interface{} {
+	searchConfig := func(files ...string) (f string, err error) {
+		for _, file := range files {
+			if _, err := os.Stat(file); nil == err {
+				return file, nil
+			}
+		}
+		return "", ErrConfigNotExist
+	}
+	config := make(map[string]interface{})
+	file, err := searchConfig(DefaultConfName, DefaultConfFile, os.Getenv(EnvKeyConfig))
+	if nil != err {
+		log.Panic("未设置任何配置文件")
+	} else {
+		log.Debug("加载配置文件：", file)
+	}
+	if _, err := toml.DecodeFile(file, &config); nil != err {
+		log.Error(fmt.Sprintf("读取配置文件(%s)出错: ", file), err)
+	}
+	return config
 }
