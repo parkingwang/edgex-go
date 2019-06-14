@@ -15,8 +15,7 @@ import (
 
 type Driver interface {
 	Lifecycle
-	// 返回命名
-	Name() string
+	NodeName
 	// 处理消息
 	Process(func(event Message))
 	// 发起一个消息请求，并获取响应消息。
@@ -25,8 +24,8 @@ type Driver interface {
 }
 
 type DriverOptions struct {
-	Name   string
-	Topics []string
+	NodeName string   // 节点名称
+	Topics   []string // 监听主题列表
 }
 
 //// Driver实现
@@ -42,7 +41,7 @@ type implDriver struct {
 	mqttWorker       func(event Message)
 }
 
-func (d *implDriver) Name() string {
+func (d *implDriver) NodeName() string {
 	return d.name
 }
 

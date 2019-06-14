@@ -19,12 +19,12 @@ type Inspect struct {
 }
 
 type VirtualDevice struct {
-	Name       string                 `json:"name"`       // 设备名称
-	Desc       string                 `json:"desc"`       // 设备描述信息
-	Type       string                 `json:"type"`       // 设备类型
-	Virtual    bool                   `json:"virtual"`    // 是否为虚拟设备，即通过代理后转换的设备
-	Command    string                 `json:"command"`    // 设备控制命令
-	EventTopic string                 `json:"eventTopic"` // 发送事件Topic
-	Attrs      map[string]interface{} `json:"attrs"`      // 属性
-	Address    string                 `json:"address"`    // 控制通讯地址
+	VirtualName string                 `json:"name"`       // 虚拟设备名称，内部框架会自动填充所属节点名称作为前缀
+	Desc        string                 `json:"desc"`       // 设备描述信息
+	Type        string                 `json:"type"`       // 设备类型
+	Virtual     bool                   `json:"virtual"`    // 是否为虚拟设备，即通过代理后转换的设备
+	Command     string                 `json:"command"`    // 设备控制命令
+	EventTopic  string                 `json:"eventTopic"` // 发送事件Topic
+	Attrs       map[string]interface{} `json:"attrs"`      // 属性
+	Address     string                 `json:"address"`    // 控制通讯地址
 }

@@ -41,9 +41,10 @@ type Context interface {
 }
 
 const (
-	EnvKeyBroker     = "EDGEX_MQTT_BROKER"
-	EnvKeyConfig     = "EDGEX_CONFIG"
-	EnvKeyLogVerbose = "EDGEX_LOG_VERBOSE"
+	EnvKeyBroker      = "EDGEX_MQTT_BROKER"
+	EnvKeyConfig      = "EDGEX_CONFIG"
+	EnvKeyLogVerbose  = "EDGEX_LOG_VERBOSE"
+	EnvKeyGrpcAddress = "EDGEX_GRPC_ADDRESS"
 
 	MqttBrokerDefault = "tcp://mqtt-broker.edgex.io:1883"
 
@@ -98,29 +99,29 @@ func (c *implContext) LoadConfig() map[string]interface{} {
 
 func (c *implContext) NewTrigger(opts TriggerOptions) Trigger {
 	c.checkInit()
-	checkRequired(opts.Name, "Trigger.Name MUST be specified")
+	checkRequired(opts.NodeName, "Trigger.NodeName MUST be specified")
 	checkRequired(opts.Topic, "Trigger.Topic MUST be specified")
 	checkRequired(opts.InspectFunc, "Trigger.InspectFunc MUST be specified")
 	c.serviceType = "Trigger"
-	c.serviceName = checkNameFormat(opts.Name)
+	c.serviceName = checkNameFormat(opts.NodeName)
 	return &implTrigger{
 		scoped:      c.scoped,
 		topic:       opts.Topic,
-		nodeName:    opts.Name,
+		nodeName:    opts.NodeName,
 		inspectFunc: opts.InspectFunc,
 	}
 }
 
 func (c *implContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	c.checkInit()
-	checkRequired(opts.Name, "Endpoint.Name MUST be specified")
+	checkRequired(opts.NodeName, "Endpoint.NodeName MUST be specified")
 	checkRequired(opts.RpcAddr, "Endpoint.RpcAddr MUST be specified")
 	checkRequired(opts.InspectFunc, "Endpoint.InspectFunc MUST be specified")
 	c.serviceType = "Endpoint"
-	c.serviceName = checkNameFormat(opts.Name)
+	c.serviceName = checkNameFormat(opts.NodeName)
 	return &implEndpoint{
 		scoped:       c.scoped,
-		name:         opts.Name,
+		name:         opts.NodeName,
 		endpointAddr: opts.RpcAddr,
 		inspectFunc:  opts.InspectFunc,
 	}
@@ -128,13 +129,13 @@ func (c *implContext) NewEndpoint(opts EndpointOptions) Endpoint {
 
 func (c *implContext) NewDriver(opts DriverOptions) Driver {
 	c.checkInit()
-	checkRequired(opts.Name, "Driver.Name MUST be specified")
+	checkRequired(opts.NodeName, "Driver.NodeName MUST be specified")
 	checkRequired(opts.Topics, "Driver.Topics MUST be specified")
 	c.serviceType = "Driver"
-	c.serviceName = checkNameFormat(opts.Name)
+	c.serviceName = checkNameFormat(opts.NodeName)
 	return &implDriver{
 		scoped: c.scoped,
-		name:   opts.Name,
+		name:   opts.NodeName,
 		topics: opts.Topics,
 	}
 }
@@ -174,6 +175,14 @@ func (c *implContext) checkInit() {
 	}
 }
 
+////
+
+// CreateVirtualDeviceName 创建虚拟设备的完整名称
+func CreateVirtualDeviceName(nodeName, virtualDeviceName string) string {
+	return nodeName + ":" + virtualDeviceName
+}
+
+// LoadConfig 加载TOML配置文件
 func LoadConfig() map[string]interface{} {
 	searchConfig := func(files ...string) (f string, err error) {
 		for _, file := range files {

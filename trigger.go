@@ -14,18 +14,18 @@ import (
 // Trigger 触发器，用于产生事件
 type Trigger interface {
 	Lifecycle
-	// 返回命名
-	Name() string
-	// 发送事件消息
-	SendEventMessage(b Message) error
-	// 发送Alive消息
-	SendAliveMessage(m Message) error
+	NodeName
+
+	// SendEventMessage 发送事件消息。指定 virtualDeviceName 的数据体。其中，
+	// virtualDeviceName 为触发器内部的虚拟设备名称，它与与Trigger的节点名称组成完整的设备名称来作为消息来源。
+	// 最终发送消息的Name字段，与Inspect返回的虚拟设备Name字段是相同的。
+	SendEventMessage(virtualDevName string, data []byte) error
 }
 
 type TriggerOptions struct {
-	Name        string
-	Topic       string
-	InspectFunc func() Inspect
+	NodeName    string         // 节点名称
+	Topic       string         // 触发器发送事件的主题
+	InspectFunc func() Inspect // Inspect消息生成函数
 }
 
 //// trigger
@@ -45,7 +45,7 @@ type implTrigger struct {
 	shutdownCancel  context.CancelFunc
 }
 
-func (t *implTrigger) Name() string {
+func (t *implTrigger) NodeName() string {
 	return t.nodeName
 }
 
@@ -74,21 +74,19 @@ func (t *implTrigger) Startup() {
 	}
 }
 
-func (t *implTrigger) SendEventMessage(b Message) error {
+func (t *implTrigger) SendEventMessage(virtualName string, data []byte) error {
+	// 构建完整的设备名称
+	fullDeviceName := CreateVirtualDeviceName(t.nodeName, virtualName)
 	token := t.mqttClient.Publish(
 		t.mqttTopic,
 		t.scoped.MqttQoS,
 		t.scoped.MqttRetained,
-		b.getFrames())
+		NewMessage([]byte(fullDeviceName), data).getFrames())
 	if token.Wait() && nil != token.Error() {
 		return errors.WithMessage(token.Error(), "发送事件消息出错")
 	} else {
 		return nil
 	}
-}
-
-func (t *implTrigger) SendAliveMessage(alive Message) error {
-	return mqttSendAliveMessage(t.mqttClient, "Trigger", t.nodeName, alive)
 }
 
 func (t *implTrigger) Shutdown() {

@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/eclipse/paho.mqtt.golang"
-	"github.com/pkg/errors"
 	"os"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -26,15 +27,28 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
 ////
 
 func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectFunc func() Inspect) {
-	gRpcAddr, addrOK := os.LookupEnv("GRPC_DEVICE_ADDR")
+	gRpcAddr, addrOK := os.LookupEnv(EnvKeyGrpcAddress)
 	inspectMsg := inspectFunc()
+	// 自动更新虚拟设备的参数
+	if "" == inspectMsg.HostOS {
+		inspectMsg.HostOS = runtime.GOOS
+	}
+	if "" == inspectMsg.HostArch {
+		inspectMsg.HostArch = runtime.GOARCH
+	}
+	// 更新设备列表参数
 	for i, vd := range inspectMsg.VirtualDevices {
-		// 更新每个设备的gRpc地址、子设备命名
+		// gRpc地址
 		if addrOK {
 			vd.Address = gRpcAddr
 		}
-		vd.Name = nodeName + ":" + vd.Name
-		checkNameFormat(vd.Name)
+		// 虚拟设备完整的名称
+		checkNameFormat(vd.VirtualName)
+		if strings.HasPrefix(vd.VirtualName, nodeName) {
+			log.Panic("VirtualName不得以节点名称(NodeName)作为前缀")
+		} else {
+			vd.VirtualName = CreateVirtualDeviceName(nodeName, vd.VirtualName)
+		}
 		// !!修改操作，非引用。注意更新。
 		inspectMsg.VirtualDevices[i] = vd
 	}
@@ -42,7 +56,7 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectFunc fun
 	if nil != err {
 		log.Panic("Inspect数据序列化错误", err)
 	}
-	log.Debug("发送DeviceInspect消息, GRPC_DEVICE_ADDR: " + gRpcAddr + ", DATA: " + string(data))
+	// 发送Inspect消息，其中消息来源为NodeName
 	token := client.Publish(
 		tDevicesInspect,
 		0,
@@ -72,19 +86,6 @@ func mqttAsyncTickInspect(shutdown context.Context, inspectTask func()) {
 		case <-shutdown.Done():
 			return
 		}
-	}
-}
-
-func mqttSendAliveMessage(client mqtt.Client, typeName, devName string, alive Message) error {
-	token := client.Publish(
-		topicOfAlive(typeName, devName),
-		0,
-		true,
-		alive.getFrames())
-	if token.Wait() && nil != token.Error() {
-		return errors.WithMessage(token.Error(), "发送Alive消息出错")
-	} else {
-		return nil
 	}
 }
 

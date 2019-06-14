@@ -14,18 +14,18 @@ func main() {
 		//config := ctx.LoadConfig()
 		// 向系统注册节点
 		opts := edgex.EndpointOptions{
-			Name:    "EXAMPLE-ENDPOINT",
-			RpcAddr: "0.0.0.0:6670",
+			NodeName: "EXAMPLE-ENDPOINT",
+			RpcAddr:  "0.0.0.0:6670",
 			InspectFunc: func() edgex.Inspect {
 				return edgex.Inspect{
 					HostOS:   runtime.GOOS,
 					HostArch: runtime.GOARCH,
 					VirtualDevices: []edgex.VirtualDevice{
 						{
-							Name:    "PINGPONG",
-							Virtual: false,
-							Desc:    "演示终端",
-							Command: "ECHO",
+							VirtualName: "PINGPONG",
+							Virtual:     false,
+							Desc:        "演示终端",
+							Command:     "ECHO",
 						},
 					},
 				}
@@ -43,7 +43,7 @@ func main() {
 		endpoint.Startup()
 		defer endpoint.Shutdown()
 
-		ctx.Log().Debugf("创建Endpoint节点: [%s]", opts.Name)
+		ctx.Log().Debugf("创建Endpoint节点: [%s]", opts.NodeName)
 
 		return ctx.TermAwait()
 	})

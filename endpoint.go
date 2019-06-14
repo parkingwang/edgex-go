@@ -16,18 +16,15 @@ import (
 // Endpoint是接收、处理，并返回结果的可控制终端节点。
 type Endpoint interface {
 	Lifecycle
-	// Name 返回Endpoint的命名
-	Name() string
+	NodeName
 	// 处理RPC消息并返回处理结果
 	Serve(func(in Message) (out Message))
-	// 发送Alive消息
-	SendAliveMessage(alive Message) error
 }
 
 type EndpointOptions struct {
 	RpcAddr     string         // RPC 地址
-	Name        string         // 名字
-	InspectFunc func() Inspect // 返回Inspect数据的函数
+	NodeName    string         // 节点名字
+	InspectFunc func() Inspect // // Inspect消息生成函数
 }
 
 //// Endpoint实现
@@ -49,7 +46,7 @@ type implEndpoint struct {
 	shutdownCancel  context.CancelFunc
 }
 
-func (e *implEndpoint) Name() string {
+func (e *implEndpoint) NodeName() string {
 	return e.name
 }
 
@@ -102,10 +99,6 @@ func (e *implEndpoint) Shutdown() {
 
 func (e *implEndpoint) Serve(w func(in Message) (out Message)) {
 	e.messageWorker = w
-}
-
-func (e *implEndpoint) SendAliveMessage(alive Message) error {
-	return mqttSendAliveMessage(e.mqttClient, "Endpoint", e.name, alive)
 }
 
 ////
