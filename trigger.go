@@ -14,6 +14,8 @@ import (
 // Trigger 触发器，用于产生事件
 type Trigger interface {
 	Lifecycle
+	// 返回命名
+	Name() string
 	// 发送事件消息
 	SendEventMessage(b Message) error
 	// 发送Alive消息
@@ -41,6 +43,10 @@ type implTrigger struct {
 	// Shutdown
 	shutdownContext context.Context
 	shutdownCancel  context.CancelFunc
+}
+
+func (t *implTrigger) Name() string {
+	return t.name
 }
 
 func (t *implTrigger) Startup() {

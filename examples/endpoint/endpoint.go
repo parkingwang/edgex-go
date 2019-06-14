@@ -22,7 +22,7 @@ func main() {
 					HostArch: runtime.GOARCH,
 					Devices: []edgex.Device{
 						{
-							Name:    "ENDPOINT/EXAMPLE-PINGPONG",
+							Name:    "ENDPOINT-EXAMPLE-PINGPONG",
 							Virtual: false,
 							Desc:    "演示终端",
 							Command: "ECHO",

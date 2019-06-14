@@ -15,6 +15,8 @@ import (
 
 type Driver interface {
 	Lifecycle
+	// 返回命名
+	Name() string
 	// 处理消息
 	Process(func(event Message))
 	// 发起一个消息请求，并获取响应消息。
@@ -38,6 +40,10 @@ type implDriver struct {
 	mqttClient       mqtt.Client
 	mqttTopicTrigger map[string]byte
 	mqttWorker       func(event Message)
+}
+
+func (d *implDriver) Name() string {
+	return d.name
 }
 
 func (d *implDriver) Startup() {

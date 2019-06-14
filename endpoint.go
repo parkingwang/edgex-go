@@ -16,6 +16,8 @@ import (
 // Endpoint是接收、处理，并返回结果的可控制终端节点。
 type Endpoint interface {
 	Lifecycle
+	// Name 返回Endpoint的命名
+	Name() string
 	// 处理RPC消息并返回处理结果
 	Serve(func(in Message) (out Message))
 	// 发送Alive消息
@@ -45,6 +47,10 @@ type implEndpoint struct {
 	// Shutdown
 	shutdownContext context.Context
 	shutdownCancel  context.CancelFunc
+}
+
+func (e *implEndpoint) Name() string {
+	return e.name
 }
 
 func (e *implEndpoint) Startup() {
