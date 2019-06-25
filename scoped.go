@@ -9,6 +9,8 @@ import "time"
 // 全局配置
 type GlobalScoped struct {
 	MqttBroker            string
+	MqttUsername          string
+	MqttPassword          string
 	MqttQoS               uint8
 	MqttRetained          bool
 	MqttKeepAlive         time.Duration
@@ -19,20 +21,4 @@ type GlobalScoped struct {
 	MqttCleanSession      bool
 	MqttMaxRetry          int
 	MqttQuitMillSec       uint
-}
-
-func NewDefaultGlobalScoped(broker string) *GlobalScoped {
-	return &GlobalScoped{
-		MqttBroker:            broker,
-		MqttQoS:               2,
-		MqttRetained:          false,
-		MqttKeepAlive:         time.Second * 3,
-		MqttPingTimeout:       time.Second * 1,
-		MqttConnectTimeout:    time.Second * 5,
-		MqttReconnectInterval: time.Second * 1,
-		MqttAutoReconnect:     true,
-		MqttCleanSession:      true,
-		MqttMaxRetry:          120,
-		MqttQuitMillSec:       500,
-	}
 }

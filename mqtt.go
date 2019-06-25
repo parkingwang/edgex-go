@@ -22,6 +22,10 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
 	opts.SetConnectTimeout(scoped.MqttConnectTimeout)
 	opts.SetCleanSession(scoped.MqttCleanSession)
 	opts.SetMaxReconnectInterval(scoped.MqttReconnectInterval)
+	if "" != scoped.MqttUsername && "" != scoped.MqttPassword {
+		opts.Username = scoped.MqttUsername
+		opts.Password = scoped.MqttPassword
+	}
 }
 
 ////

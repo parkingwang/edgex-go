@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 //
@@ -41,10 +42,15 @@ type Context interface {
 }
 
 const (
-	EnvKeyBroker      = "EDGEX_MQTT_BROKER"
-	EnvKeyConfig      = "EDGEX_CONFIG"
-	EnvKeyLogVerbose  = "EDGEX_LOG_VERBOSE"
-	EnvKeyGrpcAddress = "EDGEX_GRPC_ADDRESS"
+	EnvKeyMQBroker       = "EDGEX_MQTT_BROKER"
+	EnvKeyMQUsername     = "EDGEX_MQTT_USERNAME"
+	EnvKeyMQPassword     = "EDGEX_MQTT_PASSWORD"
+	EnvKeyMQQOS          = "EDGEX_MQTT_QOS"
+	EnvKeyMQRetained     = "EDGEX_MQTT_RETAINED"
+	EnvKeyMQCleanSession = "EDGEX_MQTT_CLEAN_SESSION"
+	EnvKeyConfig         = "EDGEX_CONFIG"
+	EnvKeyLogVerbose     = "EDGEX_LOG_VERBOSE"
+	EnvKeyGrpcAddress    = "EDGEX_GRPC_ADDRESS"
 
 	MqttBrokerDefault = "tcp://mqtt-broker.edgex.io:1883"
 
@@ -58,30 +64,38 @@ var (
 
 ////
 
-func Run(handler func(ctx Context) error) {
-	broker, ok := os.LookupEnv(EnvKeyBroker)
-	if !ok {
-		broker = MqttBrokerDefault
-	}
-	scoped := NewDefaultGlobalScoped(broker)
-	ctx := newContext(scoped)
-	log.Debug("启动Service")
-	defer log.Debug("停止Service")
-	if err := handler(ctx); nil != err {
-		log.Error("Service出错: ", err)
+// Run 运行EdgeX节点服务
+func Run(application func(ctx Context) error) {
+	ctx := CreateDefaultContext()
+	log.Debug("启动EdgeX-App")
+	defer log.Debug("停止EdgeX-App")
+	if err := application(ctx); nil != err {
+		log.Error("EdgeX-App出错: ", err)
 	}
 }
 
+// CreateContext 使用指定Scoped参数，创建Context对象。
 func CreateContext(scoped *GlobalScoped) Context {
 	return newContext(scoped)
 }
 
+// CreateDefaultContext 从环境变量中读取Scoped参数，并创建返回Context对象。
 func CreateDefaultContext() Context {
-	broker, ok := os.LookupEnv(EnvKeyBroker)
-	if !ok {
-		broker = MqttBrokerDefault
-	}
-	return CreateContext(NewDefaultGlobalScoped(broker))
+	return CreateContext(&GlobalScoped{
+		MqttBroker:            EnvGetString(EnvKeyMQBroker, MqttBrokerDefault),
+		MqttUsername:          EnvGetString(EnvKeyMQUsername, ""),
+		MqttPassword:          EnvGetString(EnvKeyMQPassword, ""),
+		MqttQoS:               uint8(EnvGetInt64(EnvKeyMQQOS, 2)),
+		MqttRetained:          EnvGetBoolean(EnvKeyMQRetained, false),
+		MqttCleanSession:      EnvGetBoolean(EnvKeyMQCleanSession, true),
+		MqttKeepAlive:         time.Second * 3,
+		MqttPingTimeout:       time.Second * 1,
+		MqttConnectTimeout:    time.Second * 5,
+		MqttReconnectInterval: time.Second * 1,
+		MqttAutoReconnect:     true,
+		MqttMaxRetry:          120,
+		MqttQuitMillSec:       500,
+	})
 }
 
 //// Context实现
