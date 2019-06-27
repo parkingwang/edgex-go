@@ -7,7 +7,7 @@ import "time"
 //
 
 // 全局配置
-type GlobalScoped struct {
+type Globals struct {
 	MqttBroker            string
 	MqttUsername          string
 	MqttPassword          string

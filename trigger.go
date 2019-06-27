@@ -16,10 +16,10 @@ type Trigger interface {
 	Lifecycle
 	NodeName
 
-	// SendEventMessage 发送事件消息。指定 virtualDeviceName 的数据体。其中，
-	// virtualDeviceName 为触发器内部的虚拟设备名称，它与与Trigger的节点名称组成完整的设备名称来作为消息来源。
+	// SendEventMessage 发送事件消息。指定 virtualNodeName 的数据体。其中，
+	// virtualNodeName 为触发器内部的虚拟设备名称，它与Trigger的节点名称组成完整的设备名称来作为消息来源。
 	// 最终发送消息的Name字段，与Inspect返回的虚拟设备Name字段是相同的。
-	SendEventMessage(virtualDevName string, data []byte) error
+	SendEventMessage(virtualNodeName string, data []byte) error
 }
 
 type TriggerOptions struct {
@@ -30,9 +30,9 @@ type TriggerOptions struct {
 
 //// trigger
 
-type implTrigger struct {
+type NodeTrigger struct {
 	Trigger
-	scoped   *GlobalScoped
+	globals  *Globals
 	topic    string // Trigger产生的事件Topic
 	nodeName string // Trigger的名称
 	// Inspect
@@ -45,22 +45,24 @@ type implTrigger struct {
 	shutdownCancel  context.CancelFunc
 }
 
-func (t *implTrigger) NodeName() string {
+func (t *NodeTrigger) NodeName() string {
 	return t.nodeName
 }
 
-func (t *implTrigger) Startup() {
+func (t *NodeTrigger) Startup() {
 	t.shutdownContext, t.shutdownCancel = context.WithCancel(context.Background())
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
-	opts.SetClientID(fmt.Sprintf("EDGEX-TRIGGER:%s", t.nodeName))
-	opts.SetWill(topicOfOffline("Trigger", t.nodeName), "offline", 1, true)
-	mqttSetOptions(opts, t.scoped)
+	opts.SetClientID(fmt.Sprintf("EX-Trigger:%s", t.nodeName))
+	opts.SetWill(topicOfOffline("Trigger", t.nodeName),
+		"offline", 1, true)
+	mqttSetOptions(opts, t.globals)
 	t.mqttTopic = topicOfTrigger(t.topic)
 	t.mqttClient = mqtt.NewClient(opts)
-	log.Info("Mqtt客户端连接Broker: ", t.scoped.MqttBroker)
+	log.Info("Mqtt客户端连接Broker: ", t.globals.MqttBroker)
+
 	// 连续重试
-	mqttAwaitConnection(t.mqttClient, t.scoped.MqttMaxRetry)
+	mqttAwaitConnection(t.mqttClient, t.globals.MqttMaxRetry)
 
 	if !t.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
@@ -74,13 +76,13 @@ func (t *implTrigger) Startup() {
 	}
 }
 
-func (t *implTrigger) SendEventMessage(virtualName string, data []byte) error {
+func (t *NodeTrigger) SendEventMessage(virtualNodeName string, data []byte) error {
 	// 构建完整的设备名称
-	fullDeviceName := CreateVirtualDeviceName(t.nodeName, virtualName)
+	fullDeviceName := CreateVirtualDeviceName(t.nodeName, virtualNodeName)
 	token := t.mqttClient.Publish(
 		t.mqttTopic,
-		t.scoped.MqttQoS,
-		t.scoped.MqttRetained,
+		t.globals.MqttQoS,
+		t.globals.MqttRetained,
 		NewMessage([]byte(fullDeviceName), data).getFrames())
 	if token.Wait() && nil != token.Error() {
 		return errors.WithMessage(token.Error(), "发送事件消息出错")
@@ -89,7 +91,7 @@ func (t *implTrigger) SendEventMessage(virtualName string, data []byte) error {
 	}
 }
 
-func (t *implTrigger) Shutdown() {
+func (t *NodeTrigger) Shutdown() {
 	t.shutdownCancel()
-	t.mqttClient.Disconnect(t.scoped.MqttQuitMillSec)
+	t.mqttClient.Disconnect(t.globals.MqttQuitMillSec)
 }

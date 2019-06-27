@@ -17,6 +17,7 @@ import (
 type Endpoint interface {
 	Lifecycle
 	NodeName
+
 	// 处理RPC消息并返回处理结果
 	Serve(func(in Message) (out Message))
 }
@@ -29,10 +30,10 @@ type EndpointOptions struct {
 
 //// Endpoint实现
 
-type implEndpoint struct {
+type NodeEndpoint struct {
 	Endpoint
-	name   string
-	scoped *GlobalScoped
+	nodeName string
+	globals  *Globals
 	// Inspect
 	inspectFunc func() Inspect
 	// gRPC
@@ -46,11 +47,11 @@ type implEndpoint struct {
 	shutdownCancel  context.CancelFunc
 }
 
-func (e *implEndpoint) NodeName() string {
-	return e.name
+func (e *NodeEndpoint) NodeName() string {
+	return e.nodeName
 }
 
-func (e *implEndpoint) Startup() {
+func (e *NodeEndpoint) Startup() {
 	e.shutdownContext, e.shutdownCancel = context.WithCancel(context.Background())
 
 	e.rpcServer = grpc.NewServer()
@@ -70,34 +71,34 @@ func (e *implEndpoint) Startup() {
 	}()
 	// MQTT Broker
 	opts := mqtt.NewClientOptions()
-	opts.SetClientID(fmt.Sprintf("EDGEX-ENDPOINT:%s", e.name))
-	opts.SetWill(topicOfOffline("Endpoint", e.name), "offline", 1, true)
-	mqttSetOptions(opts, e.scoped)
+	opts.SetClientID(fmt.Sprintf("EX-Endpoint:%s", e.nodeName))
+	opts.SetWill(topicOfOffline("Endpoint", e.nodeName), "offline", 1, true)
+	mqttSetOptions(opts, e.globals)
 	e.mqttClient = mqtt.NewClient(opts)
-	log.Info("Mqtt客户端连接Broker: ", e.scoped.MqttBroker)
+	log.Info("Mqtt客户端连接Broker: ", e.globals.MqttBroker)
 
 	// 连续重试
-	mqttAwaitConnection(e.mqttClient, e.scoped.MqttMaxRetry)
+	mqttAwaitConnection(e.mqttClient, e.globals.MqttMaxRetry)
 
 	if !e.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
 		// 异步发送Inspect消息
-		mqttSendInspectMessage(e.mqttClient, e.name, e.inspectFunc)
+		mqttSendInspectMessage(e.mqttClient, e.nodeName, e.inspectFunc)
 		go mqttAsyncTickInspect(e.shutdownContext, func() {
-			mqttSendInspectMessage(e.mqttClient, e.name, e.inspectFunc)
+			mqttSendInspectMessage(e.mqttClient, e.nodeName, e.inspectFunc)
 		})
 	}
 }
 
-func (e *implEndpoint) Shutdown() {
+func (e *NodeEndpoint) Shutdown() {
 	log.Info("停止GRPC服务")
 	e.shutdownCancel()
 	e.rpcServer.Stop()
-	e.mqttClient.Disconnect(e.scoped.MqttQuitMillSec)
+	e.mqttClient.Disconnect(e.globals.MqttQuitMillSec)
 }
 
-func (e *implEndpoint) Serve(w func(in Message) (out Message)) {
+func (e *NodeEndpoint) Serve(w func(in Message) (out Message)) {
 	e.messageWorker = w
 }
 

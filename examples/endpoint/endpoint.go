@@ -20,12 +20,12 @@ func main() {
 				return edgex.Inspect{
 					HostOS:   runtime.GOOS,
 					HostArch: runtime.GOARCH,
-					VirtualDevices: []edgex.VirtualDevice{
+					VirtualNodes: []edgex.VirtualNode{
 						{
-							VirtualName: "PINGPONG",
-							Virtual:     false,
-							Desc:        "演示终端",
-							Command:     "ECHO",
+							VirtualNodeName: "PINGPONG",
+							Virtual:         false,
+							Desc:            "演示终端",
+							Command:         "ECHO",
 						},
 					},
 				}

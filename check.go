@@ -3,9 +3,10 @@ package edgex
 import "strings"
 
 //
-// Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
+// Author: 陈哈哈 yoojiachen@gmail.com
 //
 
+// checkNameFormat 检查命名规则，不允许带/符号。
 func checkNameFormat(name string) string {
 	if "" == name {
 		log.Panic("名称是必须的")
@@ -16,7 +17,11 @@ func checkNameFormat(name string) string {
 	return name
 }
 
-func checkRequired(value interface{}, message string) {
+// checkRequires 检查配置值是否有效；无效则Panic；
+func checkRequires(value interface{}, message string) {
+	if nil == value {
+		log.Panic(message)
+	}
 	switch value.(type) {
 	case string:
 		if "" == value {
@@ -25,11 +30,6 @@ func checkRequired(value interface{}, message string) {
 
 	case []string:
 		if 0 == len(value.([]string)) {
-			log.Panic(message)
-		}
-
-	default:
-		if nil == value {
 			log.Panic(message)
 		}
 	}

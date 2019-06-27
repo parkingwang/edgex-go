@@ -18,11 +18,11 @@ func main() {
 			Topic:    "example/timer",
 			InspectFunc: func() edgex.Inspect {
 				return edgex.Inspect{
-					VirtualDevices: []edgex.VirtualDevice{
+					VirtualNodes: []edgex.VirtualNode{
 						{
-							VirtualName: "MAIN-TIMER",
-							Virtual:     false,
-							Desc:        "演示Trigger",
+							VirtualNodeName: "MAIN-TIMER",
+							Virtual:         false,
+							Desc:            "演示Trigger",
 						},
 					},
 				}

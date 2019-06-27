@@ -14,7 +14,7 @@ import (
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
-func mqttSetOptions(opts *mqtt.ClientOptions, scoped *GlobalScoped) {
+func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 	opts.AddBroker(scoped.MqttBroker)
 	opts.SetKeepAlive(scoped.MqttKeepAlive)
 	opts.SetPingTimeout(scoped.MqttPingTimeout)
@@ -41,20 +41,20 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectFunc fun
 		inspectMsg.HostArch = runtime.GOARCH
 	}
 	// 更新设备列表参数
-	for i, vd := range inspectMsg.VirtualDevices {
+	for i, vd := range inspectMsg.VirtualNodes {
 		// gRpc地址
 		if addrOK {
 			vd.Address = gRpcAddr
 		}
 		// 虚拟设备完整的名称
-		checkNameFormat(vd.VirtualName)
-		if strings.HasPrefix(vd.VirtualName, nodeName) {
+		checkNameFormat(vd.VirtualNodeName)
+		if strings.HasPrefix(vd.VirtualNodeName, nodeName) {
 			log.Panic("VirtualName不得以节点名称(NodeName)作为前缀")
 		} else {
-			vd.VirtualName = CreateVirtualDeviceName(nodeName, vd.VirtualName)
+			vd.VirtualNodeName = CreateVirtualDeviceName(nodeName, vd.VirtualNodeName)
 		}
 		// !!修改操作，非引用。注意更新。
-		inspectMsg.VirtualDevices[i] = vd
+		inspectMsg.VirtualNodes[i] = vd
 	}
 	data, err := json.Marshal(inspectMsg)
 	if nil != err {

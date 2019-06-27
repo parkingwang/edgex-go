@@ -16,8 +16,10 @@ import (
 type Driver interface {
 	Lifecycle
 	NodeName
-	// 处理消息
+
+	// Process 处理消息
 	Process(func(event Message))
+
 	// 发起一个消息请求，并获取响应消息。
 	// 如果过程中发生错误，返回错误消息
 	Execute(endpointAddr string, in Message, timeout time.Duration) (out Message, err error)
@@ -30,10 +32,10 @@ type DriverOptions struct {
 
 //// Driver实现
 
-type implDriver struct {
+type NodeDriver struct {
 	Driver
-	scoped *GlobalScoped
-	name   string
+	globals  *Globals
+	nodeName string
 	// MQTT
 	topics           []string
 	mqttClient       mqtt.Client
@@ -41,22 +43,23 @@ type implDriver struct {
 	mqttWorker       func(event Message)
 }
 
-func (d *implDriver) NodeName() string {
-	return d.name
+func (d *NodeDriver) NodeName() string {
+	return d.nodeName
 }
 
-func (d *implDriver) Startup() {
+func (d *NodeDriver) Startup() {
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
-	opts.SetClientID(fmt.Sprintf("Driver-%s", d.name))
-	opts.SetWill(topicOfOffline("Driver", d.name), "offline", 1, true)
-	mqttSetOptions(opts, d.scoped)
+	opts.SetClientID(fmt.Sprintf("EX-Driver-%s", d.nodeName))
+	opts.SetWill(topicOfOffline("Driver", d.nodeName),
+		"offline", 1, true)
+	mqttSetOptions(opts, d.globals)
 
 	d.mqttClient = mqtt.NewClient(opts)
-	log.Info("Mqtt客户端连接Broker: ", d.scoped.MqttBroker)
+	log.Info("Mqtt客户端连接Broker: ", d.globals.MqttBroker)
 
 	// 连续重试
-	mqttAwaitConnection(d.mqttClient, d.scoped.MqttMaxRetry)
+	mqttAwaitConnection(d.mqttClient, d.globals.MqttMaxRetry)
 
 	if !d.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
@@ -74,7 +77,7 @@ func (d *implDriver) Startup() {
 	})
 }
 
-func (d *implDriver) Shutdown() {
+func (d *NodeDriver) Shutdown() {
 	topics := make([]string, 0)
 	for t := range d.mqttTopicTrigger {
 		topics = append(topics, t)
@@ -83,14 +86,14 @@ func (d *implDriver) Shutdown() {
 	if token := d.mqttClient.Unsubscribe(topics...); token.Wait() && nil != token.Error() {
 		log.Error("取消监听事件出错：", token.Error())
 	}
-	d.mqttClient.Disconnect(d.scoped.MqttQuitMillSec)
+	d.mqttClient.Disconnect(d.globals.MqttQuitMillSec)
 }
 
-func (d *implDriver) Process(f func(Message)) {
+func (d *NodeDriver) Process(f func(Message)) {
 	d.mqttWorker = f
 }
 
-func (d *implDriver) Execute(endpointAddr string, in Message, to time.Duration) (out Message, err error) {
+func (d *NodeDriver) Execute(endpointAddr string, in Message, to time.Duration) (out Message, err error) {
 	log.Debug("GRPC调用Endpoint: ", endpointAddr)
 	remote, err := grpc.Dial(endpointAddr, grpc.WithInsecure())
 	if nil != err {
