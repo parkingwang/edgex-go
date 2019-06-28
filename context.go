@@ -135,10 +135,11 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	c.nodeType = "Endpoint"
 	c.nodeName = checkNameFormat(opts.NodeName)
 	return &NodeEndpoint{
-		globals:      c.globals,
-		nodeName:     opts.NodeName,
-		endpointAddr: opts.RpcAddr,
-		inspectFunc:  opts.InspectFunc,
+		globals:         c.globals,
+		nodeName:        opts.NodeName,
+		endpointAddr:    opts.RpcAddr,
+		inspectFunc:     opts.InspectFunc,
+		serialExecuting: opts.serialExecuting,
 	}
 }
 
