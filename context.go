@@ -139,7 +139,7 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 		nodeName:        opts.NodeName,
 		endpointAddr:    opts.RpcAddr,
 		inspectFunc:     opts.InspectFunc,
-		serialExecuting: opts.serialExecuting,
+		serialExecuting: opts.SerialExecuting,
 	}
 }
 
