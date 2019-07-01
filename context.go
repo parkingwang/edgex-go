@@ -86,7 +86,7 @@ func CreateDefaultContext() Context {
 		MqttBroker:            EnvGetString(EnvKeyMQBroker, MqttBrokerDefault),
 		MqttUsername:          EnvGetString(EnvKeyMQUsername, ""),
 		MqttPassword:          EnvGetString(EnvKeyMQPassword, ""),
-		MqttQoS:               uint8(EnvGetInt64(EnvKeyMQQOS, 2)),
+		MqttQoS:               uint8(EnvGetInt64(EnvKeyMQQOS, 1)),
 		MqttRetained:          EnvGetBoolean(EnvKeyMQRetained, false),
 		MqttCleanSession:      EnvGetBoolean(EnvKeyMQCleanSession, true),
 		MqttKeepAlive:         time.Second * 3,
