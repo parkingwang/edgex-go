@@ -49,8 +49,9 @@ func (d *NodeDriver) NodeName() string {
 
 func (d *NodeDriver) Startup() {
 	// 连接Broker
+	clientId := fmt.Sprintf("EX-Driver-%s", d.nodeName)
 	opts := mqtt.NewClientOptions()
-	opts.SetClientID(fmt.Sprintf("EX-Driver-%s", d.nodeName))
+	opts.SetClientID(clientId)
 	opts.SetWill(topicOfOffline("Driver", d.nodeName),
 		"offline", 1, true)
 	mqttSetOptions(opts, d.globals)
@@ -63,6 +64,8 @@ func (d *NodeDriver) Startup() {
 
 	if !d.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
+	}else{
+		log.Debug("Mqtt客户端连接成功: " + clientId)
 	}
 
 	// 监听所有Trigger的UserTopic
