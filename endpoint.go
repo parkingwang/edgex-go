@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"net"
+	"sync"
 )
 
 //
@@ -18,22 +19,24 @@ type Endpoint interface {
 	Lifecycle
 	NodeName
 
-	// 处理RPC消息并返回处理结果
+	// 处理RPC消息，返回处理结果
 	Serve(func(in Message) (out Message))
 }
 
 type EndpointOptions struct {
-	RpcAddr     string         // RPC 地址
-	NodeName    string         // 节点名字
-	InspectFunc func() Inspect // // Inspect消息生成函数
+	RpcAddr         string         // RPC 地址
+	NodeName        string         // 节点名字
+	SerialExecuting bool           // 是否串行地执行控制指令
+	InspectFunc     func() Inspect // // Inspect消息生成函数
 }
 
 //// Endpoint实现
 
 type NodeEndpoint struct {
 	Endpoint
-	nodeName string
-	globals  *Globals
+	nodeName        string
+	globals         *Globals
+	serialExecuting bool
 	// Inspect
 	inspectFunc func() Inspect
 	// gRPC
@@ -55,8 +58,10 @@ func (e *NodeEndpoint) Startup() {
 	e.shutdownContext, e.shutdownCancel = context.WithCancel(context.Background())
 
 	e.rpcServer = grpc.NewServer()
-	RegisterExecuteServer(e.rpcServer, &executor{
-		handler: e.messageWorker,
+	RegisterExecuteServer(e.rpcServer, &grpcExecutor{
+		serialExecuting: e.serialExecuting,
+		executeLock:     new(sync.Mutex),
+		handler:         e.messageWorker,
 	})
 	// gRpc Serve
 	go func() {
@@ -106,12 +111,24 @@ func (e *NodeEndpoint) Serve(w func(in Message) (out Message)) {
 
 ////
 
-type executor struct {
+type grpcExecutor struct {
 	ExecuteServer
-	handler func(in Message) (out Message)
+	serialExecuting bool
+	executeLock     *sync.Mutex
+	handler         func(in Message) (out Message)
 }
 
-func (ex *executor) Execute(c context.Context, i *Data) (o *Data, e error) {
+func (ex *grpcExecutor) Execute(c context.Context, i *Data) (o *Data, e error) {
+	if ex.serialExecuting {
+		ex.executeLock.Lock()
+		defer ex.executeLock.Unlock()
+		return ex.execute(c, i)
+	} else {
+		return ex.execute(c, i)
+	}
+}
+
+func (ex *grpcExecutor) execute(c context.Context, i *Data) (o *Data, e error) {
 	done := make(chan *Data, 1)
 	in := ParseMessage(i.GetFrames())
 	go func() {
@@ -123,6 +140,6 @@ func (ex *executor) Execute(c context.Context, i *Data) (o *Data, e error) {
 		return v, nil
 
 	case <-c.Done():
-		return nil, errors.New("execute timeout")
+		return nil, errors.New("GRPC_EXECUTE_TIMEOUT")
 	}
 }
