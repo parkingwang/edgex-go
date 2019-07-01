@@ -71,7 +71,8 @@ func (e *NodeEndpoint) Startup() {
 	}()
 	// MQTT Broker
 	opts := mqtt.NewClientOptions()
-	opts.SetClientID(fmt.Sprintf("EX-Endpoint:%s", e.nodeName))
+	clientId := fmt.Sprintf("EX-Endpoint:%s", e.nodeName)
+	opts.SetClientID(clientId)
 	opts.SetWill(topicOfOffline("Endpoint", e.nodeName), "offline", 1, true)
 	mqttSetOptions(opts, e.globals)
 	e.mqttClient = mqtt.NewClient(opts)
@@ -83,6 +84,7 @@ func (e *NodeEndpoint) Startup() {
 	if !e.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
+		log.Debug("Mqtt客户端连接成功：" + clientId)
 		// 异步发送Inspect消息
 		mqttSendInspectMessage(e.mqttClient, e.nodeName, e.inspectFunc)
 		go mqttAsyncTickInspect(e.shutdownContext, func() {

@@ -53,7 +53,8 @@ func (t *NodeTrigger) Startup() {
 	t.shutdownContext, t.shutdownCancel = context.WithCancel(context.Background())
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
-	opts.SetClientID(fmt.Sprintf("EX-Trigger:%s", t.nodeName))
+	clientId := fmt.Sprintf("EX-Trigger:%s", t.nodeName)
+	opts.SetClientID(clientId)
 	opts.SetWill(topicOfOffline("Trigger", t.nodeName),
 		"offline", 1, true)
 	mqttSetOptions(opts, t.globals)
@@ -67,6 +68,7 @@ func (t *NodeTrigger) Startup() {
 	if !t.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
+		log.Debug("Mqtt客户端连接成功：" + clientId)
 		// 异步发送Inspect消息
 		mqttSendInspectMessage(t.mqttClient, t.nodeName, t.inspectFunc)
 
