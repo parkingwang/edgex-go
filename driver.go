@@ -21,7 +21,7 @@ type Driver interface {
 	Process(func(event Message))
 
 	// 发起一个消息请求，并获取响应消息。
-	// 如果过程中发生错误，返回错误消息
+	// 如果过程中发生错误，返回错误消息。
 	Execute(endpointAddr string, in Message, timeout time.Duration) (out Message, err error)
 }
 
@@ -52,8 +52,7 @@ func (d *NodeDriver) Startup() {
 	clientId := fmt.Sprintf("EX-Driver-%s", d.nodeName)
 	opts := mqtt.NewClientOptions()
 	opts.SetClientID(clientId)
-	opts.SetWill(topicOfOffline("Driver", d.nodeName),
-		"offline", 1, true)
+	opts.SetWill(topicOfOffline("Driver", d.nodeName), "offline", 1, true)
 	mqttSetOptions(opts, d.globals)
 
 	d.mqttClient = mqtt.NewClient(opts)
@@ -64,7 +63,7 @@ func (d *NodeDriver) Startup() {
 
 	if !d.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
-	}else{
+	} else {
 		log.Debug("Mqtt客户端连接成功: " + clientId)
 	}
 
