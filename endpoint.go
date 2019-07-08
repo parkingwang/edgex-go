@@ -1,6 +1,7 @@
 package edgex
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
@@ -40,9 +41,9 @@ type NodeEndpoint struct {
 	// Inspect
 	inspectFunc func() Inspect
 	// gRPC
-	endpointAddr  string
-	messageWorker func(in Message) (out Message)
-	rpcServer     *grpc.Server
+	endpointAddr string
+	handler      func(in Message) (out Message)
+	rpcServer    *grpc.Server
 	// MQTT
 	mqttClient mqtt.Client
 	// Shutdown
@@ -59,9 +60,10 @@ func (e *NodeEndpoint) Startup() {
 
 	e.rpcServer = grpc.NewServer()
 	RegisterExecuteServer(e.rpcServer, &grpcExecutor{
+		nodeName:        e.nodeName,
 		serialExecuting: e.serialExecuting,
 		executeLock:     new(sync.Mutex),
-		handler:         e.messageWorker,
+		handler:         e.handler,
 	})
 	// gRpc Serve
 	go func() {
@@ -105,14 +107,15 @@ func (e *NodeEndpoint) Shutdown() {
 	e.mqttClient.Disconnect(e.globals.MqttQuitMillSec)
 }
 
-func (e *NodeEndpoint) Serve(w func(in Message) (out Message)) {
-	e.messageWorker = w
+func (e *NodeEndpoint) Serve(h func(in Message) (out Message)) {
+	e.handler = h
 }
 
 ////
 
 type grpcExecutor struct {
 	ExecuteServer
+	nodeName        string
 	serialExecuting bool
 	executeLock     *sync.Mutex
 	handler         func(in Message) (out Message)
@@ -129,17 +132,23 @@ func (ex *grpcExecutor) Execute(c context.Context, i *Data) (o *Data, e error) {
 }
 
 func (ex *grpcExecutor) execute(c context.Context, i *Data) (o *Data, e error) {
-	done := make(chan *Data, 1)
 	in := ParseMessage(i.GetFrames())
-	go func() {
-		frames := ex.handler(in).getFrames()
-		done <- &Data{Frames: frames}
-	}()
-	select {
-	case v := <-done:
-		return v, nil
+	// 处理Hello消息
+	if bytes.Equal(in.Body(), []byte("HELLO")) {
+		return &Data{Frames: NewMessageString(ex.nodeName, "WORLD").getFrames()}, nil
+	} else {
+		done := make(chan *Data, 1)
+		go func() {
+			frames := ex.handler(in).getFrames()
+			done <- &Data{Frames: frames}
+		}()
+		select {
+		case v := <-done:
+			return v, nil
 
-	case <-c.Done():
-		return nil, errors.New("GRPC_EXECUTE_TIMEOUT")
+		case <-c.Done():
+			return nil, errors.New("GRPC_EXECUTE_TIMEOUT")
+		}
 	}
+
 }

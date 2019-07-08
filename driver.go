@@ -20,9 +20,12 @@ type Driver interface {
 	// Process 处理消息
 	Process(func(event Message))
 
-	// 发起一个消息请求，并获取响应消息。
-	// 如果过程中发生错误，返回错误消息。
+	// Execute 发起一个同步消息请求，并获取响应消息。如果过程中发生错误，返回错误消息。
 	Execute(endpointAddr string, in Message, timeout time.Duration) (out Message, err error)
+
+	// Hello 发起一个同步Hello消息，并获取响应消息。通常使用此函数来触发gRPC创建并预热两个节点之间的连接。
+	// Hello 函数调用的是Execute函数，发送消息体为"HELLO"，返回消息为"WORLD"。
+	Hello(endpointAddr string, timeout time.Duration) (reply Message, err error)
 }
 
 type DriverOptions struct {
@@ -114,5 +117,8 @@ func (d *NodeDriver) Execute(endpointAddr string, in Message, to time.Duration) 
 	} else {
 		return ParseMessage(ret.GetFrames()), nil
 	}
+}
 
+func (d *NodeDriver) Hello(endpointAddr string, timeout time.Duration) (reply Message, err error) {
+	return d.Execute(endpointAddr, NewMessageString(d.nodeName, "HELLO"), timeout)
 }
