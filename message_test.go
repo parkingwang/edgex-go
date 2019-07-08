@@ -16,8 +16,8 @@ func TestNewMessage(t *testing.T) {
 	head := msg.Header()
 	name := msg.Name()
 	body := msg.Body()
-	if head.VarBits != FrameVarBits {
-		t.Error("Var Bits not match")
+	if head.Proto != FrameProto {
+		t.Error("Proto not match")
 	}
 	if head.NameLen != 4 {
 		t.Error("Name len not match: ", head.NameLen)
@@ -36,8 +36,8 @@ func TestParseMessage(t *testing.T) {
 	head := msg.Header()
 	name := msg.Name()
 	body := msg.Body()
-	if head.VarBits != FrameVarBits {
-		t.Error("Var Bits not match")
+	if head.Proto != FrameProto {
+		t.Error("Proto not match")
 	}
 	if head.NameLen != 4 {
 		t.Error("Name len not match: ", head.NameLen)

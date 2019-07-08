@@ -10,14 +10,14 @@ import (
 
 const (
 	FrameHeaderSize  = 2
-	FrameVarBits     = 0xED
+	FrameProto       = 0xED
 	FrameNameMaxSize = 127
 )
 
 // Header 头部
 type Header struct {
-	VarBits byte
-	NameLen byte
+	Proto   byte // 协议字段，固定为 0xED
+	NameLen byte // 设备名称长度
 }
 
 // Message 消息
@@ -42,9 +42,9 @@ type Message interface {
 
 type implMessage struct {
 	Message
-	head []byte
-	name []byte
-	body []byte
+	header []byte
+	name   []byte
+	body   []byte
 }
 
 func (m *implMessage) Name() []byte {
@@ -53,8 +53,8 @@ func (m *implMessage) Name() []byte {
 
 func (m *implMessage) Header() Header {
 	return Header{
-		m.head[0],
-		m.head[1],
+		m.header[0],
+		m.header[1],
 	}
 }
 
@@ -64,7 +64,7 @@ func (m *implMessage) Body() []byte {
 
 func (m *implMessage) getFrames() []byte {
 	frames := new(bytes.Buffer)
-	frames.Write(m.head)
+	frames.Write(m.header)
 	frames.Write(m.name)
 	frames.Write(m.body)
 	return frames.Bytes()
@@ -84,21 +84,21 @@ func NewMessage(name []byte, body []byte) Message {
 		log.Panic("Name length too large, was: ", nameLen)
 	}
 	return &implMessage{
-		head: []byte{FrameVarBits, byte(nameLen)},
-		name: name,
-		body: body,
+		header: []byte{FrameProto, byte(nameLen)},
+		name:   name,
+		body:   body,
 	}
 }
 
 func ParseMessage(data []byte) Message {
 	d := data[:FrameHeaderSize]
 	head := Header{
-		VarBits: d[0],
+		Proto:   d[0],
 		NameLen: d[1],
 	}
 	return &implMessage{
-		head: d,
-		name: data[FrameHeaderSize : FrameHeaderSize+head.NameLen],
-		body: data[FrameHeaderSize+head.NameLen:],
+		header: d,
+		name:   data[FrameHeaderSize : FrameHeaderSize+head.NameLen],
+		body:   data[FrameHeaderSize+head.NameLen:],
 	}
 }
