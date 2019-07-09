@@ -127,7 +127,8 @@ func ParseMessage(data []byte) Message {
 		panic(err)
 	}
 	name, _ := reader.ReadBytes(FrameEmpty)
-	body, _ := reader.ReadBytes(FrameEmpty)
+	body := make([]byte, len(data)-7-len(name))
+	reader.Read(body)
 	return &message{
 		header: &Header{
 			Magic:      magic,

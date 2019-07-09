@@ -12,7 +12,8 @@ import (
 //
 
 func TestNewMessage(t *testing.T) {
-	newMessage := NewMessageWithId("CHEN", []byte{0xAA, 0xBB, 0xCC}, 2019)
+	body := []byte{0xAA, FrameEmpty, 0xBB, 0xCC}
+	newMessage := NewMessageWithId("CHEN", body, 2019)
 
 	check := func(msg Message) {
 		header := msg.Header()
@@ -31,7 +32,7 @@ func TestNewMessage(t *testing.T) {
 		if "CHEN" != msg.SourceName() {
 			t.Error("SourceName not match, was: ", msg.SourceName())
 		}
-		if !bytes.Equal([]byte{0xAA, 0xBB, 0xCC}, msg.Body()) {
+		if !bytes.Equal(body, msg.Body()) {
 			t.Error("Body not match, was", hex.EncodeToString(msg.Body()))
 		}
 	}
