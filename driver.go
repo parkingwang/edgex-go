@@ -6,6 +6,7 @@ import (
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"math"
 	"time"
 )
 
@@ -26,6 +27,12 @@ type Driver interface {
 	// Hello 发起一个同步Hello消息，并获取响应消息。通常使用此函数来触发gRPC创建并预热两个节点之间的连接。
 	// Hello 函数调用的是Execute函数，发送消息体为"HELLO"，返回消息为"WORLD"。
 	Hello(endpointAddr string, timeout time.Duration) (reply Message, err error)
+
+	// NextSequenceId 返回流水号
+	NextSequenceId() uint32
+
+	// 基于内部流水号创建消息对象
+	NextMessage(sourceName string, body []byte) Message
 }
 
 type DriverOptions struct {
@@ -35,10 +42,11 @@ type DriverOptions struct {
 
 //// Driver实现
 
-type NodeDriver struct {
+type driver struct {
 	Driver
-	globals  *Globals
-	nodeName string
+	globals    *Globals
+	nodeName   string
+	sequenceId uint32
 	// MQTT
 	topics           []string
 	mqttClient       mqtt.Client
@@ -46,11 +54,20 @@ type NodeDriver struct {
 	mqttWorker       func(event Message)
 }
 
-func (d *NodeDriver) NodeName() string {
+func (d *driver) NodeName() string {
 	return d.nodeName
 }
 
-func (d *NodeDriver) Startup() {
+func (d *driver) NextSequenceId() uint32 {
+	d.sequenceId = (d.sequenceId + 1) % math.MaxUint32
+	return d.sequenceId
+}
+
+func (d *driver) NextMessage(sourceName string, body []byte) Message {
+	return NewMessageWithId(sourceName, body, d.NextSequenceId())
+}
+
+func (d *driver) Startup() {
 	// 连接Broker
 	clientId := fmt.Sprintf("EX-Driver-%s", d.nodeName)
 	opts := mqtt.NewClientOptions()
@@ -73,16 +90,21 @@ func (d *NodeDriver) Startup() {
 	// 监听所有Trigger的UserTopic
 	d.mqttTopicTrigger = make(map[string]byte, len(d.topics))
 	for _, t := range d.topics {
-		topic := topicOfTrigger(t)
+		topic := topicOfTriggerEvents(t)
 		d.mqttTopicTrigger[topic] = 0
 		log.Info("开启监听事件[TRIGGER]: ", topic)
 	}
 	d.mqttClient.SubscribeMultiple(d.mqttTopicTrigger, func(cli mqtt.Client, msg mqtt.Message) {
-		d.mqttWorker(ParseMessage(msg.Payload()))
+		frame := msg.Payload()
+		if ok, err := CheckMessage(frame); !ok {
+			log.Error("消息格式异常: ", err)
+		} else {
+			d.mqttWorker(ParseMessage(frame))
+		}
 	})
 }
 
-func (d *NodeDriver) Shutdown() {
+func (d *driver) Shutdown() {
 	topics := make([]string, 0)
 	for t := range d.mqttTopicTrigger {
 		topics = append(topics, t)
@@ -94,11 +116,11 @@ func (d *NodeDriver) Shutdown() {
 	d.mqttClient.Disconnect(d.globals.MqttQuitMillSec)
 }
 
-func (d *NodeDriver) Process(f func(Message)) {
+func (d *driver) Process(f func(Message)) {
 	d.mqttWorker = f
 }
 
-func (d *NodeDriver) Execute(endpointAddr string, in Message, to time.Duration) (out Message, err error) {
+func (d *driver) Execute(endpointAddr string, in Message, to time.Duration) (out Message, err error) {
 	log.Debug("GRPC调用Endpoint: ", endpointAddr)
 	remote, err := grpc.Dial(endpointAddr, grpc.WithInsecure())
 	if nil != err {
@@ -108,9 +130,7 @@ func (d *NodeDriver) Execute(endpointAddr string, in Message, to time.Duration) 
 	ctx, cancel := context.WithTimeout(context.Background(), to)
 	defer cancel()
 
-	ret, err := client.Execute(ctx, &Data{
-		Frames: in.getFrames(),
-	})
+	ret, err := client.Execute(ctx, &Data{Frames: in.Bytes()})
 
 	if nil != err {
 		return nil, err
@@ -119,6 +139,9 @@ func (d *NodeDriver) Execute(endpointAddr string, in Message, to time.Duration) 
 	}
 }
 
-func (d *NodeDriver) Hello(endpointAddr string, timeout time.Duration) (reply Message, err error) {
-	return d.Execute(endpointAddr, NewMessageString(d.nodeName, "HELLO"), timeout)
+func (d *driver) Hello(endpointAddr string, timeout time.Duration) (reply Message, err error) {
+	return d.Execute(
+		endpointAddr,
+		newControlMessageWithId(d.nodeName, FrameVarPing, d.NextSequenceId()),
+		timeout)
 }

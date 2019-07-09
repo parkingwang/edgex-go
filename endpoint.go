@@ -1,12 +1,12 @@
 package edgex
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"math"
 	"net"
 	"sync"
 )
@@ -15,6 +15,11 @@ import (
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
+var (
+	ErrGRPCExecTimeout = errors.New("GRPC_EXEC_TIMEOUT")
+	ErrUnknownMessage  = errors.New("UNKNOWN_MESSAGE")
+)
+
 // Endpoint是接收、处理，并返回结果的可控制终端节点。
 type Endpoint interface {
 	Lifecycle
@@ -22,6 +27,12 @@ type Endpoint interface {
 
 	// 处理RPC消息，返回处理结果
 	Serve(func(in Message) (out Message))
+
+	// NextSequenceId 返回流水号
+	NextSequenceId() uint32
+
+	// 基于内部流水号创建消息对象
+	NextMessage(sourceName string, body []byte) Message
 }
 
 type EndpointOptions struct {
@@ -33,10 +44,11 @@ type EndpointOptions struct {
 
 //// Endpoint实现
 
-type NodeEndpoint struct {
+type endpoint struct {
 	Endpoint
 	nodeName        string
 	globals         *Globals
+	sequenceId      uint32
 	serialExecuting bool
 	// Inspect
 	inspectFunc func() Inspect
@@ -51,11 +63,20 @@ type NodeEndpoint struct {
 	shutdownCancel  context.CancelFunc
 }
 
-func (e *NodeEndpoint) NodeName() string {
+func (e *endpoint) NodeName() string {
 	return e.nodeName
 }
 
-func (e *NodeEndpoint) Startup() {
+func (e *endpoint) NextSequenceId() uint32 {
+	e.sequenceId = (e.sequenceId + 1) % math.MaxUint32
+	return e.sequenceId
+}
+
+func (e *endpoint) NextMessage(sourceName string, body []byte) Message {
+	return NewMessageWithId(sourceName, body, e.NextSequenceId())
+}
+
+func (e *endpoint) Startup() {
 	e.shutdownContext, e.shutdownCancel = context.WithCancel(context.Background())
 
 	e.rpcServer = grpc.NewServer()
@@ -64,6 +85,7 @@ func (e *NodeEndpoint) Startup() {
 		serialExecuting: e.serialExecuting,
 		executeLock:     new(sync.Mutex),
 		handler:         e.handler,
+		nextSequenceId:  e.NextSequenceId,
 	})
 	// gRpc Serve
 	go func() {
@@ -100,14 +122,14 @@ func (e *NodeEndpoint) Startup() {
 	}
 }
 
-func (e *NodeEndpoint) Shutdown() {
+func (e *endpoint) Shutdown() {
 	log.Info("停止GRPC服务")
 	e.shutdownCancel()
 	e.rpcServer.Stop()
 	e.mqttClient.Disconnect(e.globals.MqttQuitMillSec)
 }
 
-func (e *NodeEndpoint) Serve(h func(in Message) (out Message)) {
+func (e *endpoint) Serve(h func(in Message) (out Message)) {
 	e.handler = h
 }
 
@@ -116,6 +138,7 @@ func (e *NodeEndpoint) Serve(h func(in Message) (out Message)) {
 type grpcExecutor struct {
 	ExecuteServer
 	nodeName        string
+	nextSequenceId  func() uint32
 	serialExecuting bool
 	executeLock     *sync.Mutex
 	handler         func(in Message) (out Message)
@@ -132,14 +155,22 @@ func (ex *grpcExecutor) Execute(c context.Context, i *Data) (o *Data, e error) {
 }
 
 func (ex *grpcExecutor) execute(c context.Context, i *Data) (o *Data, e error) {
-	in := ParseMessage(i.GetFrames())
-	// 处理Hello消息
-	if bytes.Equal(in.Body(), []byte("HELLO")) {
-		return &Data{Frames: NewMessageString(ex.nodeName, "WORLD").getFrames()}, nil
-	} else {
+	frames := i.GetFrames()
+	if ok, err := CheckMessage(frames); !ok {
+		return nil, err
+	}
+	in := ParseMessage(frames)
+	switch in.Header().ControlVar {
+	// Ping Pong
+	case FrameVarPing:
+		pong := newControlMessageWithId(ex.nodeName, FrameVarPong, ex.nextSequenceId())
+		return &Data{Frames: pong.Bytes()}, nil
+
+	// Data
+	case FrameVarData:
 		done := make(chan *Data, 1)
 		go func() {
-			frames := ex.handler(in).getFrames()
+			frames := ex.handler(in).Bytes()
 			done <- &Data{Frames: frames}
 		}()
 		select {
@@ -147,8 +178,10 @@ func (ex *grpcExecutor) execute(c context.Context, i *Data) (o *Data, e error) {
 			return v, nil
 
 		case <-c.Done():
-			return nil, errors.New("GRPC_EXECUTE_TIMEOUT")
+			return nil, ErrGRPCExecTimeout
 		}
-	}
 
+	default:
+		return nil, ErrUnknownMessage
+	}
 }

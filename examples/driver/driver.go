@@ -19,7 +19,7 @@ func main() {
 			Topics: []string{
 				"example/+",
 				"scheduled/+",
-				edgex.TopicDeviceInspect,
+				edgex.TopicNodesInspect,
 			},
 		}
 
@@ -27,12 +27,12 @@ func main() {
 
 		const testEndpointAddr = "127.0.0.1:5570"
 
-		driver.Process(func(msg edgex.Message) {
-			recv, _ := strconv.ParseInt(string(msg.Body()), 10, 64)
+		driver.Process(func(inMsg edgex.Message) {
+			recv, _ := strconv.ParseInt(string(inMsg.Body()), 10, 64)
 
 			ctx.Log().Debug("Driver用时: ", time.Duration(time.Now().UnixNano()-recv))
 			execStart := time.Now()
-			_, err := driver.Execute(testEndpointAddr, msg, time.Second*3)
+			_, err := driver.Execute(testEndpointAddr, inMsg, time.Second*3)
 			if nil != err {
 				ctx.Log().Error("Execute发生错误: ", err)
 			} else {
@@ -50,16 +50,17 @@ func main() {
 			select {
 			case <-timer.C:
 				execStart := time.Now()
-				rep, err := driver.Execute(testEndpointAddr,
-					edgex.NewMessageString(opts.NodeName, fmt.Sprintf("%v", time.Now().UnixNano())),
+				rep, err := driver.Execute(
+					testEndpointAddr,
+					driver.NextMessage(opts.NodeName, []byte(fmt.Sprintf("%v", time.Now().UnixNano()))),
 					time.Second)
 				if nil != err {
 					ctx.Log().Error("ScheduleExecute发生错误: ", err)
 				} else {
 					ctx.Log().Debug("ScheduleExecute用时: ", time.Since(execStart))
-					name := string(rep.Name())
+					name := rep.SourceName()
 					body := string(rep.Body())
-					ctx.Log().Debug("Name: " + name + ", Body: " + body)
+					ctx.Log().Debug("SourceName: " + name + ", Body: " + body)
 				}
 
 			case <-ctx.TermChan():

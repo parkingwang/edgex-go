@@ -51,7 +51,7 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectFunc fun
 		if strings.HasPrefix(vd.VirtualNodeName, nodeName) {
 			log.Panic("VirtualName不得以节点名称(NodeName)作为前缀")
 		} else {
-			vd.VirtualNodeName = CreateVirtualDeviceName(nodeName, vd.VirtualNodeName)
+			vd.VirtualNodeName = CreateVirtualNodeName(nodeName, vd.VirtualNodeName)
 		}
 		// !!修改操作，非引用。注意更新。
 		inspectMsg.VirtualNodes[i] = vd
@@ -62,10 +62,10 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectFunc fun
 	}
 	// 发送Inspect消息，其中消息来源为NodeName
 	token := client.Publish(
-		tDevicesInspect,
+		tNodesInspect,
 		0,
-		true,
-		NewMessage([]byte(nodeName), data).getFrames(),
+		false,
+		NewMessageWithId(nodeName, data, 0).Bytes(),
 	)
 	if token.Wait() && nil != token.Error() {
 		log.Error("发送Inspect消息出错", token.Error())

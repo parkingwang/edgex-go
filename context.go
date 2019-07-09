@@ -119,10 +119,11 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 	checkRequires(opts.InspectFunc, "Trigger.InspectFunc MUST be specified")
 	c.nodeType = "Trigger"
 	c.nodeName = checkNameFormat(opts.NodeName)
-	return &NodeTrigger{
+	return &trigger{
 		globals:     c.globals,
 		topic:       opts.Topic,
 		nodeName:    opts.NodeName,
+		sequenceId:  0,
 		inspectFunc: opts.InspectFunc,
 	}
 }
@@ -134,9 +135,10 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	checkRequires(opts.InspectFunc, "Endpoint.InspectFunc MUST be specified")
 	c.nodeType = "Endpoint"
 	c.nodeName = checkNameFormat(opts.NodeName)
-	return &NodeEndpoint{
+	return &endpoint{
 		globals:         c.globals,
 		nodeName:        opts.NodeName,
+		sequenceId:      0,
 		endpointAddr:    opts.RpcAddr,
 		inspectFunc:     opts.InspectFunc,
 		serialExecuting: opts.SerialExecuting,
@@ -149,7 +151,7 @@ func (c *NodeContext) NewDriver(opts DriverOptions) Driver {
 	checkRequires(opts.Topics, "Driver.Topics MUST be specified")
 	c.nodeType = "Driver"
 	c.nodeName = checkNameFormat(opts.NodeName)
-	return &NodeDriver{
+	return &driver{
 		globals:  c.globals,
 		nodeName: opts.NodeName,
 		topics:   opts.Topics,
@@ -193,8 +195,8 @@ func (c *NodeContext) checkInit() {
 
 ////
 
-// CreateVirtualDeviceName 创建虚拟设备的完整名称
-func CreateVirtualDeviceName(nodeName, virtualDeviceName string) string {
+// CreateVirtualNodeName 创建虚拟设备的完整名称
+func CreateVirtualNodeName(nodeName, virtualDeviceName string) string {
 	return nodeName + ":" + virtualDeviceName
 }
 

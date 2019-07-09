@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
+	"math"
 )
 
 //
@@ -20,6 +21,12 @@ type Trigger interface {
 	// virtualNodeName 为触发器内部的虚拟设备名称，它与Trigger的节点名称组成完整的设备名称来作为消息来源。
 	// 最终发送消息的Name字段，与Inspect返回的虚拟设备Name字段是相同的。
 	SendEventMessage(virtualNodeName string, data []byte) error
+
+	// NextSequenceId 返回流水号
+	NextSequenceId() uint32
+
+	// 基于内部流水号创建消息对象
+	NextMessage(sourceName string, body []byte) Message
 }
 
 type TriggerOptions struct {
@@ -30,11 +37,12 @@ type TriggerOptions struct {
 
 //// trigger
 
-type NodeTrigger struct {
+type trigger struct {
 	Trigger
-	globals  *Globals
-	topic    string // Trigger产生的事件Topic
-	nodeName string // Trigger的名称
+	globals    *Globals
+	topic      string // Trigger产生的事件Topic
+	nodeName   string // Trigger的名称
+	sequenceId uint32 // Trigger产生的消息ID序列
 	// Inspect
 	inspectFunc func() Inspect
 	// MQTT
@@ -45,11 +53,20 @@ type NodeTrigger struct {
 	shutdownCancel  context.CancelFunc
 }
 
-func (t *NodeTrigger) NodeName() string {
+func (t *trigger) NodeName() string {
 	return t.nodeName
 }
 
-func (t *NodeTrigger) Startup() {
+func (t *trigger) NextSequenceId() uint32 {
+	t.sequenceId = (t.sequenceId + 1) % math.MaxUint32
+	return t.sequenceId
+}
+
+func (t *trigger) NextMessage(sourceName string, body []byte) Message {
+	return NewMessageWithId(sourceName, body, t.NextSequenceId())
+}
+
+func (t *trigger) Startup() {
 	t.shutdownContext, t.shutdownCancel = context.WithCancel(context.Background())
 	// 连接Broker
 	opts := mqtt.NewClientOptions()
@@ -58,7 +75,7 @@ func (t *NodeTrigger) Startup() {
 	opts.SetWill(topicOfOffline("Trigger", t.nodeName),
 		"offline", 1, true)
 	mqttSetOptions(opts, t.globals)
-	t.mqttTopic = topicOfTrigger(t.topic)
+	t.mqttTopic = topicOfTriggerEvents(t.topic)
 	t.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", t.globals.MqttBroker)
 
@@ -78,14 +95,14 @@ func (t *NodeTrigger) Startup() {
 	}
 }
 
-func (t *NodeTrigger) SendEventMessage(virtualNodeName string, data []byte) error {
+func (t *trigger) SendEventMessage(virtualNodeName string, data []byte) error {
 	// 构建完整的设备名称
-	fullDeviceName := CreateVirtualDeviceName(t.nodeName, virtualNodeName)
+	fullName := CreateVirtualNodeName(t.nodeName, virtualNodeName)
 	token := t.mqttClient.Publish(
 		t.mqttTopic,
 		t.globals.MqttQoS,
 		t.globals.MqttRetained,
-		NewMessage([]byte(fullDeviceName), data).getFrames())
+		NewMessageWithId(fullName, data, t.NextSequenceId()).Bytes())
 	if token.Wait() && nil != token.Error() {
 		return errors.WithMessage(token.Error(), "发送事件消息出错")
 	} else {
@@ -93,7 +110,7 @@ func (t *NodeTrigger) SendEventMessage(virtualNodeName string, data []byte) erro
 	}
 }
 
-func (t *NodeTrigger) Shutdown() {
+func (t *trigger) Shutdown() {
 	t.shutdownCancel()
 	t.mqttClient.Disconnect(t.globals.MqttQuitMillSec)
 }

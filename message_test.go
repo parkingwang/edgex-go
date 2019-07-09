@@ -1,9 +1,9 @@
 package edgex
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
-	"reflect"
 	"testing"
 )
 
@@ -12,40 +12,35 @@ import (
 //
 
 func TestNewMessage(t *testing.T) {
-	msg := NewMessage([]byte("CHEN"), []byte{0xAA, 0xBB, 0xCC})
-	head := msg.Header()
-	name := msg.Name()
-	body := msg.Body()
-	if head.Proto != FrameProto {
-		t.Error("Proto not match")
-	}
-	if head.NameLen != 4 {
-		t.Error("Name len not match: ", head.NameLen)
-	}
-	if "CHEN" != string(name) {
-		t.Error("Name not match: ", string(name))
-	}
-	if !reflect.DeepEqual([]byte{0xAA, 0xBB, 0xCC}, body) {
-		t.Error("Body not match", body)
-	}
-	fmt.Println(hex.EncodeToString(msg.getFrames()))
-}
+	newMessage := NewMessageWithId("CHEN", []byte{0xAA, 0xBB, 0xCC}, 2019)
 
-func TestParseMessage(t *testing.T) {
-	msg := ParseMessage([]byte{0xed, 0x04, 0x43, 0x48, 0x45, 0x4e, 0xaa, 0xbb, 0xcc})
-	head := msg.Header()
-	name := msg.Name()
-	body := msg.Body()
-	if head.Proto != FrameProto {
-		t.Error("Proto not match")
+	check := func(msg Message) {
+		header := msg.Header()
+		if header.Magic != FrameMagic {
+			t.Error("Magic not match")
+		}
+		if header.Version != FrameVersion {
+			t.Error("Version not match")
+		}
+		if header.ControlVar != FrameVarData {
+			t.Error("Control var not match")
+		}
+		if header.SequenceId != 2019 || msg.SequenceId() != 2019 {
+			t.Error("SequenceId var not match, was: ", msg.SequenceId())
+		}
+		if "CHEN" != msg.SourceName() {
+			t.Error("SourceName not match, was: ", msg.SourceName())
+		}
+		if !bytes.Equal([]byte{0xAA, 0xBB, 0xCC}, msg.Body()) {
+			t.Error("Body not match, was", hex.EncodeToString(msg.Body()))
+		}
 	}
-	if head.NameLen != 4 {
-		t.Error("Name len not match: ", head.NameLen)
-	}
-	if "CHEN" != string(name) {
-		t.Error("Name not match, was: ", string(name))
-	}
-	if !reflect.DeepEqual([]byte{0xAA, 0xBB, 0xCC}, body) {
-		t.Error("Body not match", body)
-	}
+
+	fmt.Println("Bytes: " + hex.EncodeToString(newMessage.Bytes()))
+	check(newMessage)
+
+	// Parse
+	parsed := ParseMessage(newMessage.Bytes())
+
+	check(parsed)
 }

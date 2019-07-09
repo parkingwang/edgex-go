@@ -10,32 +10,26 @@ import (
 //
 
 const (
-	tDevicesInspect = "$EDGEX/DEVICES/INSPECT"
-	tDevicesOffline = "$EDGEX/DEVICES/OFFLINE/%s/%s"
-	tDevicesAlive   = "$EDGEX/DEVICES/ALIVE/%s/%s"
-	tTrigger        = "$EDGEX/EVENTS/${user-topic}"
+	tNodesInspect = "$EdgeX/nodes/inspect"
+	tNodesOffline = "$EdgeX/nodes/offline/%s/%s"
+	tNodesEvents  = "$EdgeX/events/${user-topic}"
 )
 
 const (
-	TopicDeviceInspect = "$EDGEX/DEVICES/INSPECT/#"
-	TopicDeviceOffline = "$EDGEX/DEVICES/OFFLINE/#"
-	TopicDeviceALIVE   = "$EDGEX/DEVICES/ALIVE/#"
-	TopicDeviceEvents  = "$EDGEX/EVENTS/#"
+	TopicNodesInspect = tNodesInspect
+	TopicNodesOffline = "$EdgeX/nodes/offline/#"
+	TopicNodesEvents  = "$EdgeX/events/#"
 )
 
-func topicOfTrigger(topic string) string {
+func topicOfTriggerEvents(topic string) string {
 	if strings.HasPrefix(topic, "/") {
 		log.Panicf("Topic MUST NOT starts with '/', was: %s", topic)
 	}
-	return topicFormat(tTrigger, "${user-topic}", topic)
+	return topicFormat(tNodesEvents, "${user-topic}", topic)
 }
 
 func topicOfOffline(typeName, name string) string {
-	return fmt.Sprintf(tDevicesOffline, typeName, name)
-}
-
-func topicOfAlive(typeName, name string) string {
-	return fmt.Sprintf(tDevicesAlive, typeName, name)
+	return fmt.Sprintf(tNodesOffline, typeName, name)
 }
 
 func topicFormat(tpl, key, value string) string {

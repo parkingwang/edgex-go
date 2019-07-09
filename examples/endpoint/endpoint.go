@@ -15,7 +15,7 @@ func main() {
 		// 向系统注册节点
 		opts := edgex.EndpointOptions{
 			NodeName: "EXAMPLE-ENDPOINT",
-			RpcAddr:  "0.0.0.0:6670",
+			RpcAddr:  "0.0.0.0:5570",
 			InspectFunc: func() edgex.Inspect {
 				return edgex.Inspect{
 					HostOS:   runtime.GOOS,
@@ -34,10 +34,10 @@ func main() {
 		endpoint := ctx.NewEndpoint(opts)
 
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			name := string(in.Name())
+			name := in.SourceName()
 			body := string(in.Body())
 			ctx.Log().Debugf("接收到数据, From: %s, Body: %s ", name, body)
-			return edgex.NewMessageString("ABCD", "ECHO")
+			return endpoint.NextMessage("ABCD", []byte("ECHO"))
 		})
 
 		endpoint.Startup()
