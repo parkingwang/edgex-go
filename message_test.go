@@ -12,7 +12,7 @@ import (
 //
 
 func TestNewMessage(t *testing.T) {
-	body := []byte{0xAA, FrameEmpty, 0xBB, 0xCC}
+	body := []byte{FrameEmpty, 0xAA, FrameEmpty, 0xBB, 0xCC, FrameEmpty}
 	newMessage := NewMessageWithId("CHEN", body, 2019)
 
 	check := func(msg Message) {
