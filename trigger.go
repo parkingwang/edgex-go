@@ -30,9 +30,9 @@ type Trigger interface {
 }
 
 type TriggerOptions struct {
-	NodeName    string         // 节点名称
-	Topic       string         // 触发器发送事件的主题
-	InspectFunc func() Inspect // Inspect消息生成函数
+	NodeName        string          // 节点名称
+	Topic           string          // 触发器发送事件的主题
+	InspectNodeFunc func() EdgeNode // Inspect消息生成函数
 }
 
 //// trigger
@@ -43,8 +43,8 @@ type trigger struct {
 	topic      string // Trigger产生的事件Topic
 	nodeName   string // Trigger的名称
 	sequenceId uint32 // Trigger产生的消息ID序列
-	// Inspect
-	inspectFunc func() Inspect
+	// EdgeNode 消息生产函数
+	inspectNodeFunc func() EdgeNode
 	// MQTT
 	mqttClient mqtt.Client
 	mqttTopic  string
@@ -87,10 +87,10 @@ func (t *trigger) Startup() {
 	} else {
 		log.Debug("Mqtt客户端连接成功：" + clientId)
 		// 异步发送Inspect消息
-		mqttSendInspectMessage(t.mqttClient, t.nodeName, t.inspectFunc)
-
+		mqttSendInspectMessage(t.mqttClient, t.nodeName, t.inspectNodeFunc)
+		// 定时发送
 		go mqttAsyncTickInspect(t.shutdownContext, func() {
-			mqttSendInspectMessage(t.mqttClient, t.nodeName, t.inspectFunc)
+			mqttSendInspectMessage(t.mqttClient, t.nodeName, t.inspectNodeFunc)
 		})
 	}
 }

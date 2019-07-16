@@ -6,7 +6,6 @@ import (
 	"github.com/eclipse/paho.mqtt.golang"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 )
 
@@ -30,33 +29,32 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 
 ////
 
-func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectFunc func() Inspect) {
+func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectNodeFunc func() EdgeNode) {
 	gRpcAddr, addrOK := os.LookupEnv(EnvKeyGrpcAddress)
-	inspectMsg := inspectFunc()
-	// 自动更新虚拟设备的参数
-	if "" == inspectMsg.HostOS {
-		inspectMsg.HostOS = runtime.GOOS
+	node := inspectNodeFunc()
+	if "" == node.NodeType {
+		log.Panic("必须指定NodeType类型")
 	}
-	if "" == inspectMsg.HostArch {
-		inspectMsg.HostArch = runtime.GOARCH
+	if 0 == len(node.VirtualNodes) {
+		log.Panic("缺少虚拟节点数据")
+	}
+	// 自动更新虚拟设备的参数
+	if "" == node.HostOS {
+		node.HostOS = runtime.GOOS
+	}
+	if "" == node.HostArch {
+		node.HostArch = runtime.GOARCH
 	}
 	// 更新设备列表参数
-	for i, vd := range inspectMsg.VirtualNodes {
+	for i, vd := range node.VirtualNodes {
 		// gRpc地址
 		if addrOK {
-			vd.Address = gRpcAddr
-		}
-		// 虚拟设备完整的名称
-		checkNameFormat(vd.VirtualNodeName)
-		if strings.HasPrefix(vd.VirtualNodeName, nodeName) {
-			log.Panic("VirtualName不得以节点名称(NodeName)作为前缀")
-		} else {
-			vd.VirtualNodeName = CreateVirtualNodeName(nodeName, vd.VirtualNodeName)
+			vd.RpcAddress = gRpcAddr
 		}
 		// !!修改操作，非引用。注意更新。
-		inspectMsg.VirtualNodes[i] = vd
+		node.VirtualNodes[i] = vd
 	}
-	data, err := json.Marshal(inspectMsg)
+	data, err := json.Marshal(node)
 	if nil != err {
 		log.Panic("Inspect数据序列化错误", err)
 	}
@@ -74,7 +72,7 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectFunc fun
 
 func mqttAsyncTickInspect(shutdown context.Context, inspectTask func()) {
 	// 在1分钟内上报Inspect消息
-	ticker := time.NewTicker(time.Second * 5)
+	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 
 	tick := 1
@@ -83,7 +81,7 @@ func mqttAsyncTickInspect(shutdown context.Context, inspectTask func()) {
 		case <-ticker.C:
 			inspectTask()
 			tick++
-			if tick >= 12 {
+			if tick >= 6 {
 				return
 			}
 

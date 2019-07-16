@@ -14,19 +14,9 @@ func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 		// 向系统注册节点
 		opts := edgex.TriggerOptions{
-			NodeName: "EXAMPLE-TRIGGER",
-			Topic:    "example/timer",
-			InspectFunc: func() edgex.Inspect {
-				return edgex.Inspect{
-					VirtualNodes: []edgex.VirtualNode{
-						{
-							VirtualNodeName: "MAIN-TIMER",
-							Virtual:         false,
-							Desc:            "演示Trigger",
-						},
-					},
-				}
-			},
+			NodeName:        "EXAMPLE-TRIGGER",
+			Topic:           "example/timer",
+			InspectNodeFunc: nodeInfo,
 		}
 		trigger := ctx.NewTrigger(opts)
 
@@ -52,4 +42,18 @@ func main() {
 		}
 
 	})
+}
+
+func nodeInfo() edgex.EdgeNode {
+	return edgex.EdgeNode{
+		NodeType: edgex.NodeTypeTrigger,
+		VirtualNodes: []edgex.VirtualNode{
+			{
+				Major:   "TIMER",
+				Minor:   "MAIN",
+				Virtual: false,
+				Desc:    "演示Trigger",
+			},
+		},
+	}
 }

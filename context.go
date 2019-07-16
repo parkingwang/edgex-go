@@ -116,15 +116,15 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 	c.checkInit()
 	checkRequires(opts.NodeName, "Trigger.NodeName MUST be specified")
 	checkRequires(opts.Topic, "Trigger.Topic MUST be specified")
-	checkRequires(opts.InspectFunc, "Trigger.InspectFunc MUST be specified")
+	checkRequires(opts.InspectNodeFunc, "Trigger.InspectNodeFunc MUST be specified")
 	c.nodeType = "Trigger"
 	c.nodeName = checkNameFormat(opts.NodeName)
 	return &trigger{
-		globals:     c.globals,
-		topic:       opts.Topic,
-		nodeName:    opts.NodeName,
-		sequenceId:  0,
-		inspectFunc: opts.InspectFunc,
+		globals:         c.globals,
+		topic:           opts.Topic,
+		nodeName:        opts.NodeName,
+		sequenceId:      0,
+		inspectNodeFunc: opts.InspectNodeFunc,
 	}
 }
 
@@ -132,7 +132,7 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	c.checkInit()
 	checkRequires(opts.NodeName, "Endpoint.NodeName MUST be specified")
 	checkRequires(opts.RpcAddr, "Endpoint.RpcAddr MUST be specified")
-	checkRequires(opts.InspectFunc, "Endpoint.InspectFunc MUST be specified")
+	checkRequires(opts.InspectNodeFunc, "Endpoint.InspectNodeFunc MUST be specified")
 	c.nodeType = "Endpoint"
 	c.nodeName = checkNameFormat(opts.NodeName)
 	return &endpoint{
@@ -140,7 +140,7 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 		nodeName:        opts.NodeName,
 		sequenceId:      0,
 		endpointAddr:    opts.RpcAddr,
-		inspectFunc:     opts.InspectFunc,
+		inspectNodeFunc: opts.InspectNodeFunc,
 		serialExecuting: opts.SerialExecuting,
 	}
 }

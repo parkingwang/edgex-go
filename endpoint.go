@@ -36,10 +36,10 @@ type Endpoint interface {
 }
 
 type EndpointOptions struct {
-	RpcAddr         string         // RPC 地址
-	NodeName        string         // 节点名字
-	SerialExecuting bool           // 是否串行地执行控制指令
-	InspectFunc     func() Inspect // // Inspect消息生成函数
+	RpcAddr         string          // RPC 地址
+	NodeName        string          // 节点名字
+	SerialExecuting bool            // 是否串行地执行控制指令
+	InspectNodeFunc func() EdgeNode // // Inspect消息生成函数
 }
 
 //// Endpoint实现
@@ -50,8 +50,8 @@ type endpoint struct {
 	globals         *Globals
 	sequenceId      uint32
 	serialExecuting bool
-	// Inspect
-	inspectFunc func() Inspect
+	// EdgeNode
+	inspectNodeFunc func() EdgeNode
 	// gRPC
 	endpointAddr string
 	handler      func(in Message) (out Message)
@@ -82,8 +82,8 @@ func (e *endpoint) Startup() {
 	e.rpcServer = grpc.NewServer()
 	RegisterExecuteServer(e.rpcServer, &grpcExecutor{
 		nodeName:        e.nodeName,
-		serialExecuting: e.serialExecuting,
-		executeLock:     new(sync.Mutex),
+		serialExecution: e.serialExecuting,
+		serialLock:      new(sync.Mutex),
 		handler:         e.handler,
 		nextSequenceId:  e.NextSequenceId,
 	})
@@ -115,9 +115,10 @@ func (e *endpoint) Startup() {
 	} else {
 		log.Debug("Mqtt客户端连接成功：" + clientId)
 		// 异步发送Inspect消息
-		mqttSendInspectMessage(e.mqttClient, e.nodeName, e.inspectFunc)
+		mqttSendInspectMessage(e.mqttClient, e.nodeName, e.inspectNodeFunc)
+		// 定时发送
 		go mqttAsyncTickInspect(e.shutdownContext, func() {
-			mqttSendInspectMessage(e.mqttClient, e.nodeName, e.inspectFunc)
+			mqttSendInspectMessage(e.mqttClient, e.nodeName, e.inspectNodeFunc)
 		})
 	}
 }
@@ -139,15 +140,15 @@ type grpcExecutor struct {
 	ExecuteServer
 	nodeName        string
 	nextSequenceId  func() uint32
-	serialExecuting bool
-	executeLock     *sync.Mutex
+	serialExecution bool        // 是否串行执行
+	serialLock      *sync.Mutex // 串行锁
 	handler         func(in Message) (out Message)
 }
 
 func (ex *grpcExecutor) Execute(c context.Context, i *Data) (o *Data, e error) {
-	if ex.serialExecuting {
-		ex.executeLock.Lock()
-		defer ex.executeLock.Unlock()
+	if ex.serialExecution {
+		ex.serialLock.Lock()
+		defer ex.serialLock.Unlock()
 		return ex.execute(c, i)
 	} else {
 		return ex.execute(c, i)

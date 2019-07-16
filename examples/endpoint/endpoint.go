@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/nextabc-lab/edgex-go"
-	"runtime"
 )
 
 //
@@ -14,22 +13,9 @@ func main() {
 		//config := ctx.LoadConfig()
 		// 向系统注册节点
 		opts := edgex.EndpointOptions{
-			NodeName: "EXAMPLE-ENDPOINT",
-			RpcAddr:  "0.0.0.0:5570",
-			InspectFunc: func() edgex.Inspect {
-				return edgex.Inspect{
-					HostOS:   runtime.GOOS,
-					HostArch: runtime.GOARCH,
-					VirtualNodes: []edgex.VirtualNode{
-						{
-							VirtualNodeName: "PINGPONG",
-							Virtual:         false,
-							Desc:            "演示终端",
-							Command:         "ECHO",
-						},
-					},
-				}
-			},
+			NodeName:        "EXAMPLE-ENDPOINT",
+			RpcAddr:         "0.0.0.0:5570",
+			InspectNodeFunc: nodeInfo,
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
@@ -47,4 +33,19 @@ func main() {
 
 		return ctx.TermAwait()
 	})
+}
+
+func nodeInfo() edgex.EdgeNode {
+	return edgex.EdgeNode{
+		NodeType: edgex.NodeTypeEndpoint,
+		VirtualNodes: []edgex.VirtualNode{
+			{
+				Major:      "ECHO",
+				Minor:      "001",
+				Desc:       "演示终端",
+				RpcCommand: "ECHO",
+				Virtual:    false,
+			},
+		},
+	}
 }

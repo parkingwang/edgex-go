@@ -33,7 +33,7 @@ type Header struct {
 	SequenceId uint32 // 消息流水ID
 }
 
-// Message 消息
+// Message 消息接口。
 type Message interface {
 	// Header 返回消息的Header
 	Header() Header
@@ -122,19 +122,21 @@ func ParseMessage(data []byte) Message {
 	magic, _ := reader.ReadByte()
 	version, _ := reader.ReadByte()
 	vars, _ := reader.ReadByte()
-	sid := make([]byte, 4)
-	if _, err := reader.Read(sid); nil != err {
+	seqId := make([]byte, 4)
+	if _, err := reader.Read(seqId); nil != err {
 		panic(err)
 	}
 	name, _ := reader.ReadBytes(FrameEmpty)
 	body := make([]byte, len(data)-7-len(name))
-	reader.Read(body)
+	if _, err := reader.Read(body); nil != err {
+		panic(err)
+	}
 	return &message{
 		header: &Header{
 			Magic:      magic,
 			Version:    version,
 			ControlVar: vars,
-			SequenceId: decodeUint32(sid),
+			SequenceId: decodeUint32(seqId),
 		},
 		sourceName: string(name[:len(name)-1]),
 		body:       body,
