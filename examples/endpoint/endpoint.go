@@ -12,10 +12,11 @@ func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 		//config := ctx.LoadConfig()
 		// 向系统注册节点
+		nodeName := "EXAMPLE-ENDPOINT"
 		opts := edgex.EndpointOptions{
-			NodeName:        "EXAMPLE-ENDPOINT",
+			NodeName:        nodeName,
 			RpcAddr:         "0.0.0.0:5570",
-			InspectNodeFunc: mainNodeInfo,
+			InspectNodeFunc: mainNodeFunc(nodeName),
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
@@ -35,17 +36,20 @@ func main() {
 	})
 }
 
-func mainNodeInfo() edgex.MainNode {
-	return edgex.MainNode{
-		NodeType: edgex.NodeTypeEndpoint,
-		VirtualNodes: []edgex.VirtualNode{
-			{
-				Major:      "ECHO",
-				Minor:      "001",
-				Desc:       "演示终端",
-				RpcCommand: "ECHO",
-				Virtual:    false,
+func mainNodeFunc(nodeName string) func() edgex.MainNode {
+	return func() edgex.MainNode {
+		return edgex.MainNode{
+			NodeType: edgex.NodeTypeEndpoint,
+			NodeName: nodeName,
+			VirtualNodes: []edgex.VirtualNode{
+				{
+					Major:      "ECHO",
+					Minor:      "001",
+					Desc:       "演示终端",
+					RpcCommand: "ECHO",
+					Virtual:    false,
+				},
 			},
-		},
+		}
 	}
 }

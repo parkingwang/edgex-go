@@ -13,10 +13,11 @@ import (
 func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 		// 向系统注册节点
+		nodeName := "EXAMPLE-TRIGGER"
 		opts := edgex.TriggerOptions{
-			NodeName:        "EXAMPLE-TRIGGER",
+			NodeName:        nodeName,
 			Topic:           "example/timer",
-			InspectNodeFunc: mainNodeInfo,
+			InspectNodeFunc: mainNodeFunc(nodeName),
 		}
 		trigger := ctx.NewTrigger(opts)
 
@@ -44,16 +45,19 @@ func main() {
 	})
 }
 
-func mainNodeInfo() edgex.MainNode {
-	return edgex.MainNode{
-		NodeType: edgex.NodeTypeTrigger,
-		VirtualNodes: []edgex.VirtualNode{
-			{
-				Major:   "TIMER",
-				Minor:   "MAIN",
-				Virtual: false,
-				Desc:    "演示Trigger",
+func mainNodeFunc(nodeName string) func() edgex.MainNode {
+	return func() edgex.MainNode {
+		return edgex.MainNode{
+			NodeType: edgex.NodeTypeTrigger,
+			NodeName: nodeName,
+			VirtualNodes: []edgex.VirtualNode{
+				{
+					Major:   "TIMER",
+					Minor:   "MAIN",
+					Virtual: false,
+					Desc:    "演示Trigger",
+				},
 			},
-		},
+		}
 	}
 }

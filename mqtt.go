@@ -32,8 +32,8 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectNodeFunc func() MainNode) {
 	gRpcAddr, addrOK := os.LookupEnv(EnvKeyGrpcAddress)
 	node := inspectNodeFunc()
-	if "" == node.NodeType {
-		log.Panic("必须指定NodeType类型")
+	if "" == node.NodeType || "" == node.NodeName {
+		log.Panic("必须指定NodeType/NodeName参数")
 	}
 	if 0 == len(node.VirtualNodes) {
 		log.Panic("缺少虚拟节点数据")
