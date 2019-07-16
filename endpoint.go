@@ -39,7 +39,7 @@ type EndpointOptions struct {
 	RpcAddr         string          // RPC 地址
 	NodeName        string          // 节点名字
 	SerialExecuting bool            // 是否串行地执行控制指令
-	InspectNodeFunc func() EdgeNode // // Inspect消息生成函数
+	InspectNodeFunc func() MainNode // // Inspect消息生成函数
 }
 
 //// Endpoint实现
@@ -50,8 +50,8 @@ type endpoint struct {
 	globals         *Globals
 	sequenceId      uint32
 	serialExecuting bool
-	// EdgeNode
-	inspectNodeFunc func() EdgeNode
+	// MainNode
+	inspectNodeFunc func() MainNode
 	// gRPC
 	endpointAddr string
 	handler      func(in Message) (out Message)

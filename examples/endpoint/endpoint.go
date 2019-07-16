@@ -15,7 +15,7 @@ func main() {
 		opts := edgex.EndpointOptions{
 			NodeName:        "EXAMPLE-ENDPOINT",
 			RpcAddr:         "0.0.0.0:5570",
-			InspectNodeFunc: nodeInfo,
+			InspectNodeFunc: mainNodeInfo,
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
@@ -35,8 +35,8 @@ func main() {
 	})
 }
 
-func nodeInfo() edgex.EdgeNode {
-	return edgex.EdgeNode{
+func mainNodeInfo() edgex.MainNode {
+	return edgex.MainNode{
 		NodeType: edgex.NodeTypeEndpoint,
 		VirtualNodes: []edgex.VirtualNode{
 			{

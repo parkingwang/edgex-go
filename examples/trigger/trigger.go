@@ -16,7 +16,7 @@ func main() {
 		opts := edgex.TriggerOptions{
 			NodeName:        "EXAMPLE-TRIGGER",
 			Topic:           "example/timer",
-			InspectNodeFunc: nodeInfo,
+			InspectNodeFunc: mainNodeInfo,
 		}
 		trigger := ctx.NewTrigger(opts)
 
@@ -44,8 +44,8 @@ func main() {
 	})
 }
 
-func nodeInfo() edgex.EdgeNode {
-	return edgex.EdgeNode{
+func mainNodeInfo() edgex.MainNode {
+	return edgex.MainNode{
 		NodeType: edgex.NodeTypeTrigger,
 		VirtualNodes: []edgex.VirtualNode{
 			{

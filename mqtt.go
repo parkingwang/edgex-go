@@ -29,7 +29,7 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 
 ////
 
-func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectNodeFunc func() EdgeNode) {
+func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectNodeFunc func() MainNode) {
 	gRpcAddr, addrOK := os.LookupEnv(EnvKeyGrpcAddress)
 	node := inspectNodeFunc()
 	if "" == node.NodeType {
