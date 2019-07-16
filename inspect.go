@@ -22,6 +22,7 @@ type MainNode struct {
 
 // 虚拟节点信息
 type VirtualNode struct {
+	Uuid       string                 `json:"uuid"`    // 设备UUID；如果未指定此字段，Hub端会自动创建设备UUID
 	Major      string                 `json:"major"`   // 主ID
 	Minor      string                 `json:"minor"`   // 次ID
 	Desc       string                 `json:"desc"`    // 设备描述信息
