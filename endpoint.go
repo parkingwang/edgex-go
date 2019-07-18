@@ -32,7 +32,7 @@ type Endpoint interface {
 	NextSequenceId() uint32
 
 	// 基于内部流水号创建消息对象
-	NextMessage(sourceName string, body []byte) Message
+	NextMessage(virtualNodeId string, body []byte) Message
 }
 
 type EndpointOptions struct {
@@ -72,8 +72,8 @@ func (e *endpoint) NextSequenceId() uint32 {
 	return e.sequenceId
 }
 
-func (e *endpoint) NextMessage(sourceName string, body []byte) Message {
-	return NewMessageWithId(sourceName, body, e.NextSequenceId())
+func (e *endpoint) NextMessage(virtualNodeId string, body []byte) Message {
+	return NewMessageWithId(e.nodeName, virtualNodeId, body, e.NextSequenceId())
 }
 
 func (e *endpoint) Startup() {
@@ -164,7 +164,7 @@ func (ex *grpcExecutor) execute(c context.Context, i *Data) (o *Data, e error) {
 	switch in.Header().ControlVar {
 	// Ping Pong
 	case FrameVarPing:
-		pong := newControlMessageWithId(ex.nodeName, FrameVarPong, ex.nextSequenceId())
+		pong := newControlMessageWithId(ex.nodeName, ex.nodeName, FrameVarPong, ex.nextSequenceId())
 		return &Data{Frames: pong.Bytes()}, nil
 
 	// Data

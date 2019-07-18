@@ -17,16 +17,14 @@ type Trigger interface {
 	Lifecycle
 	NodeName
 
-	// SendEventMessage 发送事件消息。指定 virtualNodeName 的数据体。其中，
-	// virtualNodeName 为触发器内部的虚拟设备名称，它与Trigger的节点名称组成完整的设备名称来作为消息来源。
-	// 最终发送消息的Name字段，与Inspect返回的虚拟设备Name字段是相同的。
-	SendEventMessage(virtualNodeName string, data []byte) error
+	// SendEventMessage 发送事件消息。指定 virtualNodeId 的数据体。
+	SendEventMessage(virtualNodeId string, data []byte) error
 
 	// NextSequenceId 返回流水号
 	NextSequenceId() uint32
 
 	// 基于内部流水号创建消息对象
-	NextMessage(sourceName string, body []byte) Message
+	NextMessage(virtualNodeId string, body []byte) Message
 }
 
 type TriggerOptions struct {
@@ -62,8 +60,8 @@ func (t *trigger) NextSequenceId() uint32 {
 	return t.sequenceId
 }
 
-func (t *trigger) NextMessage(sourceName string, body []byte) Message {
-	return NewMessageWithId(sourceName, body, t.NextSequenceId())
+func (t *trigger) NextMessage(virtualNodeId string, body []byte) Message {
+	return NewMessageWithId(t.nodeName, virtualNodeId, body, t.NextSequenceId())
 }
 
 func (t *trigger) Startup() {
@@ -95,14 +93,13 @@ func (t *trigger) Startup() {
 	}
 }
 
-func (t *trigger) SendEventMessage(virtualNodeName string, data []byte) error {
+func (t *trigger) SendEventMessage(virtualNodeId string, data []byte) error {
 	// 构建完整的设备名称
-	fullName := CreateVirtualNodeName(t.nodeName, virtualNodeName)
 	token := t.mqttClient.Publish(
 		t.mqttTopic,
 		t.globals.MqttQoS,
 		t.globals.MqttRetained,
-		NewMessageWithId(fullName, data, t.NextSequenceId()).Bytes())
+		NewMessageWithId(t.nodeName, virtualNodeId, data, t.NextSequenceId()).Bytes())
 	if token.Wait() && nil != token.Error() {
 		return errors.WithMessage(token.Error(), "发送事件消息出错")
 	} else {

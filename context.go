@@ -195,11 +195,6 @@ func (c *NodeContext) checkInit() {
 
 ////
 
-// CreateVirtualNodeName 创建虚拟设备的完整名称
-func CreateVirtualNodeName(nodeName, virtualDeviceName string) string {
-	return nodeName + ":" + virtualDeviceName
-}
-
 // LoadConfig 加载TOML配置文件。
 // 配置文件加载顺序：
 // 1. 运行目录下的 application.toml;

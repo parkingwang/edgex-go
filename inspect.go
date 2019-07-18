@@ -22,9 +22,10 @@ type MainNode struct {
 
 // 虚拟节点信息
 type VirtualNode struct {
-	Uuid       string                 `json:"uuid"`    // 设备UUID；如果未指定此字段，Hub端会自动创建设备UUID
-	Major      string                 `json:"major"`   // 主ID
-	Minor      string                 `json:"minor"`   // 次ID
+	Uuid       string                 `json:"uuid"`    // 自动生成的UUID；设备的唯一节点编号；
+	NodeId     string                 `json:"nodeId"`  // 虚拟节点ID；须保证在单个节点内唯一性
+	Major      string                 `json:"major"`   // 设备主ID
+	Minor      string                 `json:"minor"`   // 设备次ID
 	Desc       string                 `json:"desc"`    // 设备描述信息
 	Virtual    bool                   `json:"virtual"` // 是否为虚拟设备，即通过代理后转换的设备
 	RpcCommand string                 `json:"command"` // 设备控制命令

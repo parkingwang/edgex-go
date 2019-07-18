@@ -21,9 +21,9 @@ func main() {
 		endpoint := ctx.NewEndpoint(opts)
 
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			name := in.SourceName()
+			sid := in.SourceNodeId()
 			body := string(in.Body())
-			ctx.Log().Debugf("接收到数据, From: %s, Body: %s ", name, body)
+			ctx.Log().Debugf("接收到数据, SourceNodeId: %s, Body: %s ", sid, body)
 			return endpoint.NextMessage("ABCD", []byte("ECHO"))
 		})
 
@@ -43,11 +43,9 @@ func mainNodeFunc(nodeName string) func() edgex.MainNode {
 			NodeName: nodeName,
 			VirtualNodes: []edgex.VirtualNode{
 				{
-					Major:      "ECHO",
-					Minor:      "001",
+					NodeId:     "main",
 					Desc:       "演示终端",
 					RpcCommand: "ECHO",
-					Virtual:    false,
 				},
 			},
 		}

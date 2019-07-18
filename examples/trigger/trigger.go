@@ -33,7 +33,7 @@ func main() {
 			select {
 			case c := <-timer.C:
 				data := fmt.Sprintf("%d", c.UnixNano())
-				if e := trigger.SendEventMessage("MAIN-TIMER", []byte(data)); nil != e {
+				if e := trigger.SendEventMessage("TIMER", []byte(data)); nil != e {
 					ctx.Log().Error("Trigger发送消息失败")
 				}
 
@@ -52,10 +52,8 @@ func mainNodeFunc(nodeName string) func() edgex.MainNode {
 			NodeName: nodeName,
 			VirtualNodes: []edgex.VirtualNode{
 				{
-					Major:   "TIMER",
-					Minor:   "MAIN",
-					Virtual: false,
-					Desc:    "演示Trigger",
+					NodeId: "TIMER",
+					Desc:   "演示Trigger",
 				},
 			},
 		}

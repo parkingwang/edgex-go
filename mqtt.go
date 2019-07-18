@@ -47,6 +47,12 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectNodeFunc
 	}
 	// 更新设备列表参数
 	for i, vd := range node.VirtualNodes {
+		// 自动生成UUID
+		if "" == vd.NodeId {
+			log.Panic("必须指定虚拟节点的NodeId，并保证其节点内的唯一性")
+		} else {
+			vd.Uuid = MakeMessageSourceId(nodeName, vd.NodeId)
+		}
 		// gRpc地址
 		if addrOK {
 			vd.RpcAddress = gRpcAddr
@@ -63,7 +69,7 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectNodeFunc
 		tNodesInspect,
 		0,
 		false,
-		NewMessageWithId(nodeName, data, 0).Bytes(),
+		NewMessageWithId(nodeName, nodeName, data, 0).Bytes(),
 	)
 	if token.Wait() && nil != token.Error() {
 		log.Error("发送Inspect消息出错", token.Error())

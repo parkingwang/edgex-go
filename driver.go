@@ -32,7 +32,7 @@ type Driver interface {
 	NextSequenceId() uint32
 
 	// 基于内部流水号创建消息对象
-	NextMessage(sourceName string, body []byte) Message
+	NextMessage(virtualNodeId string, body []byte) Message
 }
 
 type DriverOptions struct {
@@ -63,8 +63,8 @@ func (d *driver) NextSequenceId() uint32 {
 	return d.sequenceId
 }
 
-func (d *driver) NextMessage(sourceName string, body []byte) Message {
-	return NewMessageWithId(sourceName, body, d.NextSequenceId())
+func (d *driver) NextMessage(virtualNodeId string, body []byte) Message {
+	return NewMessageWithId(d.nodeName, virtualNodeId, body, d.NextSequenceId())
 }
 
 func (d *driver) Startup() {
@@ -142,6 +142,6 @@ func (d *driver) Execute(endpointAddr string, in Message, to time.Duration) (out
 func (d *driver) Hello(endpointAddr string, timeout time.Duration) (reply Message, err error) {
 	return d.Execute(
 		endpointAddr,
-		newControlMessageWithId(d.nodeName, FrameVarPing, d.NextSequenceId()),
+		newControlMessageWithId(d.nodeName, d.nodeName, FrameVarPing, d.NextSequenceId()),
 		timeout)
 }
