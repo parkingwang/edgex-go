@@ -2,7 +2,6 @@ package edgex
 
 import (
 	"context"
-	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -49,7 +48,7 @@ type driver struct {
 	sequenceId uint32
 	// MQTT
 	topics           []string
-	mqttClient       mqtt.Client
+	refMqttClient    mqtt.Client
 	mqttTopicTrigger map[string]byte
 	mqttWorker       func(event Message)
 }
@@ -68,25 +67,6 @@ func (d *driver) NextMessage(virtualNodeId string, body []byte) Message {
 }
 
 func (d *driver) Startup() {
-	// 连接Broker
-	clientId := fmt.Sprintf("EX-Driver-%s", d.nodeName)
-	opts := mqtt.NewClientOptions()
-	opts.SetClientID(clientId)
-	opts.SetWill(topicOfOffline("Driver", d.nodeName), "offline", 1, true)
-	mqttSetOptions(opts, d.globals)
-
-	d.mqttClient = mqtt.NewClient(opts)
-	log.Info("Mqtt客户端连接Broker: ", d.globals.MqttBroker)
-
-	// 连续重试
-	mqttAwaitConnection(d.mqttClient, d.globals.MqttMaxRetry)
-
-	if !d.mqttClient.IsConnected() {
-		log.Panic("Mqtt客户端连接无法连接Broker")
-	} else {
-		log.Debug("Mqtt客户端连接成功: " + clientId)
-	}
-
 	// 监听所有Trigger的UserTopic
 	d.mqttTopicTrigger = make(map[string]byte, len(d.topics))
 	for _, t := range d.topics {
@@ -94,7 +74,7 @@ func (d *driver) Startup() {
 		d.mqttTopicTrigger[topic] = 0
 		log.Info("开启监听事件[TRIGGER]: ", topic)
 	}
-	d.mqttClient.SubscribeMultiple(d.mqttTopicTrigger, func(cli mqtt.Client, msg mqtt.Message) {
+	d.refMqttClient.SubscribeMultiple(d.mqttTopicTrigger, func(cli mqtt.Client, msg mqtt.Message) {
 		frame := msg.Payload()
 		if ok, err := CheckMessage(frame); !ok {
 			log.Error("消息格式异常: ", err)
@@ -110,10 +90,9 @@ func (d *driver) Shutdown() {
 		topics = append(topics, t)
 		log.Info("取消监听事件[TRIGGER]: ", t)
 	}
-	if token := d.mqttClient.Unsubscribe(topics...); token.Wait() && nil != token.Error() {
+	if token := d.refMqttClient.Unsubscribe(topics...); token.Wait() && nil != token.Error() {
 		log.Error("取消监听事件出错：", token.Error())
 	}
-	d.mqttClient.Disconnect(d.globals.MqttQuitMillSec)
 }
 
 func (d *driver) Process(f func(Message)) {

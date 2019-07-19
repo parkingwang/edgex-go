@@ -2,7 +2,6 @@ package edgex
 
 import (
 	"context"
-	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
 	"math"
@@ -47,8 +46,8 @@ type trigger struct {
 	// MainNode 消息生产函数
 	autoInspectFunc func() MainNode
 	// MQTT
-	mqttClient mqtt.Client
-	mqttTopic  string
+	refMqttClient mqtt.Client
+	mqttTopic     string
 	// Shutdown
 	shutdownContext context.Context
 	shutdownCancel  context.CancelFunc
@@ -69,25 +68,6 @@ func (t *trigger) NextMessage(virtualNodeId string, body []byte) Message {
 
 func (t *trigger) Startup() {
 	t.shutdownContext, t.shutdownCancel = context.WithCancel(context.Background())
-	// 连接Broker
-	opts := mqtt.NewClientOptions()
-	clientId := fmt.Sprintf("EX-Trigger:%s", t.nodeName)
-	opts.SetClientID(clientId)
-	opts.SetWill(topicOfOffline("Trigger", t.nodeName),
-		"offline", 1, true)
-	mqttSetOptions(opts, t.globals)
-	t.mqttTopic = topicOfTriggerEvents(t.topic)
-	t.mqttClient = mqtt.NewClient(opts)
-	log.Info("Mqtt客户端连接Broker: ", t.globals.MqttBroker)
-
-	// 连续重试
-	mqttAwaitConnection(t.mqttClient, t.globals.MqttMaxRetry)
-
-	if !t.mqttClient.IsConnected() {
-		log.Panic("Mqtt客户端连接无法连接Broker")
-	} else {
-		log.Debug("Mqtt客户端连接成功：" + clientId)
-	}
 	// 定时发送Inspect消息
 	if nil != t.autoInspectFunc {
 		go scheduleSendInspect(t.shutdownContext, func() {
@@ -97,12 +77,12 @@ func (t *trigger) Startup() {
 }
 
 func (t *trigger) PublishInspectMessage(node MainNode) {
-	mqttSendInspectMessage(t.mqttClient, t.nodeName, node)
+	mqttSendInspectMessage(t.refMqttClient, t.nodeName, node)
 }
 
 func (t *trigger) SendEventMessage(virtualNodeId string, data []byte) error {
 	// 构建完整的设备名称
-	token := t.mqttClient.Publish(
+	token := t.refMqttClient.Publish(
 		t.mqttTopic,
 		t.globals.MqttQoS,
 		t.globals.MqttRetained,
@@ -116,5 +96,4 @@ func (t *trigger) SendEventMessage(virtualNodeId string, data []byte) error {
 
 func (t *trigger) Shutdown() {
 	t.shutdownCancel()
-	t.mqttClient.Disconnect(t.globals.MqttQuitMillSec)
 }

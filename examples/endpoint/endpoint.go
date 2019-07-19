@@ -13,6 +13,9 @@ func main() {
 		//config := ctx.LoadConfig()
 		// 向系统注册节点
 		nodeName := "EXAMPLE-ENDPOINT"
+
+		ctx.Initial(nodeName)
+
 		opts := edgex.EndpointOptions{
 			NodeName:        nodeName,
 			RpcAddr:         "0.0.0.0:5570",

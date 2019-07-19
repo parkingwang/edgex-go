@@ -2,7 +2,6 @@ package edgex
 
 import (
 	"context"
-	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -63,7 +62,7 @@ type endpoint struct {
 	handler      func(in Message) (out Message)
 	rpcServer    *grpc.Server
 	// MQTT
-	mqttClient mqtt.Client
+	refMqttClient mqtt.Client
 	// Shutdown
 	shutdownContext context.Context
 	shutdownCancel  context.CancelFunc
@@ -108,23 +107,6 @@ func (e *endpoint) Startup() {
 			log.Error("GRPC server stop: ", err)
 		}
 	}()
-	// MQTT Broker
-	opts := mqtt.NewClientOptions()
-	clientId := fmt.Sprintf("EX-Endpoint:%s", e.nodeName)
-	opts.SetClientID(clientId)
-	opts.SetWill(topicOfOffline("Endpoint", e.nodeName), "offline", 1, true)
-	mqttSetOptions(opts, e.globals)
-	e.mqttClient = mqtt.NewClient(opts)
-	log.Info("Mqtt客户端连接Broker: ", e.globals.MqttBroker)
-
-	// 连续重试
-	mqttAwaitConnection(e.mqttClient, e.globals.MqttMaxRetry)
-
-	if !e.mqttClient.IsConnected() {
-		log.Panic("Mqtt客户端连接无法连接Broker")
-	} else {
-		log.Debug("Mqtt客户端连接成功：" + clientId)
-	}
 	// 定时发送Inspect消息
 	if nil != e.autoInspectFunc {
 		go scheduleSendInspect(e.shutdownContext, func() {
@@ -134,14 +116,13 @@ func (e *endpoint) Startup() {
 }
 
 func (e *endpoint) PublishInspectMessage(node MainNode) {
-	mqttSendInspectMessage(e.mqttClient, e.nodeName, node)
+	mqttSendInspectMessage(e.refMqttClient, e.nodeName, node)
 }
 
 func (e *endpoint) Shutdown() {
 	log.Info("停止GRPC服务")
 	e.shutdownCancel()
 	e.rpcServer.Stop()
-	e.mqttClient.Disconnect(e.globals.MqttQuitMillSec)
 }
 
 func (e *endpoint) Serve(h func(in Message) (out Message)) {

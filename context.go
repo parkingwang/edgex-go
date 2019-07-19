@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/BurntSushi/toml"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"go.uber.org/zap"
 	"os"
 	"os/signal"
@@ -15,7 +16,14 @@ import (
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
+// Context 是一个提供基础通讯环境和参数设置的对象。通过Context来创建Trigger, Endpoint, Driver组件，并为组件提供MQTT通讯能力。
 type Context interface {
+	// 初化和设置Context
+	Initial(nodeName string)
+
+	// Destroy 由组件自动调用
+	destroy()
+
 	// 返回Log对象
 	Log() *zap.SugaredLogger
 
@@ -69,18 +77,21 @@ var (
 func Run(application func(ctx Context) error) {
 	ctx := CreateDefaultContext()
 	log.Debug("启动EdgeX-App")
-	defer log.Debug("停止EdgeX-App")
+	defer func() {
+		log.Debug("停止EdgeX-App")
+		ctx.destroy()
+	}()
 	if err := application(ctx); nil != err {
 		log.Error("EdgeX-App出错: ", err)
 	}
 }
 
-// CreateContext 使用指定Scoped参数，创建Context对象。
-func CreateContext(scoped *Globals) Context {
-	return newContext(scoped)
+// CreateContext 使用指定 Globals 参数，创建Context对象。
+func CreateContext(globals *Globals) Context {
+	return newContext(globals)
 }
 
-// CreateDefaultContext 从环境变量中读取Scoped参数，并创建返回Context对象。
+// CreateDefaultContext 从环境变量中读取 Globals 参数，并创建返回Context对象。
 func CreateDefaultContext() Context {
 	return CreateContext(&Globals{
 		MqttBroker:            EnvGetString(EnvKeyMQBroker, MqttBrokerDefault),
@@ -104,6 +115,34 @@ func CreateDefaultContext() Context {
 type NodeContext struct {
 	globals    *Globals
 	logVerbose bool
+	mqttClient mqtt.Client
+}
+
+func (c *NodeContext) Initial(nodeName string) {
+	if "" == nodeName {
+		log.Panic("必须指定有效的NodeName")
+	}
+	// MQTT Broker
+	opts := mqtt.NewClientOptions()
+	clientId := fmt.Sprintf("EX-Node:%s", nodeName)
+	opts.SetClientID(clientId)
+	opts.SetWill(topicOfOffline("EX-Node", nodeName), "offline", 1, true)
+	mqttSetOptions(opts, c.globals)
+	c.mqttClient = mqtt.NewClient(opts)
+	log.Info("Mqtt客户端连接Broker: ", c.globals.MqttBroker)
+
+	// 连续重试
+	mqttAwaitConnection(c.mqttClient, c.globals.MqttMaxRetry)
+
+	if !c.mqttClient.IsConnected() {
+		log.Panic("Mqtt客户端连接无法连接Broker")
+	} else {
+		log.Debug("Mqtt客户端连接成功：" + clientId)
+	}
+}
+
+func (c *NodeContext) destroy() {
+	c.mqttClient.Disconnect(c.globals.MqttQuitMillSec)
 }
 
 func (c *NodeContext) LoadConfig() map[string]interface{} {
@@ -111,10 +150,12 @@ func (c *NodeContext) LoadConfig() map[string]interface{} {
 }
 
 func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
+	c.checkInit()
 	checkRequires(opts.NodeName, "Trigger.NodeName MUST be specified")
 	checkRequires(opts.Topic, "Trigger.Topic MUST be specified")
 	checkRequires(opts.AutoInspectFunc, "Trigger.AutoInspectFunc MUST be specified")
 	return &trigger{
+		refMqttClient:   c.mqttClient,
 		globals:         c.globals,
 		topic:           opts.Topic,
 		nodeName:        opts.NodeName,
@@ -124,10 +165,12 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 }
 
 func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
+	c.checkInit()
 	checkRequires(opts.NodeName, "Endpoint.NodeName MUST be specified")
 	checkRequires(opts.RpcAddr, "Endpoint.RpcAddr MUST be specified")
 	checkRequires(opts.AutoInspectFunc, "Endpoint.AutoInspectFunc MUST be specified")
 	return &endpoint{
+		refMqttClient:   c.mqttClient,
 		globals:         c.globals,
 		nodeName:        opts.NodeName,
 		sequenceId:      0,
@@ -138,12 +181,14 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 }
 
 func (c *NodeContext) NewDriver(opts DriverOptions) Driver {
+	c.checkInit()
 	checkRequires(opts.NodeName, "Driver.NodeName MUST be specified")
 	checkRequires(opts.Topics, "Driver.Topics MUST be specified")
 	return &driver{
-		globals:  c.globals,
-		nodeName: opts.NodeName,
-		topics:   opts.Topics,
+		refMqttClient: c.mqttClient,
+		globals:       c.globals,
+		nodeName:      opts.NodeName,
+		topics:        opts.Topics,
 	}
 }
 
@@ -166,6 +211,12 @@ func (c *NodeContext) Log() *zap.SugaredLogger {
 func (c *NodeContext) LogIfVerbose(fn func(log *zap.SugaredLogger)) {
 	if c.logVerbose {
 		fn(log)
+	}
+}
+
+func (c *NodeContext) checkInit() {
+	if nil == c.mqttClient {
+		log.Panic("Context未初始化")
 	}
 }
 

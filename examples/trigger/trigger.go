@@ -14,6 +14,9 @@ func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 		// 向系统注册节点
 		nodeName := "EXAMPLE-TRIGGER"
+
+		ctx.Initial(nodeName)
+
 		opts := edgex.TriggerOptions{
 			NodeName:        nodeName,
 			Topic:           "example/timer",

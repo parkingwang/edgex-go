@@ -23,6 +23,7 @@ func main() {
 			},
 		}
 
+		ctx.Initial(opts.NodeName)
 		driver := ctx.NewDriver(opts)
 
 		const testEndpointAddr = "127.0.0.1:5570"
