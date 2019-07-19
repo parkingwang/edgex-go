@@ -31,15 +31,21 @@ type Endpoint interface {
 	// NextSequenceId 返回流水号
 	NextSequenceId() uint32
 
-	// 基于内部流水号创建消息对象
+	// 返回指定虚拟节点ID，基于内部流水号的消息对象
 	NextMessage(virtualNodeId string, body []byte) Message
+
+	// 返回节点的响应消息，基于内部流水号
+	NextNodeMessage(body []byte) Message
+
+	// 发布Inspect消息
+	PublishInspectMessage(node MainNode)
 }
 
 type EndpointOptions struct {
 	RpcAddr         string          // RPC 地址
 	NodeName        string          // 节点名字
 	SerialExecuting bool            // 是否串行地执行控制指令
-	InspectNodeFunc func() MainNode // // Inspect消息生成函数
+	AutoInspectFunc func() MainNode // // Inspect消息生成函数
 }
 
 //// Endpoint实现
@@ -51,7 +57,7 @@ type endpoint struct {
 	sequenceId      uint32
 	serialExecuting bool
 	// MainNode
-	inspectNodeFunc func() MainNode
+	autoInspectFunc func() MainNode
 	// gRPC
 	endpointAddr string
 	handler      func(in Message) (out Message)
@@ -74,6 +80,10 @@ func (e *endpoint) NextSequenceId() uint32 {
 
 func (e *endpoint) NextMessage(virtualNodeId string, body []byte) Message {
 	return NewMessageWithId(e.nodeName, virtualNodeId, body, e.NextSequenceId())
+}
+
+func (e *endpoint) NextNodeMessage(body []byte) Message {
+	return e.NextMessage(e.nodeName, body)
 }
 
 func (e *endpoint) Startup() {
@@ -114,13 +124,17 @@ func (e *endpoint) Startup() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
 		log.Debug("Mqtt客户端连接成功：" + clientId)
-		// 异步发送Inspect消息
-		mqttSendInspectMessage(e.mqttClient, e.nodeName, e.inspectNodeFunc)
-		// 定时发送
-		go mqttAsyncTickInspect(e.shutdownContext, func() {
-			mqttSendInspectMessage(e.mqttClient, e.nodeName, e.inspectNodeFunc)
+	}
+	// 定时发送Inspect消息
+	if nil != e.autoInspectFunc {
+		go scheduleSendInspect(e.shutdownContext, func() {
+			e.PublishInspectMessage(e.autoInspectFunc())
 		})
 	}
+}
+
+func (e *endpoint) PublishInspectMessage(node MainNode) {
+	mqttSendInspectMessage(e.mqttClient, e.nodeName, node)
 }
 
 func (e *endpoint) Shutdown() {

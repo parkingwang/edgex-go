@@ -25,12 +25,15 @@ type Trigger interface {
 
 	// 基于内部流水号创建消息对象
 	NextMessage(virtualNodeId string, body []byte) Message
+
+	// 发布Inspect消息
+	PublishInspectMessage(node MainNode)
 }
 
 type TriggerOptions struct {
 	NodeName        string          // 节点名称
 	Topic           string          // 触发器发送事件的主题
-	InspectNodeFunc func() MainNode // Inspect消息生成函数
+	AutoInspectFunc func() MainNode // Inspect消息生成函数
 }
 
 //// trigger
@@ -42,7 +45,7 @@ type trigger struct {
 	nodeName   string // Trigger的名称
 	sequenceId uint32 // Trigger产生的消息ID序列
 	// MainNode 消息生产函数
-	inspectNodeFunc func() MainNode
+	autoInspectFunc func() MainNode
 	// MQTT
 	mqttClient mqtt.Client
 	mqttTopic  string
@@ -84,13 +87,17 @@ func (t *trigger) Startup() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
 		log.Debug("Mqtt客户端连接成功：" + clientId)
-		// 异步发送Inspect消息
-		mqttSendInspectMessage(t.mqttClient, t.nodeName, t.inspectNodeFunc)
-		// 定时发送
-		go mqttAsyncTickInspect(t.shutdownContext, func() {
-			mqttSendInspectMessage(t.mqttClient, t.nodeName, t.inspectNodeFunc)
+	}
+	// 定时发送Inspect消息
+	if nil != t.autoInspectFunc {
+		go scheduleSendInspect(t.shutdownContext, func() {
+			t.PublishInspectMessage(t.autoInspectFunc())
 		})
 	}
+}
+
+func (t *trigger) PublishInspectMessage(node MainNode) {
+	mqttSendInspectMessage(t.mqttClient, t.nodeName, node)
 }
 
 func (t *trigger) SendEventMessage(virtualNodeId string, data []byte) error {

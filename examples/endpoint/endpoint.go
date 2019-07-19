@@ -16,7 +16,7 @@ func main() {
 		opts := edgex.EndpointOptions{
 			NodeName:        nodeName,
 			RpcAddr:         "0.0.0.0:5570",
-			InspectNodeFunc: mainNodeFunc(nodeName),
+			AutoInspectFunc: autoNodeFunc(nodeName),
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
@@ -36,12 +36,12 @@ func main() {
 	})
 }
 
-func mainNodeFunc(nodeName string) func() edgex.MainNode {
+func autoNodeFunc(nodeName string) func() edgex.MainNode {
 	return func() edgex.MainNode {
 		return edgex.MainNode{
 			NodeType: edgex.NodeTypeEndpoint,
 			NodeName: nodeName,
-			VirtualNodes: []edgex.VirtualNode{
+			VirtualNodes: []*edgex.VirtualNode{
 				{
 					NodeId:     "main",
 					Desc:       "演示终端",

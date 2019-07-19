@@ -11,13 +11,13 @@ const (
 
 // MainNode消息是主节点相关信息的描述
 type MainNode struct {
-	HostOS       string        `json:"hostOS"`     // 系统
-	HostArch     string        `json:"hostArch"`   // CPU架构
-	NodeType     string        `json:"nodeType"`   // 节点类型
-	NodeName     string        `json:"nodeName"`   // 节点类型
-	Vendor       string        `json:"vendor"`     // 所属品牌名称
-	ConnDriver   string        `json:"connDriver"` // 通讯驱动名称
-	VirtualNodes []VirtualNode `json:"nodes"`      // 虚拟设备节点列表
+	HostOS       string         `json:"hostOS"`     // 系统
+	HostArch     string         `json:"hostArch"`   // CPU架构
+	NodeType     string         `json:"nodeType"`   // 节点类型
+	NodeName     string         `json:"nodeName"`   // 节点类型
+	Vendor       string         `json:"vendor"`     // 所属品牌名称
+	ConnDriver   string         `json:"connDriver"` // 通讯驱动名称
+	VirtualNodes []*VirtualNode `json:"nodes"`      // 虚拟设备节点列表
 }
 
 // 虚拟节点信息

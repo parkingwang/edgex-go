@@ -29,9 +29,7 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 
 ////
 
-func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectNodeFunc func() MainNode) {
-	gRpcAddr, addrOK := os.LookupEnv(EnvKeyGrpcAddress)
-	node := inspectNodeFunc()
+func mqttSendInspectMessage(client mqtt.Client, nodeName string, node MainNode) {
 	if "" == node.NodeType || "" == node.NodeName {
 		log.Panic("必须指定NodeType/NodeName参数")
 	}
@@ -46,7 +44,8 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectNodeFunc
 		node.HostArch = runtime.GOARCH
 	}
 	// 更新设备列表参数
-	for i, vd := range node.VirtualNodes {
+	addr, ok := os.LookupEnv(EnvKeyGrpcAddress)
+	for _, vd := range node.VirtualNodes {
 		// 自动生成UUID
 		if "" == vd.NodeId {
 			log.Panic("必须指定虚拟节点的NodeId，并保证其节点内的唯一性")
@@ -54,11 +53,9 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectNodeFunc
 			vd.Uuid = MakeMessageSourceId(nodeName, vd.NodeId)
 		}
 		// gRpc地址
-		if addrOK {
-			vd.RpcAddress = gRpcAddr
+		if ok {
+			vd.RpcAddress = addr
 		}
-		// !!修改操作，非引用。注意更新。
-		node.VirtualNodes[i] = vd
 	}
 	data, err := json.Marshal(node)
 	if nil != err {
@@ -76,7 +73,7 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, inspectNodeFunc
 	}
 }
 
-func mqttAsyncTickInspect(shutdown context.Context, inspectTask func()) {
+func scheduleSendInspect(shutdown context.Context, inspectTask func()) {
 	// 在1分钟内上报Inspect消息
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()

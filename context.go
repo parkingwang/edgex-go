@@ -113,26 +113,26 @@ func (c *NodeContext) LoadConfig() map[string]interface{} {
 func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 	checkRequires(opts.NodeName, "Trigger.NodeName MUST be specified")
 	checkRequires(opts.Topic, "Trigger.Topic MUST be specified")
-	checkRequires(opts.InspectNodeFunc, "Trigger.InspectNodeFunc MUST be specified")
+	checkRequires(opts.AutoInspectFunc, "Trigger.AutoInspectFunc MUST be specified")
 	return &trigger{
 		globals:         c.globals,
 		topic:           opts.Topic,
 		nodeName:        opts.NodeName,
 		sequenceId:      0,
-		inspectNodeFunc: opts.InspectNodeFunc,
+		autoInspectFunc: opts.AutoInspectFunc,
 	}
 }
 
 func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	checkRequires(opts.NodeName, "Endpoint.NodeName MUST be specified")
 	checkRequires(opts.RpcAddr, "Endpoint.RpcAddr MUST be specified")
-	checkRequires(opts.InspectNodeFunc, "Endpoint.InspectNodeFunc MUST be specified")
+	checkRequires(opts.AutoInspectFunc, "Endpoint.AutoInspectFunc MUST be specified")
 	return &endpoint{
 		globals:         c.globals,
 		nodeName:        opts.NodeName,
 		sequenceId:      0,
 		endpointAddr:    opts.RpcAddr,
-		inspectNodeFunc: opts.InspectNodeFunc,
+		autoInspectFunc: opts.AutoInspectFunc,
 		serialExecuting: opts.SerialExecuting,
 	}
 }
