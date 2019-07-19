@@ -103,8 +103,6 @@ func CreateDefaultContext() Context {
 
 type NodeContext struct {
 	globals    *Globals
-	nodeType   string
-	nodeName   string
 	logVerbose bool
 }
 
@@ -113,12 +111,9 @@ func (c *NodeContext) LoadConfig() map[string]interface{} {
 }
 
 func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
-	c.checkInit()
 	checkRequires(opts.NodeName, "Trigger.NodeName MUST be specified")
 	checkRequires(opts.Topic, "Trigger.Topic MUST be specified")
 	checkRequires(opts.InspectNodeFunc, "Trigger.InspectNodeFunc MUST be specified")
-	c.nodeType = "Trigger"
-	c.nodeName = checkNameFormat(opts.NodeName)
 	return &trigger{
 		globals:         c.globals,
 		topic:           opts.Topic,
@@ -129,12 +124,9 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 }
 
 func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
-	c.checkInit()
 	checkRequires(opts.NodeName, "Endpoint.NodeName MUST be specified")
 	checkRequires(opts.RpcAddr, "Endpoint.RpcAddr MUST be specified")
 	checkRequires(opts.InspectNodeFunc, "Endpoint.InspectNodeFunc MUST be specified")
-	c.nodeType = "Endpoint"
-	c.nodeName = checkNameFormat(opts.NodeName)
 	return &endpoint{
 		globals:         c.globals,
 		nodeName:        opts.NodeName,
@@ -146,11 +138,8 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 }
 
 func (c *NodeContext) NewDriver(opts DriverOptions) Driver {
-	c.checkInit()
 	checkRequires(opts.NodeName, "Driver.NodeName MUST be specified")
 	checkRequires(opts.Topics, "Driver.Topics MUST be specified")
-	c.nodeType = "Driver"
-	c.nodeName = checkNameFormat(opts.NodeName)
 	return &driver{
 		globals:  c.globals,
 		nodeName: opts.NodeName,
@@ -184,12 +173,6 @@ func newContext(global *Globals) Context {
 	return &NodeContext{
 		globals:    global,
 		logVerbose: EnvGetBoolean(EnvKeyLogVerbose, false),
-	}
-}
-
-func (c *NodeContext) checkInit() {
-	if c.nodeType != "" {
-		log.Panicf("Context已用作[%]节点类型", c.nodeType)
 	}
 }
 
