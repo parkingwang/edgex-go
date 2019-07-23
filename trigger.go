@@ -47,7 +47,6 @@ type trigger struct {
 	autoInspectFunc func() MainNode
 	// MQTT
 	refMqttClient mqtt.Client
-	mqttTopic     string
 	// Shutdown
 	shutdownContext context.Context
 	shutdownCancel  context.CancelFunc
@@ -68,6 +67,8 @@ func (t *trigger) NextMessage(virtualNodeId string, body []byte) Message {
 
 func (t *trigger) Startup() {
 	t.shutdownContext, t.shutdownCancel = context.WithCancel(context.Background())
+	// 重建Topic前缀
+	t.topic = topicOfTriggerEvents(t.topic)
 	// 定时发送Inspect消息
 	if nil != t.autoInspectFunc {
 		go scheduleSendInspect(t.shutdownContext, func() {
@@ -83,7 +84,7 @@ func (t *trigger) PublishInspectMessage(node MainNode) {
 func (t *trigger) SendEventMessage(virtualNodeId string, data []byte) error {
 	// 构建完整的设备名称
 	token := t.refMqttClient.Publish(
-		t.mqttTopic,
+		t.topic,
 		t.globals.MqttQoS,
 		t.globals.MqttRetained,
 		NewMessageWithId(t.nodeName, virtualNodeId, data, t.NextSequenceId()).Bytes())
