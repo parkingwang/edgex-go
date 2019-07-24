@@ -30,7 +30,6 @@ type Trigger interface {
 
 	// 基于内部流水号创建消息对象
 	NextMessage(virtualNodeId string, body []byte) Message
-
 }
 
 type TriggerOptions struct {
@@ -76,17 +75,13 @@ func (t *trigger) Startup() {
 	// 定时发送Inspect消息
 	if nil != t.autoInspectFunc {
 		go scheduleSendInspect(t.shutdownContext, func() {
-			t.PublishInspectMessage(t.autoInspectFunc())
+			t.PublishInspect(t.autoInspectFunc())
 		})
 	}
 }
 
-func (t *trigger) PublishInspectMessage(node MainNode) {
+func (t *trigger) PublishInspect(node MainNode) {
 	mqttSendInspectMessage(t.refMqttClient, t.nodeName, node)
-}
-
-func (t *trigger) SendEventMessage(virtualNodeId string, data []byte) error {
-	return t.PublishEvent(virtualNodeId, data)
 }
 
 func (t *trigger) PublishEvent(virtualNodeId string, data []byte) error {
