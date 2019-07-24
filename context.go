@@ -119,9 +119,7 @@ type NodeContext struct {
 }
 
 func (c *NodeContext) Initial(nodeName string) {
-	if "" == nodeName {
-		log.Panic("必须指定有效的NodeName")
-	}
+	checkNameFormat("NodeName", nodeName)
 	// MQTT Broker
 	opts := mqtt.NewClientOptions()
 	clientId := fmt.Sprintf("EX-Node:%s", nodeName)

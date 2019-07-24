@@ -20,7 +20,7 @@ func main() {
 		opts := edgex.TriggerOptions{
 			NodeName:        nodeName,
 			Topic:           "example/timer",
-			AutoInspectFunc: autoNodeFunc(nodeName),
+			AutoInspectFunc: autoNodeFunc(),
 		}
 		trigger := ctx.NewTrigger(opts)
 
@@ -48,11 +48,10 @@ func main() {
 	})
 }
 
-func autoNodeFunc(nodeName string) func() edgex.MainNode {
+func autoNodeFunc() func() edgex.MainNode {
 	return func() edgex.MainNode {
 		return edgex.MainNode{
 			NodeType: edgex.NodeTypeTrigger,
-			NodeName: nodeName,
 			VirtualNodes: []*edgex.VirtualNode{
 				{
 					NodeId: "TIMER",

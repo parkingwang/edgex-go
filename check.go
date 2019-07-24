@@ -7,12 +7,12 @@ import "strings"
 //
 
 // checkNameFormat 检查命名规则，不允许带/符号。
-func checkNameFormat(name string) string {
+func checkNameFormat(key, name string) string {
 	if "" == name {
-		log.Panic("名称是必须的")
+		log.Panic(key + "是必须的")
 	}
 	if strings.Contains(name, "/") {
-		log.Panic("名称中不能包含'/'字符:" + name)
+		log.Panic(key + "中不能包含'/'字符:" + name)
 	}
 	return name
 }

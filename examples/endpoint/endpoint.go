@@ -18,7 +18,7 @@ func main() {
 
 		opts := edgex.EndpointOptions{
 			NodeName:        nodeName,
-			RpcAddr:         "0.0.0.0:5570",
+			RpcAddr:         "0.0.0.0:5571",
 			AutoInspectFunc: autoNodeFunc(nodeName),
 		}
 		endpoint := ctx.NewEndpoint(opts)
