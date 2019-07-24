@@ -16,8 +16,14 @@ type Trigger interface {
 	Lifecycle
 	NodeName
 
-	// SendEventMessage 发送事件消息。指定 virtualNodeId 的数据体。
-	SendEventMessage(virtualNodeId string, data []byte) error
+	// PublishEvent 发送事件消息。发送消息的QoS使用默认设置。
+	PublishEvent(virtualNodeId string, data []byte) error
+
+	// SendEvent 发送精确的消息。使用QoS 2质量。
+	SendEvent(virtualNodeId string, data []byte) error
+
+	// 发布Inspect消息
+	PublishInspect(node MainNode)
 
 	// NextSequenceId 返回流水号
 	NextSequenceId() uint32
@@ -25,8 +31,6 @@ type Trigger interface {
 	// 基于内部流水号创建消息对象
 	NextMessage(virtualNodeId string, body []byte) Message
 
-	// 发布Inspect消息
-	PublishInspectMessage(node MainNode)
 }
 
 type TriggerOptions struct {
@@ -82,11 +86,23 @@ func (t *trigger) PublishInspectMessage(node MainNode) {
 }
 
 func (t *trigger) SendEventMessage(virtualNodeId string, data []byte) error {
+	return t.PublishEvent(virtualNodeId, data)
+}
+
+func (t *trigger) PublishEvent(virtualNodeId string, data []byte) error {
+	return t.publish(virtualNodeId, data, t.globals.MqttQoS, t.globals.MqttRetained)
+}
+
+func (t *trigger) SendEvent(virtualNodeId string, data []byte) error {
+	return t.publish(virtualNodeId, data, 2, true)
+}
+
+func (t *trigger) publish(virtualNodeId string, data []byte, qos byte, retained bool) error {
 	// 构建完整的设备名称
 	token := t.refMqttClient.Publish(
 		t.topic,
-		t.globals.MqttQoS,
-		t.globals.MqttRetained,
+		qos,
+		retained,
 		NewMessageWithId(t.nodeName, virtualNodeId, data, t.NextSequenceId()).Bytes())
 	if token.Wait() && nil != token.Error() {
 		return errors.WithMessage(token.Error(), "发送事件消息出错")
