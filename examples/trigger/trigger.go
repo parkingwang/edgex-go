@@ -36,7 +36,7 @@ func main() {
 			select {
 			case c := <-timer.C:
 				data := fmt.Sprintf("%d", c.UnixNano())
-				if e := trigger.SendEventMessage("TIMER", []byte(data)); nil != e {
+				if e := trigger.PublishEvent("TIMER", []byte(data)); nil != e {
 					ctx.Log().Error("Trigger发送消息失败")
 				}
 
