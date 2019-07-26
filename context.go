@@ -25,6 +25,9 @@ type Context interface {
 	// 初化和设置Context
 	Initial(nodeName string)
 
+	// NodeName 返回节点名称
+	NodeName() string
+
 	// Destroy 由组件自动调用
 	destroy()
 
@@ -122,12 +125,13 @@ func CreateDefaultContext() Context {
 type NodeContext struct {
 	globals    *Globals
 	logVerbose bool
+	nodeName   string
 	mqttClient mqtt.Client
 }
 
 func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
-	nodeName := value.ToString(config["NodeName"])
-	checkNameFormat("NodeName", nodeName)
+	c.nodeName = value.ToString(config["NodeName"])
+	checkNameFormat("NodeName", c.nodeName)
 	// Globals设置
 	if globals, ok := value.ToMap(config["Globals"]); ok {
 		// 其它全局配置
@@ -198,6 +202,10 @@ func (c *NodeContext) Initial(nodeName string) {
 	c.InitialWithConfig(map[string]interface{}{
 		"NodeName": nodeName,
 	})
+}
+
+func (c *NodeContext) NodeName() string {
+	return c.nodeName
 }
 
 func (c *NodeContext) destroy() {
