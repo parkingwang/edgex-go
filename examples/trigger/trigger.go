@@ -18,7 +18,6 @@ func main() {
 		ctx.Initial(nodeName)
 
 		opts := edgex.TriggerOptions{
-			NodeName:        nodeName,
 			Topic:           "example/timer",
 			AutoInspectFunc: autoNodeFunc(),
 		}
@@ -27,7 +26,7 @@ func main() {
 		trigger.Startup()
 		defer trigger.Shutdown()
 
-		ctx.Log().Debugf("创建Trigger节点: [%s]", opts.NodeName)
+		ctx.Log().Debugf("创建Trigger节点: [%s]", nodeName)
 
 		timer := time.NewTicker(time.Millisecond * 10)
 		defer timer.Stop()

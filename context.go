@@ -181,9 +181,9 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	}
 	// MQTT Broker
 	opts := mqtt.NewClientOptions()
-	clientId := fmt.Sprintf("EX-Node:%s", nodeName)
+	clientId := fmt.Sprintf("EX-Node:%s", c.nodeName)
 	opts.SetClientID(clientId)
-	opts.SetWill(topicOfOffline("EX-Node", nodeName), "offline", 1, true)
+	opts.SetWill(topicOfOffline("EX-Node", c.nodeName), "offline", 1, true)
 	mqttSetOptions(opts, c.globals)
 	c.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", c.globals.MqttBroker)
@@ -222,14 +222,13 @@ func (c *NodeContext) LoadConfigByName(fileName string) map[string]interface{} {
 
 func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 	c.checkInit()
-	checkRequires(opts.NodeName, "Trigger.NodeName MUST be specified")
 	checkRequires(opts.Topic, "Trigger.Topic MUST be specified")
 	checkRequires(opts.AutoInspectFunc, "Trigger.AutoInspectFunc MUST be specified")
 	return &trigger{
 		refMqttClient:   c.mqttClient,
 		globals:         c.globals,
 		topic:           opts.Topic,
-		nodeName:        opts.NodeName,
+		nodeName:        c.nodeName,
 		sequenceId:      0,
 		autoInspectFunc: opts.AutoInspectFunc,
 	}
@@ -237,13 +236,12 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 
 func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	c.checkInit()
-	checkRequires(opts.NodeName, "Endpoint.NodeName MUST be specified")
 	checkRequires(opts.RpcAddr, "Endpoint.RpcAddr MUST be specified")
 	checkRequires(opts.AutoInspectFunc, "Endpoint.AutoInspectFunc MUST be specified")
 	return &endpoint{
 		refMqttClient:   c.mqttClient,
 		globals:         c.globals,
-		nodeName:        opts.NodeName,
+		nodeName:        c.nodeName,
 		sequenceId:      0,
 		endpointAddr:    opts.RpcAddr,
 		autoInspectFunc: opts.AutoInspectFunc,
@@ -253,12 +251,11 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 
 func (c *NodeContext) NewDriver(opts DriverOptions) Driver {
 	c.checkInit()
-	checkRequires(opts.NodeName, "Driver.NodeName MUST be specified")
 	checkRequires(opts.Topics, "Driver.Topics MUST be specified")
 	return &driver{
 		refMqttClient: c.mqttClient,
 		globals:       c.globals,
-		nodeName:      opts.NodeName,
+		nodeName:      c.nodeName,
 		topics:        opts.Topics,
 	}
 }

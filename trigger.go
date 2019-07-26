@@ -33,7 +33,6 @@ type Trigger interface {
 }
 
 type TriggerOptions struct {
-	NodeName        string          // 节点名称
 	Topic           string          // 触发器发送事件的主题
 	AutoInspectFunc func() MainNode // Inspect消息生成函数
 }

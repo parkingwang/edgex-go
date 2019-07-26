@@ -35,8 +35,7 @@ type Driver interface {
 }
 
 type DriverOptions struct {
-	NodeName string   // 节点名称
-	Topics   []string // 监听主题列表
+	Topics []string // 监听主题列表
 }
 
 //// Driver实现

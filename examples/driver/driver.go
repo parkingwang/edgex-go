@@ -15,7 +15,6 @@ func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 
 		opts := edgex.DriverOptions{
-			NodeName: "EXAMPLE-DRIVER",
 			Topics: []string{
 				"example/+",
 				"scheduled/+",
@@ -23,7 +22,7 @@ func main() {
 			},
 		}
 
-		ctx.Initial(opts.NodeName)
+		ctx.Initial("EXAMPLE-DRIVER")
 		driver := ctx.NewDriver(opts)
 
 		const testEndpointAddr = "127.0.0.1:5570"
@@ -41,7 +40,7 @@ func main() {
 			}
 		})
 
-		ctx.Log().Debugf("创建Driver节点: [%s]", opts.NodeName)
+		ctx.Log().Debugf("创建Driver节点: [%s]", ctx.NodeName())
 
 		driver.Startup()
 		defer driver.Shutdown()
@@ -53,7 +52,7 @@ func main() {
 				execStart := time.Now()
 				rep, err := driver.Execute(
 					testEndpointAddr,
-					driver.NextMessage(opts.NodeName, []byte(fmt.Sprintf("%v", time.Now().UnixNano()))),
+					driver.NextMessage(ctx.NodeName(), []byte(fmt.Sprintf("%v", time.Now().UnixNano()))),
 					time.Second)
 				if nil != err {
 					ctx.Log().Error("ScheduleExecute发生错误: ", err)

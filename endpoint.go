@@ -42,7 +42,6 @@ type Endpoint interface {
 
 type EndpointOptions struct {
 	RpcAddr         string          // RPC 地址
-	NodeName        string          // 节点名字
 	SerialExecuting bool            // 是否串行地执行控制指令
 	AutoInspectFunc func() MainNode // // Inspect消息生成函数
 }

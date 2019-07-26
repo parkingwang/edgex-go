@@ -17,9 +17,8 @@ func main() {
 		ctx.Initial(nodeName)
 
 		opts := edgex.EndpointOptions{
-			NodeName:        nodeName,
 			RpcAddr:         "0.0.0.0:5571",
-			AutoInspectFunc: autoNodeFunc(nodeName),
+			AutoInspectFunc: autoNodeFunc(),
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
@@ -33,17 +32,16 @@ func main() {
 		endpoint.Startup()
 		defer endpoint.Shutdown()
 
-		ctx.Log().Debugf("创建Endpoint节点: [%s]", opts.NodeName)
+		ctx.Log().Debugf("创建Endpoint节点: [%s]", nodeName)
 
 		return ctx.TermAwait()
 	})
 }
 
-func autoNodeFunc(nodeName string) func() edgex.MainNode {
+func autoNodeFunc() func() edgex.MainNode {
 	return func() edgex.MainNode {
 		return edgex.MainNode{
 			NodeType: edgex.NodeTypeEndpoint,
-			NodeName: nodeName,
 			VirtualNodes: []*edgex.VirtualNode{
 				{
 					NodeId:     "main",
