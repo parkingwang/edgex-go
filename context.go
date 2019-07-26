@@ -130,6 +130,11 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	checkNameFormat("NodeName", nodeName)
 	// Globals设置
 	if globals, ok := value.ToMap(config["Globals"]); ok {
+		// 其它全局配置
+		if flag, ok := value.ToBool(globals["LogVerbose"]); ok {
+			c.logVerbose = flag
+		}
+		// MQTT配置
 		if str, ok := value.ToStringB(globals["MqttBroker"]); ok {
 			c.globals.MqttBroker = str
 		}
