@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/BurntSushi/toml"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/yoojia/go-value"
 	"go.uber.org/zap"
 	"os"
 	"os/signal"
@@ -18,6 +19,9 @@ import (
 
 // Context 是一个提供基础通讯环境和参数设置的对象。通过Context来创建Trigger, Endpoint, Driver组件，并为组件提供MQTT通讯能力。
 type Context interface {
+	// 使用默认配置结构来初化Context
+	InitialWithConfig(config map[string]interface{})
+
 	// 初化和设置Context
 	Initial(nodeName string)
 
@@ -30,9 +34,12 @@ type Context interface {
 	// 当系统环境变量中，设置了"verbose"且为"true"时触发冗余日志输出操作。
 	LogIfVerbose(fn func(log *zap.SugaredLogger))
 
-	// LoadConfig 加载配置文件，返回Map数据结构对象。
-	// 如果配置文件不存在，返回空Map数据结构，而非nil引用。
+	// LoadConfig 加载默认配置文件名的配置
 	LoadConfig() map[string]interface{}
+
+	// LoadConfigByName 加载指定文件名的配置，返回Map数据结构对象。
+	// 如果配置文件不存在，返回空Map数据结构，而非nil引用。
+	LoadConfigByName(fileName string) map[string]interface{}
 
 	// NewTrigger 创建Trigger对象，并绑定Context为Trigger节点。
 	NewTrigger(opts TriggerOptions) Trigger
@@ -64,7 +71,7 @@ const (
 	MqttBrokerDefault = "tcp://mqtt-broker.edgex.io:1883"
 
 	DefaultConfName = "application.toml"
-	DefaultConfFile = "/etc/edgex/application.toml"
+	DefaultConfDir  = "/etc/edgex/"
 )
 
 var (
@@ -118,8 +125,51 @@ type NodeContext struct {
 	mqttClient mqtt.Client
 }
 
-func (c *NodeContext) Initial(nodeName string) {
+func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
+	nodeName := value.ToString(config["NodeName"])
 	checkNameFormat("NodeName", nodeName)
+	// Globals设置
+	if globals, ok := value.ToMap(config["Globals"]); ok {
+		if str, ok := value.ToStringB(globals["MqttBroker"]); ok {
+			c.globals.MqttBroker = str
+		}
+		if str, ok := value.ToStringB(globals["MqttUsername"]); ok {
+			c.globals.MqttUsername = str
+		}
+		if str, ok := value.ToStringB(globals["MqttPassword"]); ok {
+			c.globals.MqttPassword = str
+		}
+		if iv, ok := value.ToInt64(globals["MqttQoS"]); ok {
+			c.globals.MqttQoS = uint8(iv)
+		}
+		if flag, ok := value.ToBool(globals["MqttRetained"]); ok {
+			c.globals.MqttRetained = flag
+		}
+		if du, ok := value.ToDuration(globals["MqttKeepAlive"]); ok {
+			c.globals.MqttKeepAlive = du
+		}
+		if du, ok := value.ToDuration(globals["MqttPingTimeout"]); ok {
+			c.globals.MqttPingTimeout = du
+		}
+		if du, ok := value.ToDuration(globals["MqttConnectTimeout"]); ok {
+			c.globals.MqttConnectTimeout = du
+		}
+		if du, ok := value.ToDuration(globals["MqttReconnectInterval"]); ok {
+			c.globals.MqttReconnectInterval = du
+		}
+		if flag, ok := value.ToBool(globals["MqttAutoReconnect"]); ok {
+			c.globals.MqttAutoReconnect = flag
+		}
+		if flag, ok := value.ToBool(globals["MqttCleanSession"]); ok {
+			c.globals.MqttCleanSession = flag
+		}
+		if iv, ok := value.ToInt64(globals["MqttMaxRetry"]); ok {
+			c.globals.MqttMaxRetry = int(iv)
+		}
+		if iv, ok := value.ToInt64(globals["MqttQuitMillSec"]); ok {
+			c.globals.MqttQuitMillSec = uint(iv)
+		}
+	}
 	// MQTT Broker
 	opts := mqtt.NewClientOptions()
 	clientId := fmt.Sprintf("EX-Node:%s", nodeName)
@@ -139,12 +189,22 @@ func (c *NodeContext) Initial(nodeName string) {
 	}
 }
 
+func (c *NodeContext) Initial(nodeName string) {
+	c.InitialWithConfig(map[string]interface{}{
+		"NodeName": nodeName,
+	})
+}
+
 func (c *NodeContext) destroy() {
 	c.mqttClient.Disconnect(c.globals.MqttQuitMillSec)
 }
 
 func (c *NodeContext) LoadConfig() map[string]interface{} {
 	return LoadConfig()
+}
+
+func (c *NodeContext) LoadConfigByName(fileName string) map[string]interface{} {
+	return LoadConfigByName(fileName)
 }
 
 func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
@@ -227,12 +287,12 @@ func newContext(global *Globals) Context {
 
 ////
 
-// LoadConfig 加载TOML配置文件。
+// LoadConfigByName 加载指定文件名的配置信息。
 // 配置文件加载顺序：
-// 1. 运行目录下的 application.toml;
-// 2. /etc/edgex/application.toml;
+// 1. 当前运行目录;
+// 2. 目录：/etc/edgex/;
 // 3. 环境变量"EDGEX_CONFIG"指定的路径;
-func LoadConfig() map[string]interface{} {
+func LoadConfigByName(fileName string) map[string]interface{} {
 	searchConfig := func(files ...string) (f string, err error) {
 		for _, file := range files {
 			if _, err := os.Stat(file); nil == err {
@@ -242,7 +302,7 @@ func LoadConfig() map[string]interface{} {
 		return "", ErrConfigNotExist
 	}
 	config := make(map[string]interface{})
-	file, err := searchConfig(DefaultConfName, DefaultConfFile, os.Getenv(EnvKeyConfig))
+	file, err := searchConfig(fileName, DefaultConfDir+fileName, os.Getenv(EnvKeyConfig))
 	if nil != err {
 		log.Panic("未设置任何配置文件")
 	} else {
@@ -252,4 +312,9 @@ func LoadConfig() map[string]interface{} {
 		log.Error(fmt.Sprintf("读取配置文件(%s)出错: ", file), err)
 	}
 	return config
+}
+
+// LoadConfig 加载默认文件名的配置。
+func LoadConfig() map[string]interface{} {
+	return LoadConfigByName(DefaultConfName)
 }
