@@ -24,8 +24,8 @@ type Driver interface {
 	Execute(endpointAddr string, in Message, timeout time.Duration) (out Message, err error)
 
 	// Hello 发起一个同步Hello消息，并获取响应消息。通常使用此函数来触发gRPC创建并预热两个节点之间的连接。
-	// Hello 函数调用的是Execute函数，发送消息体为"HELLO"，返回消息为"WORLD"。
-	Hello(endpointAddr string, timeout time.Duration) (reply Message, err error)
+	// Hello 函数调用的是Execute函数，发送Ping消息，返回消息为Pong消息。
+	Hello(endpointAddr string, timeout time.Duration) error
 
 	// NextSequenceId 返回流水号
 	NextSequenceId() uint32
@@ -69,7 +69,7 @@ func (d *driver) Startup() {
 	// 监听所有Trigger的UserTopic
 	d.mqttTopicTrigger = make(map[string]byte, len(d.topics))
 	for _, t := range d.topics {
-		topic := topicOfTriggerEvents(t)
+		topic := topicOfEvents(t)
 		d.mqttTopicTrigger[topic] = 0
 		log.Info("开启监听事件[TRIGGER]: ", topic)
 	}
@@ -117,9 +117,10 @@ func (d *driver) Execute(endpointAddr string, in Message, to time.Duration) (out
 	}
 }
 
-func (d *driver) Hello(endpointAddr string, timeout time.Duration) (reply Message, err error) {
-	return d.Execute(
+func (d *driver) Hello(endpointAddr string, timeout time.Duration) error {
+	_, err := d.Execute(
 		endpointAddr,
 		newControlMessageWithId(d.nodeName, d.nodeName, FrameVarPing, d.NextSequenceId()),
 		timeout)
+	return err
 }
