@@ -16,11 +16,17 @@ type Trigger interface {
 	Lifecycle
 	NodeName
 
-	// PublishEvent 发送事件消息。发送消息的QoS使用默认设置。
+	// PublishEvent 发送Event消息。发送消息的QoS使用默认设置。
 	PublishEvent(virtualNodeId string, data []byte) error
 
-	// SendEvent 发送精确的消息。使用QoS 2质量。
+	// SendEvent 发送精确的Event消息。使用QoS 2质量。
 	SendEvent(virtualNodeId string, data []byte) error
+
+	// PublishValue 发送Value数据消息。发送消息的QoS使用默认设置。
+	PublishValue(virtualNodeId string, data []byte) error
+
+	// SendValue 发送精确的Value消息。使用QoS 2质量。
+	SendValue(virtualNodeId string, data []byte) error
 
 	// 发布Inspect消息
 	PublishInspect(node MainNode)
@@ -41,10 +47,12 @@ type TriggerOptions struct {
 
 type trigger struct {
 	Trigger
-	globals    *Globals
-	topic      string // Trigger产生的事件Topic
-	nodeName   string // Trigger的名称
-	sequenceId uint32 // Trigger产生的消息ID序列
+	globals        *Globals
+	topic          string // Trigger的Topic
+	mqttEventTopic string // MQTT使用的EventTopic
+	mqttValueTopic string // MQTT使用的ValueTopic
+	nodeName       string // Trigger的名称
+	sequenceId     uint32 // Trigger产生的消息ID序列
 	// MainNode 消息生产函数
 	autoInspectFunc func() MainNode
 	// MQTT
@@ -70,7 +78,8 @@ func (t *trigger) NextMessage(virtualNodeId string, body []byte) Message {
 func (t *trigger) Startup() {
 	t.shutdownContext, t.shutdownCancel = context.WithCancel(context.Background())
 	// 重建Topic前缀
-	t.topic = topicOfTriggerEvents(t.topic)
+	t.mqttEventTopic = topicOfEvents(t.topic)
+	t.mqttValueTopic = topicOfValues(t.topic)
 	// 定时发送Inspect消息
 	if nil != t.autoInspectFunc {
 		go scheduleSendInspect(t.shutdownContext, func() {
@@ -84,17 +93,25 @@ func (t *trigger) PublishInspect(node MainNode) {
 }
 
 func (t *trigger) PublishEvent(virtualNodeId string, data []byte) error {
-	return t.publish(virtualNodeId, data, t.globals.MqttQoS, t.globals.MqttRetained)
+	return t.publish(t.mqttEventTopic, virtualNodeId, data, t.globals.MqttQoS, t.globals.MqttRetained)
 }
 
 func (t *trigger) SendEvent(virtualNodeId string, data []byte) error {
-	return t.publish(virtualNodeId, data, 2, true)
+	return t.publish(t.mqttEventTopic, virtualNodeId, data, 2, true)
 }
 
-func (t *trigger) publish(virtualNodeId string, data []byte, qos byte, retained bool) error {
+func (t *trigger) PublishValue(virtualNodeId string, data []byte) error {
+	return t.publish(t.mqttValueTopic, virtualNodeId, data, t.globals.MqttQoS, t.globals.MqttRetained)
+}
+
+func (t *trigger) SendValue(virtualNodeId string, data []byte) error {
+	return t.publish(t.mqttValueTopic, virtualNodeId, data, 2, true)
+}
+
+func (t *trigger) publish(topic string, virtualNodeId string, data []byte, qos byte, retained bool) error {
 	// 构建完整的设备名称
 	token := t.refMqttClient.Publish(
-		t.topic,
+		topic,
 		qos,
 		retained,
 		NewMessageWithId(t.nodeName, virtualNodeId, data, t.NextSequenceId()).Bytes())
