@@ -26,3 +26,8 @@ type NeedMessages interface {
 	// NextMessageBySourceUuid 返回指定源UUID，基于内部流水号的消息对象
 	NextMessageBySourceUuid(sourceUuid string, body []byte) Message
 }
+
+type NeedInspect interface {
+	// 发布Inspect消息
+	PublishInspect(node MainNodeInfo)
+}

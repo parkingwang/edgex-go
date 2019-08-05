@@ -9,19 +9,19 @@ const (
 	NodeTypeTrigger  = "TRIGGER"
 )
 
-// MainNode消息是主节点相关信息的描述
-type MainNode struct {
-	HostOS       string         `json:"hostOS"`     // 系统
-	HostArch     string         `json:"hostArch"`   // CPU架构
-	NodeType     string         `json:"nodeType"`   // 节点类型
-	NodeId       string         `json:"nodeId"`     // 节点ID
-	Vendor       string         `json:"vendor"`     // 所属品牌名称
-	ConnDriver   string         `json:"connDriver"` // 通讯驱动名称
-	VirtualNodes []*VirtualNode `json:"nodes"`      // 虚拟设备节点列表
+// MainNodeInfo 是主节点相关信息的描述
+type MainNodeInfo struct {
+	HostOS       string             `json:"hostOS"`     // 系统
+	HostArch     string             `json:"hostArch"`   // CPU架构
+	NodeType     string             `json:"nodeType"`   // 节点类型
+	NodeId       string             `json:"nodeId"`     // 节点ID
+	Vendor       string             `json:"vendor"`     // 所属品牌名称
+	ConnDriver   string             `json:"connDriver"` // 通讯驱动名称
+	VirtualNodes []*VirtualNodeInfo `json:"nodes"`      // 虚拟设备节点列表
 }
 
 // 虚拟节点信息
-type VirtualNode struct {
+type VirtualNodeInfo struct {
 	Uuid       string                 `json:"uuid"`      // 自动生成的UUID；设备的唯一节点编号；
 	VirtualId  string                 `json:"virtualId"` // 虚拟节点ID；须保证在单个节点内唯一性
 	MajorId    string                 `json:"majorId"`   // 设备主ID

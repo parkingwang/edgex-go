@@ -47,11 +47,11 @@ func main() {
 	})
 }
 
-func autoNodeFunc() func() edgex.MainNode {
-	return func() edgex.MainNode {
-		return edgex.MainNode{
+func autoNodeFunc() func() edgex.MainNodeInfo {
+	return func() edgex.MainNodeInfo {
+		return edgex.MainNodeInfo{
 			NodeType: edgex.NodeTypeTrigger,
-			VirtualNodes: []*edgex.VirtualNode{
+			VirtualNodes: []*edgex.VirtualNodeInfo{
 				{
 					VirtualId: "TIMER",
 					Desc:      "演示Trigger",

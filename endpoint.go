@@ -24,18 +24,16 @@ type Endpoint interface {
 	NeedLifecycle
 	NeedNodeId
 	NeedMessages
+	NeedInspect
 
 	// 处理RPC消息，返回处理结果
 	Serve(func(in Message) (out Message))
-
-	// 发布Inspect消息
-	PublishInspectMessage(node MainNode)
 }
 
 type EndpointOptions struct {
-	RpcAddr         string          // RPC 地址
-	SerialExecuting bool            // 是否串行地执行控制指令
-	AutoInspectFunc func() MainNode // // Inspect消息生成函数
+	RpcAddr         string              // RPC 地址
+	SerialExecuting bool                // 是否串行地执行控制指令
+	AutoInspectFunc func() MainNodeInfo // // Inspect消息生成函数
 }
 
 //// Endpoint实现
@@ -46,8 +44,8 @@ type endpoint struct {
 	globals         *Globals
 	sequenceId      uint32
 	serialExecuting bool
-	// MainNode
-	autoInspectFunc func() MainNode
+	// MainNodeInfo
+	autoInspectFunc func() MainNodeInfo
 	// gRPC
 	endpointAddr string
 	handler      func(in Message) (out Message)
@@ -101,12 +99,12 @@ func (e *endpoint) Startup() {
 	// 定时发送Inspect消息
 	if nil != e.autoInspectFunc {
 		go scheduleSendInspect(e.shutdownContext, func() {
-			e.PublishInspectMessage(e.autoInspectFunc())
+			e.PublishInspect(e.autoInspectFunc())
 		})
 	}
 }
 
-func (e *endpoint) PublishInspectMessage(node MainNode) {
+func (e *endpoint) PublishInspect(node MainNodeInfo) {
 	mqttSendInspectMessage(e.refMqttClient, e.nodeId, node)
 }
 
