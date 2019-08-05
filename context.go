@@ -84,9 +84,9 @@ var (
 // Run 运行EdgeX节点服务
 func Run(application func(ctx Context) error) {
 	ctx := CreateDefaultContext()
-	log.Debug("启动EdgeX-App")
+	log.Info("启动EdgeX-App")
 	defer func() {
-		log.Debug("停止EdgeX-App")
+		log.Info("停止EdgeX-App")
 		ctx.destroy()
 	}()
 	if err := application(ctx); nil != err {
@@ -192,7 +192,7 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	if !c.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
 	} else {
-		log.Debug("Mqtt客户端连接成功：" + clientId)
+		log.Info("Mqtt客户端连接成功：" + clientId)
 	}
 }
 
@@ -234,27 +234,24 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 
 func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	c.checkInit()
-	checkRequires(opts.RpcAddr, "Endpoint.RpcAddr MUST be specified")
 	checkRequires(opts.AutoInspectFunc, "Endpoint.AutoInspectFunc MUST be specified")
 	return &endpoint{
 		mqttRef:         c.mqttClient,
 		globals:         c.globals,
 		nodeId:          c.nodeId,
 		sequenceId:      0,
-		endpointAddr:    opts.RpcAddr,
 		autoInspectFunc: opts.AutoInspectFunc,
-		serialExecuting: opts.SerialExecuting,
 	}
 }
 
 func (c *NodeContext) NewDriver(opts DriverOptions) Driver {
 	c.checkInit()
-	checkRequires(opts.Topics, "Driver.Topics MUST be specified")
+	checkRequires(opts.EventTopics, "Driver.Topics MUST be specified")
 	return &driver{
 		mqttRef: c.mqttClient,
 		globals: c.globals,
 		nodeId:  c.nodeId,
-		topics:  opts.Topics,
+		opts:    opts,
 	}
 }
 
@@ -314,7 +311,7 @@ func LoadConfigByName(fileName string) map[string]interface{} {
 	if nil != err {
 		log.Panic("未设置任何配置文件")
 	} else {
-		log.Debug("加载配置文件：", file)
+		log.Info("加载配置文件：", file)
 	}
 	if _, err := toml.DecodeFile(file, &config); nil != err {
 		log.Error(fmt.Sprintf("读取配置文件(%s)出错: ", file), err)

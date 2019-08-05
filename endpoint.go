@@ -3,21 +3,13 @@ package edgex
 import (
 	"context"
 	"github.com/eclipse/paho.mqtt.golang"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 	"math"
-	"net"
-	"sync"
+	"strings"
 )
 
 //
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
-
-var (
-	ErrGRPCExecTimeout = errors.New("GRPC_EXEC_TIMEOUT")
-	ErrUnknownMessage  = errors.New("UNKNOWN_MESSAGE")
-)
 
 // Endpoint是接收、处理，并返回结果的可控制终端节点。
 type Endpoint interface {
@@ -31,8 +23,6 @@ type Endpoint interface {
 }
 
 type EndpointOptions struct {
-	RpcAddr         string              // RPC 地址
-	SerialExecuting bool                // 是否串行地执行控制指令
 	AutoInspectFunc func() MainNodeInfo // // Inspect消息生成函数
 }
 
@@ -46,12 +36,9 @@ type endpoint struct {
 	serialExecuting bool
 	// MainNodeInfo
 	autoInspectFunc func() MainNodeInfo
-	// gRPC
-	endpointAddr string
-	handler      func(in Message) (out Message)
-	rpcServer    *grpc.Server
+	handler         func(in Message) (out Message)
 	// MQTT
-	refMqttClient mqtt.Client
+	mqttRef mqtt.Client
 	// Shutdown
 	shutdownContext context.Context
 	shutdownCancel  context.CancelFunc
@@ -76,26 +63,21 @@ func (e *endpoint) NextMessageBySourceUuid(sourceUuid string, body []byte) Messa
 
 func (e *endpoint) Startup() {
 	e.shutdownContext, e.shutdownCancel = context.WithCancel(context.Background())
-
-	e.rpcServer = grpc.NewServer()
-	RegisterExecuteServer(e.rpcServer, &grpcExecutor{
-		nodeId:          e.nodeId,
-		serialExecution: e.serialExecuting,
-		serialLock:      new(sync.Mutex),
-		handler:         e.handler,
-		nextSequenceId:  e.NextMessageSequenceId,
+	// 监听Endpoint异步RPC事件
+	qos := e.globals.MqttQoS
+	listenTopic := topicOfRequestListen(e.nodeId)
+	log.Debugf("监听控制指令Topic: %s", listenTopic)
+	e.mqttRef.Subscribe(listenTopic, qos, func(cli mqtt.Client, msg mqtt.Message) {
+		// 控制指令的Topic格式，已由Subscription确保其格式：
+		// $EdgeX/requests/ MyNodeId / SeqId / Remote调用者节点ID
+		callerNodeId := strings.Split(msg.Topic(), "/")[4]
+		input := ParseMessage(msg.Payload())
+		targetUuid := input.SourceUuid()
+		log.Debugf("接收到控制指令，目标：%s, 来源： %s", targetUuid, callerNodeId)
+		e.mqttRef.Publish(topicOfRepliesSend(e.nodeId, input.SequenceId(), callerNodeId),
+			qos, false,
+			e.handler(input).Bytes())
 	})
-	// gRpc Serve
-	go func() {
-		listen, err := net.Listen("tcp", e.endpointAddr)
-		if nil != err {
-			log.Panic("Endpoint listen failed: ", err)
-		}
-		log.Info("开启GRPC服务: ", e.endpointAddr)
-		if err := e.rpcServer.Serve(listen); nil != err {
-			log.Error("GRPC server stop: ", err)
-		}
-	}()
 	// 定时发送Inspect消息
 	if nil != e.autoInspectFunc {
 		go scheduleSendInspect(e.shutdownContext, func() {
@@ -105,68 +87,13 @@ func (e *endpoint) Startup() {
 }
 
 func (e *endpoint) PublishInspect(node MainNodeInfo) {
-	mqttSendInspectMessage(e.refMqttClient, e.nodeId, node)
+	mqttSendInspectMessage(e.mqttRef, e.nodeId, node)
 }
 
 func (e *endpoint) Shutdown() {
-	log.Info("停止GRPC服务")
 	e.shutdownCancel()
-	e.rpcServer.Stop()
 }
 
 func (e *endpoint) Serve(h func(in Message) (out Message)) {
 	e.handler = h
-}
-
-////
-
-type grpcExecutor struct {
-	ExecuteServer
-	nodeId          string
-	nextSequenceId  func() uint32
-	serialExecution bool        // 是否串行执行
-	serialLock      *sync.Mutex // 串行锁
-	handler         func(in Message) (out Message)
-}
-
-func (ex *grpcExecutor) Execute(c context.Context, i *Data) (o *Data, e error) {
-	if ex.serialExecution {
-		ex.serialLock.Lock()
-		defer ex.serialLock.Unlock()
-		return ex.execute(c, i)
-	} else {
-		return ex.execute(c, i)
-	}
-}
-
-func (ex *grpcExecutor) execute(c context.Context, i *Data) (o *Data, e error) {
-	frames := i.GetFrames()
-	if ok, err := CheckMessage(frames); !ok {
-		return nil, err
-	}
-	in := ParseMessage(frames)
-	switch in.Header().ControlVar {
-	// Ping Pong
-	case FrameVarPing:
-		pong := newControlMessage(ex.nodeId, ex.nodeId, FrameVarPong, ex.nextSequenceId())
-		return &Data{Frames: pong.Bytes()}, nil
-
-	// Data
-	case FrameVarData:
-		done := make(chan *Data, 1)
-		go func() {
-			frames := ex.handler(in).Bytes()
-			done <- &Data{Frames: frames}
-		}()
-		select {
-		case v := <-done:
-			return v, nil
-
-		case <-c.Done():
-			return nil, ErrGRPCExecTimeout
-		}
-
-	default:
-		return nil, ErrUnknownMessage
-	}
 }

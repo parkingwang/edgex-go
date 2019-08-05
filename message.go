@@ -16,8 +16,6 @@ const (
 	FrameVersion      = 0x01 // 版本
 	FrameEmpty        = 0x00 // 分隔空帧
 	FrameVarData      = 0xDA
-	FrameVarPing      = 0xD0
-	FrameVarPong      = 0xD1
 )
 
 var (

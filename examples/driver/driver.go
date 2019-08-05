@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/nextabc-lab/edgex-go"
-	"strconv"
 	"time"
 )
 
@@ -15,32 +14,33 @@ func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 
 		opts := edgex.DriverOptions{
-			Topics: []string{
+			EventTopics: []string{
 				"example/+",
 				"scheduled/+",
+			},
+			CustomTopics: []string{
 				edgex.TopicNodesInspect,
 			},
 		}
 
-		ctx.Initial("EXAMPLE-DRIVER")
+		const testEndpointNodeId = "DEV-ENDPOINT"
+
+		ctx.Initial("DEV-DRIVER")
 		driver := ctx.NewDriver(opts)
 
-		const testEndpointAddr = "127.0.0.1:5570"
+		log := ctx.Log()
 
 		driver.Process(func(inMsg edgex.Message) {
-			recv, _ := strconv.ParseInt(string(inMsg.Body()), 10, 64)
-
-			ctx.Log().Debug("Driver用时: ", time.Duration(time.Now().UnixNano()-recv))
-			execStart := time.Now()
-			_, err := driver.Execute(testEndpointAddr, inMsg, time.Second*3)
-			if nil != err {
-				ctx.Log().Error("Execute发生错误: ", err)
-			} else {
-				ctx.Log().Debug("Execute用时: ", time.Since(execStart))
-			}
+			//execStart := time.Now()
+			//_, err := driver.Execute(testEndpointNodeId, inMsg, time.Second*3)
+			//if nil != err {
+			//	log.Error("Execute发生错误: ", err)
+			//} else {
+			//	log.Debug("Execute用时: ", time.Since(execStart))
+			//}
 		})
 
-		ctx.Log().Debugf("创建Driver节点: [%s]", ctx.NodeId())
+		log.Debugf("创建Driver节点: [%s]", ctx.NodeId())
 
 		driver.Startup()
 		defer driver.Shutdown()
@@ -49,18 +49,17 @@ func main() {
 		for {
 			select {
 			case <-timer.C:
+				log.Debug("----> Send Exec")
 				execStart := time.Now()
-				rep, err := driver.Execute(
-					testEndpointAddr,
-					driver.NextMessageByVirtualId(ctx.NodeId(), []byte(fmt.Sprintf("%v", time.Now().UnixNano()))),
-					time.Second)
+				msg := driver.NextMessageByVirtualId(ctx.NodeId(), []byte(fmt.Sprintf("%v", time.Now().UnixNano())))
+				rep, err := driver.Execute(testEndpointNodeId, msg, time.Second)
 				if nil != err {
-					ctx.Log().Error("ScheduleExecute发生错误: ", err)
+					log.Error("ScheduleExecute发生错误: ", err)
 				} else {
-					ctx.Log().Debug("ScheduleExecute用时: ", time.Since(execStart))
+					log.Debug("ScheduleExecute用时: ", time.Since(execStart))
 					sid := rep.SourceUuid()
 					body := string(rep.Body())
-					ctx.Log().Debug("SourceUuid: " + sid + ", Body: " + body)
+					log.Debug("接收到响应：SourceUuid: " + sid + ", Body: " + body)
 				}
 
 			case <-ctx.TermChan():

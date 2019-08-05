@@ -1,17 +1,20 @@
 package edgex
 
 import (
-	"context"
+	"errors"
 	"github.com/eclipse/paho.mqtt.golang"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 	"math"
+	"sync"
 	"time"
 )
 
 //
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
+
+var (
+	ErrExecuteTimeout = errors.New("DRIVER_EXEC_TIMEOUT")
+)
 
 type Driver interface {
 	NeedLifecycle
@@ -21,16 +24,17 @@ type Driver interface {
 	// Process 处理消息
 	Process(func(event Message))
 
-	// Execute 发起一个同步消息请求，并获取响应消息。如果过程中发生错误，返回错误消息。
-	Execute(endpointAddr string, in Message, timeout time.Duration) (out Message, err error)
+	// Execute 发起一个同步消息请求
+	Execute(remoteNodeId string, in Message, timeout time.Duration) (out Message, err error)
 
-	// Hello 发起一个同步Hello消息，并获取响应消息。通常使用此函数来触发gRPC创建并预热两个节点之间的连接。
-	// Hello 函数调用的是Execute函数，发送Ping消息，返回消息为Pong消息。
-	Hello(endpointAddr string, timeout time.Duration) error
+	// Call 发起一个异步请求
+	Call(remoteNodeId string, in Message, callback func(out Message, err error))
 }
 
 type DriverOptions struct {
-	Topics []string // 监听主题列表
+	EventTopics  []string // Event主题列表
+	ValueTopics  []string // Value主题列表
+	CustomTopics []string // 其它Topic
 }
 
 //// Driver实现
@@ -40,11 +44,13 @@ type driver struct {
 	globals    *Globals
 	nodeId     string
 	sequenceId uint32
+	opts       DriverOptions
 	// MQTT
-	topics           []string
-	refMqttClient    mqtt.Client
-	mqttTopicTrigger map[string]byte
-	mqttWorker       func(event Message)
+	mqttRef mqtt.Client
+	// Topics
+	mqttListenTopics map[string]byte
+	mqttListenWorker func(event Message)
+	router           *router
 }
 
 func (d *driver) NodeId() string {
@@ -66,60 +72,121 @@ func (d *driver) NextMessageBySourceUuid(sourceUuid string, body []byte) Message
 
 func (d *driver) Startup() {
 	// 监听所有Trigger的UserTopic
-	d.mqttTopicTrigger = make(map[string]byte, len(d.topics))
-	for _, t := range d.topics {
-		topic := topicOfEvents(t)
-		d.mqttTopicTrigger[topic] = 0
-		log.Info("开启监听事件[TRIGGER]: ", topic)
+	d.mqttListenTopics = make(map[string]byte)
+	for _, t := range d.opts.EventTopics {
+		eTopic := topicOfEvents(t)
+		d.mqttListenTopics[eTopic] = 0
+		log.Info("开启监听[Event]: ", eTopic)
 	}
-	d.refMqttClient.SubscribeMultiple(d.mqttTopicTrigger, func(cli mqtt.Client, msg mqtt.Message) {
+	for _, t := range d.opts.ValueTopics {
+		vTopic := topicOfValues(t)
+		d.mqttListenTopics[vTopic] = 0
+		log.Info("开启监听[Value]: ", vTopic)
+	}
+	for _, t := range d.opts.CustomTopics {
+		d.mqttListenTopics[t] = 0
+		log.Info("开启监听[Custom]: ", t)
+	}
+	mToken := d.mqttRef.SubscribeMultiple(d.mqttListenTopics, func(cli mqtt.Client, msg mqtt.Message) {
 		frame := msg.Payload()
 		if ok, err := CheckMessage(frame); !ok {
 			log.Error("消息格式异常: ", err)
 		} else {
-			d.mqttWorker(ParseMessage(frame))
+			d.mqttListenWorker(ParseMessage(frame))
 		}
 	})
+	if mToken.Wait() && nil != mToken.Error() {
+		log.Error("监听TRIGGER事件出错：", mToken.Error())
+	}
+	// 接收Replies
+	d.router = &router{
+		lock:     new(sync.Mutex),
+		handlers: make(map[string]func(mqtt.Message)),
+	}
+	rToken := d.mqttRef.Subscribe(topicOfRepliesListen(d.nodeId), 0, func(cli mqtt.Client, msg mqtt.Message) {
+		log.Debug("接收到RPC响应，Topic: " + msg.Topic())
+		d.router.dispatchThenRemove(msg)
+	})
+	if rToken.Wait() && nil != rToken.Error() {
+		log.Error("监听RPC事件出错：", rToken.Error())
+	}
 }
 
 func (d *driver) Shutdown() {
 	topics := make([]string, 0)
-	for t := range d.mqttTopicTrigger {
+	for t := range d.mqttListenTopics {
 		topics = append(topics, t)
-		log.Info("取消监听事件[TRIGGER]: ", t)
+		log.Info("取消监听事件: ", t)
 	}
-	if token := d.refMqttClient.Unsubscribe(topics...); token.Wait() && nil != token.Error() {
-		log.Error("取消监听事件出错：", token.Error())
+	token := d.mqttRef.Unsubscribe(topics...)
+	if token.Wait() && nil != token.Error() {
+		log.Error("取消监听出错：", token.Error())
 	}
 }
 
 func (d *driver) Process(f func(Message)) {
-	d.mqttWorker = f
+	d.mqttListenWorker = f
 }
 
-func (d *driver) Execute(endpointAddr string, in Message, to time.Duration) (out Message, err error) {
-	log.Debug("GRPC调用Endpoint: ", endpointAddr)
-	remote, err := grpc.Dial(endpointAddr, grpc.WithInsecure())
-	if nil != err {
-		return nil, errors.WithMessage(err, "gRPC_DIAL_ERROR")
-	}
-	client := NewExecuteClient(remote)
-	ctx, cancel := context.WithTimeout(context.Background(), to)
-	defer cancel()
-
-	ret, err := client.Execute(ctx, &Data{Frames: in.Bytes()})
-
-	if nil != err {
-		return nil, err
+func (d *driver) Call(remoteNodeId string, in Message, callback func(out Message, err error)) {
+	log.Debug("MQ_RPC调用Endpoint.NodeId: ", remoteNodeId)
+	// 发送Request消息
+	token := d.mqttRef.Publish(
+		topicOfRequestSend(remoteNodeId, in.SequenceId(), d.nodeId),
+		d.globals.MqttQoS, false,
+		in.Bytes())
+	if token.Wait() && nil != token.Error() {
+		log.Error("发送MQ_RPC消息出错", token.Error())
+		callback(nil, token.Error())
 	} else {
-		return ParseMessage(ret.GetFrames()), nil
+		// 通过MQTT的Router来过滤订阅事件
+		topic := topicOfRepliesFilter(remoteNodeId, in.SequenceId(), d.nodeId)
+		d.router.register(topic, func(msg mqtt.Message) {
+			callback(ParseMessage(msg.Payload()), nil)
+		})
 	}
 }
 
-func (d *driver) Hello(endpointAddr string, timeout time.Duration) error {
-	_, err := d.Execute(
-		endpointAddr,
-		newControlMessage(d.nodeId, d.nodeId, FrameVarPing, d.NextMessageSequenceId()),
-		timeout)
-	return err
+func (d *driver) Execute(remoteNodeId string, in Message, timeout time.Duration) (out Message, err error) {
+	outC := make(chan Message, 1)
+	errC := make(chan error, 1)
+	d.Call(remoteNodeId, in, func(out Message, err error) {
+		if nil != err {
+			errC <- err
+		} else {
+			outC <- out
+		}
+	})
+	select {
+	case out := <-outC:
+		return out, nil
+
+	case err := <-errC:
+		return nil, err
+
+	case <-time.After(timeout):
+		return nil, ErrExecuteTimeout
+	}
+}
+
+// 消息路由
+type router struct {
+	lock     *sync.Mutex
+	handlers map[string]func(msg mqtt.Message)
+}
+
+func (r *router) dispatchThenRemove(msg mqtt.Message) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	t := msg.Topic()
+	if handler, ok := r.handlers[t]; ok {
+		delete(r.handlers, t)
+		handler(msg)
+	}
+}
+
+func (r *router) register(topic string, handler func(msg mqtt.Message)) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.handlers[topic] = handler
 }

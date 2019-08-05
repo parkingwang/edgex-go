@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/eclipse/paho.mqtt.golang"
-	"os"
 	"runtime"
 	"time"
 )
@@ -46,7 +45,6 @@ func mqttSendInspectMessage(client mqtt.Client, nodeId string, node MainNodeInfo
 		node.HostArch = runtime.GOARCH
 	}
 	// 更新设备列表参数
-	addr, ok := os.LookupEnv(EnvKeyGrpcAddress)
 	for _, vd := range node.VirtualNodes {
 		// 自动生成UUID
 		if "" == vd.VirtualId {
@@ -57,10 +55,6 @@ func mqttSendInspectMessage(client mqtt.Client, nodeId string, node MainNodeInfo
 				log.Debugf("VirtualNodeInfo.Uuid 已设置为<%s>，它将被自动覆盖更新", vd.Uuid)
 			}
 			vd.Uuid = MakeSourceUuid(nodeId, vd.VirtualId)
-		}
-		// gRpc地址
-		if ok {
-			vd.RpcAddress = addr
 		}
 	}
 	data, err := json.Marshal(node)
@@ -113,7 +107,6 @@ func mqttAwaitConnection(client mqtt.Client, maxRetry int) {
 			}
 			timer.Reset(time.Second * time.Duration(i))
 		} else {
-			log.Info("Mqtt客户端连接成功")
 			break
 		}
 	}
