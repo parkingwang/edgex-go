@@ -11,7 +11,7 @@ import (
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
-// Trigger 触发器，用于产生事件
+// Trigger 触发器，用于产生事件。
 type Trigger interface {
 	NeedLifecycle
 	NeedNodeId
@@ -21,14 +21,14 @@ type Trigger interface {
 	// PublishEvent 发送Event消息。发送消息的QoS使用默认设置。
 	PublishEvent(virtualId string, data []byte) error
 
-	// SendEvent 发送精确的Event消息。使用QoS 2质量。
-	SendEvent(virtualId string, data []byte) error
+	// PublishEventWith 发送Event消息。指定QOS参数。
+	PublishEventWith(virtualId string, data []byte, qos uint8, retained bool) error
 
-	// PublishValue 发送Value数据消息。发送消息的QoS使用默认设置。
+	// PublishValue 发送Value消息。发送消息的QoS使用默认设置。
 	PublishValue(virtualId string, data []byte) error
 
-	// SendValue 发送精确的Value消息。使用QoS 2质量。
-	SendValue(virtualId string, data []byte) error
+	// PublishValueWith 发送Value消息。指定QOS参数。
+	PublishValueWith(virtualId string, data []byte, qos uint8, retained bool) error
 }
 
 type TriggerOptions struct {
@@ -90,28 +90,28 @@ func (t *trigger) PublishInspect(node MainNodeInfo) {
 }
 
 func (t *trigger) PublishEvent(virtualId string, data []byte) error {
-	return t.publish(t.mqttEventTopic, virtualId, data, t.globals.MqttQoS, t.globals.MqttRetained)
+	return t.PublishEventWith(virtualId, data, t.globals.MqttQoS, t.globals.MqttRetained)
 }
 
-func (t *trigger) SendEvent(virtualId string, data []byte) error {
-	return t.publish(t.mqttEventTopic, virtualId, data, 2, true)
+func (t *trigger) PublishEventWith(virtualId string, data []byte, qos uint8, retained bool) error {
+	return t.publish(t.mqttEventTopic, virtualId, data, qos, retained)
 }
 
 func (t *trigger) PublishValue(virtualId string, data []byte) error {
-	return t.publish(t.mqttValueTopic, virtualId, data, t.globals.MqttQoS, t.globals.MqttRetained)
+	return t.PublishValueWith(virtualId, data, t.globals.MqttQoS, t.globals.MqttRetained)
 }
 
-func (t *trigger) SendValue(virtualId string, data []byte) error {
-	return t.publish(t.mqttValueTopic, virtualId, data, 2, true)
+func (t *trigger) PublishValueWith(virtualId string, data []byte, qos uint8, retained bool) error {
+	return t.publish(t.mqttValueTopic, virtualId, data, qos, retained)
 }
 
-func (t *trigger) publish(topic string, virtual string, data []byte, qos byte, retained bool) error {
+func (t *trigger) publish(mqttTopic string, virtualId string, data []byte, qos byte, retained bool) error {
 	// 构建完整的设备名称
 	token := t.refMqttClient.Publish(
-		topic,
+		mqttTopic,
 		qos,
 		retained,
-		NewMessageByVirtualId(t.nodeId, virtual, data, t.NextMessageSequenceId()).Bytes())
+		NewMessageByVirtualId(t.nodeId, virtualId, data, t.NextMessageSequenceId()).Bytes())
 	if token.Wait() && nil != token.Error() {
 		return errors.WithMessage(token.Error(), "发送事件消息出错")
 	} else {
