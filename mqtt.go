@@ -63,7 +63,7 @@ func mqttSendInspectMessage(client mqtt.Client, nodeId string, node MainNodeInfo
 	}
 	// 发送Inspect消息，其中消息来源为NodeId
 	token := client.Publish(
-		TopicNodesInspect,
+		TopicSubscribeNodesInspect,
 		0,
 		false,
 		NewMessageWith(nodeId, nodeId, data, 0).Bytes(),

@@ -19,7 +19,7 @@ func main() {
 				"scheduled/+",
 			},
 			CustomTopics: []string{
-				edgex.TopicNodesInspect,
+				edgex.TopicSubscribeNodesInspect,
 			},
 		}
 
@@ -30,7 +30,7 @@ func main() {
 
 		log := ctx.Log()
 
-		driver.Process(func(inMsg edgex.Message) {
+		driver.Process(func(topic string, inMsg edgex.Message) {
 			//execStart := time.Now()
 			//_, err := driver.Execute(testEndpointNodeId, inMsg, time.Second*3)
 			//if nil != err {

@@ -16,13 +16,15 @@ var (
 	ErrExecuteTimeout = errors.New("DRIVER_EXEC_TIMEOUT")
 )
 
+type DriverHandler func(topic string, event Message)
+
 type Driver interface {
 	NeedLifecycle
 	NeedNodeId
 	NeedMessages
 
 	// Process 处理消息
-	Process(func(event Message))
+	Process(DriverHandler)
 
 	// Execute 发起一个同步消息请求
 	Execute(remoteNodeId string, in Message, timeout time.Duration) (out Message, err error)
@@ -49,7 +51,7 @@ type driver struct {
 	mqttRef mqtt.Client
 	// Topics
 	mqttListenTopics map[string]byte
-	mqttListenWorker func(event Message)
+	mqttListenWorker DriverHandler
 	router           *router
 }
 
@@ -76,23 +78,24 @@ func (d *driver) Startup() {
 	for _, t := range d.opts.EventTopics {
 		eTopic := topicOfEvents(t)
 		d.mqttListenTopics[eTopic] = 0
-		log.Info("开启监听[Event]: ", eTopic)
 	}
 	for _, t := range d.opts.ValueTopics {
 		vTopic := topicOfValues(t)
 		d.mqttListenTopics[vTopic] = 0
-		log.Info("开启监听[Value]: ", vTopic)
 	}
 	for _, t := range d.opts.CustomTopics {
 		d.mqttListenTopics[t] = 0
-		log.Info("开启监听[Custom]: ", t)
+	}
+	for t, _ := range d.mqttListenTopics {
+		log.Info("开启监听事件: QoS= 0, Topic= " + t)
 	}
 	mToken := d.mqttRef.SubscribeMultiple(d.mqttListenTopics, func(cli mqtt.Client, msg mqtt.Message) {
 		frame := msg.Payload()
 		if ok, err := CheckMessage(frame); !ok {
 			log.Error("消息格式异常: ", err)
 		} else {
-			d.mqttListenWorker(ParseMessage(frame))
+			topic := unwrapEdgeXTopic(msg.Topic())
+			d.mqttListenWorker(topic, ParseMessage(frame))
 		}
 	})
 	if mToken.Wait() && nil != mToken.Error() {
@@ -124,7 +127,7 @@ func (d *driver) Shutdown() {
 	}
 }
 
-func (d *driver) Process(f func(Message)) {
+func (d *driver) Process(f DriverHandler) {
 	d.mqttListenWorker = f
 }
 

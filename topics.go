@@ -10,32 +10,39 @@ import (
 //
 
 const (
-	TopicNodesInspect = "$EdgeX/nodes/inspect"
-	TopicNodesOffline = "$EdgeX/nodes/offline/#"
-	TopicNodesEvents  = "$EdgeX/events/#"
-	TopicNodesValues  = "$EdgeX/values/#"
+	prefixNodes    = "$EdgeX/nodes/"
+	prefixEvents   = "$EdgeX/events/"
+	prefixValues   = "$EdgeX/values/"
+	prefixStats    = "$EdgeX/stats/"
+	prefixRequests = "$EdgeX/requests/"
+	prefixReplies  = "$EdgeX/replies/"
+
+	TopicSubscribeNodesInspect = prefixNodes + "inspect"
+	TopicSubscribeNodesOffline = prefixNodes + "offline/#"
+	TopicSubscribeNodesEvents  = prefixEvents + "#"
+	TopicSubscribeNodesValues  = prefixValues + "#"
 )
 
 func topicOfEvents(topic string) string {
 	checkTopic(topic)
-	return fmt.Sprintf("$EdgeX/events/%s", topic)
+	return prefixEvents + topic
 }
 
 func topicOfValues(topic string) string {
 	checkTopic(topic)
-	return fmt.Sprintf("$EdgeX/values/%s", topic)
+	return prefixValues + topic
 }
 
 func topicOfRequestSend(executorNodeId string, seqId uint32, callerNodeId string) string {
-	return fmt.Sprintf("$EdgeX/requests/%s/%d/%s", executorNodeId, seqId, callerNodeId)
+	return fmt.Sprintf(prefixRequests+"%s/%d/%s", executorNodeId, seqId, callerNodeId)
 }
 
 func topicOfRequestListen(nodeId string) string {
-	return fmt.Sprintf("$EdgeX/requests/%s/+/+", nodeId)
+	return fmt.Sprintf(prefixRequests+"%s/+/+", nodeId)
 }
 
 func topicOfRepliesSend(executorNodeId string, seqId uint32, callerNodeId string) string {
-	return fmt.Sprintf("$EdgeX/replies/%s/%d/%s", callerNodeId, seqId, executorNodeId)
+	return fmt.Sprintf(prefixReplies+"%s/%d/%s", callerNodeId, seqId, executorNodeId)
 }
 
 func topicOfRepliesFilter(executorNodeId string, seqId uint32, callerNodeId string) string {
@@ -43,7 +50,7 @@ func topicOfRepliesFilter(executorNodeId string, seqId uint32, callerNodeId stri
 }
 
 func topicOfRepliesListen(callerNodeId string) string {
-	return fmt.Sprintf("$EdgeX/replies/%s/+/+", callerNodeId)
+	return fmt.Sprintf(prefixReplies+"%s/+/+", callerNodeId)
 }
 
 func checkTopic(topic string) {
@@ -53,5 +60,23 @@ func checkTopic(topic string) {
 }
 
 func topicOfOffline(typeName, name string) string {
-	return fmt.Sprintf("$EdgeX/nodes/offline/%s/%s", typeName, name)
+	return fmt.Sprintf(prefixNodes+"offline/%s/%s", typeName, name)
+}
+
+func unwrapEdgeXTopic(mqttRawTopic string) string {
+	if "" != mqttRawTopic || strings.HasPrefix(mqttRawTopic, "$EdgeX/") {
+		if strings.HasPrefix(mqttRawTopic, prefixEvents) {
+			return mqttRawTopic[len(prefixEvents):]
+		} else if strings.HasPrefix(mqttRawTopic, prefixStats) {
+			return mqttRawTopic[len(prefixStats):]
+		} else if strings.HasPrefix(mqttRawTopic, prefixValues) {
+			return mqttRawTopic[len(prefixValues):]
+		} else if strings.HasPrefix(mqttRawTopic, prefixNodes) {
+			return mqttRawTopic[len(prefixNodes):]
+		} else {
+			return mqttRawTopic
+		}
+	} else {
+		return mqttRawTopic
+	}
 }
