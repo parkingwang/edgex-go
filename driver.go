@@ -1,7 +1,9 @@
 package edgex
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"github.com/eclipse/paho.mqtt.golang"
 	"math"
 	"sync"
@@ -26,6 +28,9 @@ type Driver interface {
 	// Process 处理消息
 	Process(DriverHandler)
 
+	// 发送MQTT消息
+	Publish(mqttTopic string, msg Message, qos uint8, retained bool)
+
 	// Execute 发起一个同步消息请求
 	Execute(remoteNodeId string, in Message, timeout time.Duration) (out Message, err error)
 
@@ -47,12 +52,18 @@ type driver struct {
 	nodeId     string
 	sequenceId uint32
 	opts       DriverOptions
+	// Stats
+	stats       *stats
+	statsTicker *time.Ticker
 	// MQTT
 	mqttRef mqtt.Client
 	// Topics
 	mqttListenTopics map[string]byte
 	mqttListenWorker DriverHandler
 	router           *router
+	// shutdown
+	stopContext context.Context
+	stopCancel  context.CancelFunc
 }
 
 func (d *driver) NodeId() string {
@@ -73,6 +84,7 @@ func (d *driver) NextMessageOf(virtualNodeId string, body []byte) Message {
 }
 
 func (d *driver) Startup() {
+	d.stopContext, d.stopCancel = context.WithCancel(context.Background())
 	// 监听所有Trigger的UserTopic
 	d.mqttListenTopics = make(map[string]byte)
 	for _, t := range d.opts.EventTopics {
@@ -113,6 +125,25 @@ func (d *driver) Startup() {
 	if rToken.Wait() && nil != rToken.Error() {
 		log.Error("监听RPC事件出错：", rToken.Error())
 	}
+	// 发送Stats
+	d.stats = new(stats)
+	d.statsTicker = time.NewTicker(time.Second * 10)
+	go func() {
+		mqttTopic := topicOfStats(d.nodeId)
+		for {
+			select {
+			case <-d.statsTicker.C:
+				d.publishMqtt(mqttTopic,
+					d.NextMessageBy(d.nodeId, d.stats.toJSONString()),
+					0,
+					false,
+				)
+
+			case <-d.stopContext.Done():
+				return
+			}
+		}
+	}()
 }
 
 func (d *driver) Shutdown() {
@@ -125,6 +156,8 @@ func (d *driver) Shutdown() {
 	if token.Wait() && nil != token.Error() {
 		log.Error("取消监听出错：", token.Error())
 	}
+	// shutdown
+	d.stopCancel()
 }
 
 func (d *driver) Process(f DriverHandler) {
@@ -171,6 +204,48 @@ func (d *driver) Execute(remoteNodeId string, in Message, timeout time.Duration)
 		return nil, ErrExecuteTimeout
 	}
 }
+
+func (d *driver) Publish(mqttTopic string, msg Message, qos uint8, retained bool) {
+	d.publishMqtt(mqttTopic, msg, qos, retained)
+}
+
+func (d *driver) publishMqtt(mqttTopic string, msg Message, qos uint8, retained bool) {
+	token := d.mqttRef.Publish(
+		mqttTopic,
+		qos, retained,
+		msg.Bytes())
+	if token.Wait() && nil != token.Error() {
+		log.Error("发送MQTT消息出错：", token.Error())
+	}
+}
+
+////
+
+type stats struct {
+	uptime    time.Time
+	recvCount int64
+	recvBytes int64
+}
+
+func (s *stats) up() {
+	s.uptime = time.Now()
+}
+
+func (s *stats) updateRecv(size int64) {
+	s.recvCount++
+	s.recvBytes += size
+}
+
+func (s *stats) toJSONString() []byte {
+	du := time.Now().Sub(s.uptime).Seconds()
+	return []byte(fmt.Sprintf(`{
+  "uptime": %d, 
+  "recvCount": %d,
+  "recvBytes": %d
+}`, int64(du), s.recvCount, s.recvBytes))
+}
+
+////////
 
 // 消息路由
 type router struct {

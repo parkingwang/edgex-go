@@ -33,6 +33,11 @@ func topicOfValues(topic string) string {
 	return prefixValues + topic
 }
 
+func topicOfStats(topic string) string {
+	checkTopic(topic)
+	return prefixStats + topic
+}
+
 func topicOfRequestSend(executorNodeId string, seqId uint32, callerNodeId string) string {
 	return fmt.Sprintf(prefixRequests+"%s/%d/%s", executorNodeId, seqId, callerNodeId)
 }
