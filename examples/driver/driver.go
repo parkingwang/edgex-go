@@ -40,7 +40,7 @@ func main() {
 			}
 		})
 
-		ctx.Log().Debugf("创建Driver节点: [%s]", ctx.NodeName())
+		ctx.Log().Debugf("创建Driver节点: [%s]", ctx.NodeId())
 
 		driver.Startup()
 		defer driver.Shutdown()
@@ -52,7 +52,7 @@ func main() {
 				execStart := time.Now()
 				rep, err := driver.Execute(
 					testEndpointAddr,
-					driver.NextMessageByVirtualId(ctx.NodeName(), []byte(fmt.Sprintf("%v", time.Now().UnixNano()))),
+					driver.NextMessageByVirtualId(ctx.NodeId(), []byte(fmt.Sprintf("%v", time.Now().UnixNano()))),
 					time.Second)
 				if nil != err {
 					ctx.Log().Error("ScheduleExecute发生错误: ", err)

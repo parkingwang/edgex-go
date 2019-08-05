@@ -103,12 +103,12 @@ func NewMessageBySourceUuid(sourceUuid string, bodyBytes []byte, seqId uint32) M
 }
 
 // 创建消息对象
-func NewMessageByVirtualId(nodeName, virtualNodeId string, bodyBytes []byte, seqId uint32) Message {
-	return NewMessageBySourceUuid(MakeSourceUuid(nodeName, virtualNodeId), bodyBytes, seqId)
+func NewMessageByVirtualId(nodeId, virtualId string, bodyBytes []byte, seqId uint32) Message {
+	return NewMessageBySourceUuid(MakeSourceUuid(nodeId, virtualId), bodyBytes, seqId)
 }
 
 // 创建控制消息
-func newControlMessageWithId(nodeName, virtualNodeId string, ctrlVar byte, seqId uint32) Message {
+func newControlMessage(nodeId, virtualId string, ctrlVar byte, seqId uint32) Message {
 	return &message{
 		header: &Header{
 			Magic:      FrameMagic,
@@ -116,7 +116,7 @@ func newControlMessageWithId(nodeName, virtualNodeId string, ctrlVar byte, seqId
 			ControlVar: ctrlVar,
 			SequenceId: seqId,
 		},
-		sourceUuid: MakeSourceUuid(nodeName, virtualNodeId),
+		sourceUuid: MakeSourceUuid(nodeId, virtualId),
 		body:       []byte{},
 	}
 }
@@ -131,8 +131,8 @@ func ParseMessage(data []byte) Message {
 	if _, err := reader.Read(seqId); nil != err {
 		panic(err)
 	}
-	name, _ := reader.ReadBytes(FrameEmpty)
-	body := make([]byte, len(data)-7-len(name))
+	uuid, _ := reader.ReadBytes(FrameEmpty)
+	body := make([]byte, len(data)-7-len(uuid))
 	if _, err := reader.Read(body); nil != err {
 		panic(err)
 	}
@@ -143,7 +143,7 @@ func ParseMessage(data []byte) Message {
 			ControlVar: vars,
 			SequenceId: decodeUint32(seqId),
 		},
-		sourceUuid: string(name[:len(name)-1]),
+		sourceUuid: string(uuid[:len(uuid)-1]),
 		body:       body,
 	}
 }
@@ -162,8 +162,8 @@ func CheckMessage(data []byte) (bool, error) {
 }
 
 // 创建消息源名称
-func MakeSourceUuid(nodeName, virtualNodeId string) string {
-	return nodeName + ":" + virtualNodeId
+func MakeSourceUuid(nodeId, virtualId string) string {
+	return nodeId + ":" + virtualId
 }
 
 func encodeUint32(num uint32) []byte {

@@ -13,9 +13,9 @@ import (
 func main() {
 	edgex.Run(func(ctx edgex.Context) error {
 		// 向系统注册节点
-		nodeName := "EXAMPLE-TRIGGER"
+		nodeId := "EXAMPLE-TRIGGER"
 
-		ctx.Initial(nodeName)
+		ctx.Initial(nodeId)
 
 		opts := edgex.TriggerOptions{
 			Topic:           "example/timer",
@@ -26,7 +26,7 @@ func main() {
 		trigger.Startup()
 		defer trigger.Shutdown()
 
-		ctx.Log().Debugf("创建Trigger节点: [%s]", nodeName)
+		ctx.Log().Debugf("创建Trigger节点: [%s]", nodeId)
 
 		timer := time.NewTicker(time.Millisecond * 10)
 		defer timer.Stop()
@@ -53,8 +53,8 @@ func autoNodeFunc() func() edgex.MainNode {
 			NodeType: edgex.NodeTypeTrigger,
 			VirtualNodes: []*edgex.VirtualNode{
 				{
-					NodeId: "TIMER",
-					Desc:   "演示Trigger",
+					VirtualId: "TIMER",
+					Desc:      "演示Trigger",
 				},
 			},
 		}

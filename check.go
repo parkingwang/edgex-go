@@ -6,15 +6,15 @@ import "strings"
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
-// checkNameFormat 检查命名规则，不允许带/符号。
-func checkNameFormat(key, name string) string {
-	if "" == name {
+// checkIdFormat 检查命名规则，不允许带/符号。
+func checkIdFormat(key, id string) string {
+	if "" == id {
 		log.Panic(key + "是必须的")
 	}
-	if strings.Contains(name, "/") {
-		log.Panic(key + "中不能包含'/'字符:" + name)
+	if strings.Contains(id, "/") || strings.Contains(id, ":") {
+		log.Panic(key + "中不能包含 '/' 或 ':' 字符:" + id)
 	}
-	return name
+	return id
 }
 
 // checkRequires 检查配置值是否有效；无效则Panic；

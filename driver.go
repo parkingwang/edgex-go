@@ -15,7 +15,7 @@ import (
 
 type Driver interface {
 	NeedLifecycle
-	NeedNodeName
+	NeedNodeId
 	NeedMessages
 
 	// Process 处理消息
@@ -38,7 +38,7 @@ type DriverOptions struct {
 type driver struct {
 	Driver
 	globals    *Globals
-	nodeName   string
+	nodeId     string
 	sequenceId uint32
 	// MQTT
 	topics           []string
@@ -47,8 +47,8 @@ type driver struct {
 	mqttWorker       func(event Message)
 }
 
-func (d *driver) NodeName() string {
-	return d.nodeName
+func (d *driver) NodeId() string {
+	return d.nodeId
 }
 
 func (d *driver) NextMessageSequenceId() uint32 {
@@ -56,8 +56,8 @@ func (d *driver) NextMessageSequenceId() uint32 {
 	return d.sequenceId
 }
 
-func (d *driver) NextMessageByVirtualId(virtualNodeId string, body []byte) Message {
-	return NewMessageByVirtualId(d.nodeName, virtualNodeId, body, d.NextMessageSequenceId())
+func (d *driver) NextMessageByVirtualId(virtualId string, body []byte) Message {
+	return NewMessageByVirtualId(d.nodeId, virtualId, body, d.NextMessageSequenceId())
 }
 
 func (d *driver) NextMessageBySourceUuid(sourceUuid string, body []byte) Message {
@@ -119,7 +119,7 @@ func (d *driver) Execute(endpointAddr string, in Message, to time.Duration) (out
 func (d *driver) Hello(endpointAddr string, timeout time.Duration) error {
 	_, err := d.Execute(
 		endpointAddr,
-		newControlMessageWithId(d.nodeName, d.nodeName, FrameVarPing, d.NextSequenceId()),
+		newControlMessage(d.nodeId, d.nodeId, FrameVarPing, d.NextMessageSequenceId()),
 		timeout)
 	return err
 }

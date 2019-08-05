@@ -19,14 +19,12 @@ import (
 
 // Context 是一个提供基础通讯环境和参数设置的对象。通过Context来创建Trigger, Endpoint, Driver组件，并为组件提供MQTT通讯能力。
 type Context interface {
+	NeedNodeId
 	// 使用默认配置结构来初化Context
 	InitialWithConfig(config map[string]interface{})
 
 	// 初化和设置Context
-	Initial(nodeName string)
-
-	// NodeName 返回节点名称
-	NodeName() string
+	Initial(nodeId string)
 
 	// Destroy 由组件自动调用
 	destroy()
@@ -125,13 +123,13 @@ func CreateDefaultContext() Context {
 type NodeContext struct {
 	globals    *Globals
 	logVerbose bool
-	nodeName   string
+	nodeId     string
 	mqttClient mqtt.Client
 }
 
 func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
-	c.nodeName = value.ToString(config["NodeName"])
-	checkNameFormat("NodeName", c.nodeName)
+	c.nodeId = value.ToString(config["NodeId"])
+	checkIdFormat("NodeId", c.nodeId)
 	// Globals设置
 	if globals, ok := value.ToMap(config["Globals"]); ok {
 		// 其它全局配置
@@ -181,9 +179,9 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	}
 	// MQTT Broker
 	opts := mqtt.NewClientOptions()
-	clientId := fmt.Sprintf("EX-Node:%s", c.nodeName)
+	clientId := fmt.Sprintf("%s:%s", MqttClientIdHeader, c.nodeId)
 	opts.SetClientID(clientId)
-	opts.SetWill(topicOfOffline("EX-Node", c.nodeName), "offline", 1, true)
+	opts.SetWill(topicOfOffline(MqttClientIdHeader, c.nodeId), "offline", 1, true)
 	mqttSetOptions(opts, c.globals)
 	c.mqttClient = mqtt.NewClient(opts)
 	log.Info("Mqtt客户端连接Broker: ", c.globals.MqttBroker)
@@ -198,14 +196,14 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	}
 }
 
-func (c *NodeContext) Initial(nodeName string) {
+func (c *NodeContext) Initial(nodeId string) {
 	c.InitialWithConfig(map[string]interface{}{
-		"NodeName": nodeName,
+		"NodeId": nodeId,
 	})
 }
 
-func (c *NodeContext) NodeName() string {
-	return c.nodeName
+func (c *NodeContext) NodeId() string {
+	return c.nodeId
 }
 
 func (c *NodeContext) destroy() {
@@ -228,7 +226,7 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 		refMqttClient:   c.mqttClient,
 		globals:         c.globals,
 		topic:           opts.Topic,
-		nodeName:        c.nodeName,
+		nodeId:          c.nodeId,
 		sequenceId:      0,
 		autoInspectFunc: opts.AutoInspectFunc,
 	}
@@ -241,7 +239,7 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	return &endpoint{
 		refMqttClient:   c.mqttClient,
 		globals:         c.globals,
-		nodeName:        c.nodeName,
+		nodeId:          c.nodeId,
 		sequenceId:      0,
 		endpointAddr:    opts.RpcAddr,
 		autoInspectFunc: opts.AutoInspectFunc,
@@ -255,7 +253,7 @@ func (c *NodeContext) NewDriver(opts DriverOptions) Driver {
 	return &driver{
 		refMqttClient: c.mqttClient,
 		globals:       c.globals,
-		nodeName:      c.nodeName,
+		nodeId:        c.nodeId,
 		topics:        opts.Topics,
 	}
 }

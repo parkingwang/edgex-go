@@ -29,16 +29,16 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 
 ////
 
-func mqttSendInspectMessage(client mqtt.Client, nodeName string, node MainNode) {
-	checkNameFormat("NodeType", node.NodeType)
+func mqttSendInspectMessage(client mqtt.Client, nodeId string, node MainNode) {
+	checkIdFormat("NodeType", node.NodeType)
 	if 0 == len(node.VirtualNodes) {
 		log.Panic("缺少虚拟节点数据")
 	}
 	// 自动更新虚拟设备的参数
-	if "" != node.NodeName {
-		log.Debugf("MainNode.NodeName已设置为<%s>，它将被自动覆盖更新", node.NodeName)
+	if "" != node.NodeId {
+		log.Debugf("MainNode.NodeId 已设置为<%s>，它将被自动覆盖更新", node.NodeId)
 	}
-	node.NodeName = nodeName
+	node.NodeId = nodeId
 	if "" == node.HostOS {
 		node.HostOS = runtime.GOOS
 	}
@@ -49,14 +49,14 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, node MainNode) 
 	addr, ok := os.LookupEnv(EnvKeyGrpcAddress)
 	for _, vd := range node.VirtualNodes {
 		// 自动生成UUID
-		if "" == vd.NodeId {
-			log.Panic("必须指定VirtualNode.NodeId，并确保其节点范围内的唯一性")
+		if "" == vd.VirtualId {
+			log.Panic("必须指定VirtualNode.VirtualId，并确保其节点范围内的唯一性")
 		} else {
-			checkNameFormat("NodeId", vd.NodeId)
+			checkIdFormat("VirtualId", vd.VirtualId)
 			if "" != vd.Uuid {
-				log.Debugf("VirtualNode.Uuid已设置为<%s>，它将被自动覆盖更新", vd.Uuid)
+				log.Debugf("VirtualNode.Uuid 已设置为<%s>，它将被自动覆盖更新", vd.Uuid)
 			}
-			vd.Uuid = MakeSourceUuid(nodeName, vd.NodeId)
+			vd.Uuid = MakeSourceUuid(nodeId, vd.VirtualId)
 		}
 		// gRpc地址
 		if ok {
@@ -72,7 +72,7 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, node MainNode) 
 		tNodesInspect,
 		0,
 		false,
-		NewMessageByVirtualId(nodeName, nodeName, data, 0).Bytes(),
+		NewMessageByVirtualId(nodeId, nodeId, data, 0).Bytes(),
 	)
 	if token.Wait() && nil != token.Error() {
 		log.Error("发送Inspect消息出错", token.Error())

@@ -14,7 +14,7 @@ import (
 // Trigger 触发器，用于产生事件
 type Trigger interface {
 	NeedLifecycle
-	NeedNodeName
+	NeedNodeId
 	NeedMessages
 
 	// PublishEvent 发送Event消息。发送消息的QoS使用默认设置。
@@ -46,7 +46,7 @@ type trigger struct {
 	topic          string // Trigger的Topic
 	mqttEventTopic string // MQTT使用的EventTopic
 	mqttValueTopic string // MQTT使用的ValueTopic
-	nodeName       string // Trigger的名称
+	nodeId         string // Trigger的名称
 	sequenceId     uint32 // Trigger产生的消息ID序列
 	// MainNode 消息生产函数
 	autoInspectFunc func() MainNode
@@ -57,8 +57,8 @@ type trigger struct {
 	shutdownCancel  context.CancelFunc
 }
 
-func (t *trigger) NodeName() string {
-	return t.nodeName
+func (t *trigger) NodeId() string {
+	return t.nodeId
 }
 
 func (t *trigger) NextMessageSequenceId() uint32 {
@@ -67,7 +67,7 @@ func (t *trigger) NextMessageSequenceId() uint32 {
 }
 
 func (t *trigger) NextMessageByVirtualId(virtualNodeId string, body []byte) Message {
-	return NewMessageByVirtualId(t.nodeName, virtualNodeId, body, t.NextMessageSequenceId())
+	return NewMessageByVirtualId(t.nodeId, virtualNodeId, body, t.NextMessageSequenceId())
 }
 
 func (t *trigger) NextMessageBySourceUuid(sourceUuid string, body []byte) Message {
@@ -88,7 +88,7 @@ func (t *trigger) Startup() {
 }
 
 func (t *trigger) PublishInspect(node MainNode) {
-	mqttSendInspectMessage(t.refMqttClient, t.nodeName, node)
+	mqttSendInspectMessage(t.refMqttClient, t.nodeId, node)
 }
 
 func (t *trigger) PublishEvent(virtualNodeId string, data []byte) error {
@@ -107,13 +107,13 @@ func (t *trigger) SendValue(virtualNodeId string, data []byte) error {
 	return t.publish(t.mqttValueTopic, virtualNodeId, data, 2, true)
 }
 
-func (t *trigger) publish(topic string, virtualNodeId string, data []byte, qos byte, retained bool) error {
+func (t *trigger) publish(topic string, virtual string, data []byte, qos byte, retained bool) error {
 	// 构建完整的设备名称
 	token := t.refMqttClient.Publish(
 		topic,
 		qos,
 		retained,
-		NewMessageByVirtualId(t.nodeName, virtualNodeId, data, t.NextMessageSequenceId()).Bytes())
+		NewMessageByVirtualId(t.nodeId, virtual, data, t.NextMessageSequenceId()).Bytes())
 	if token.Wait() && nil != token.Error() {
 		return errors.WithMessage(token.Error(), "发送事件消息出错")
 	} else {

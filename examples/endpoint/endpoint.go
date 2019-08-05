@@ -44,7 +44,7 @@ func autoNodeFunc() func() edgex.MainNode {
 			NodeType: edgex.NodeTypeEndpoint,
 			VirtualNodes: []*edgex.VirtualNode{
 				{
-					NodeId:     "main",
+					VirtualId:  "main",
 					Desc:       "演示终端",
 					RpcCommand: "ECHO",
 				},

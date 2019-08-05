@@ -6,6 +6,10 @@ import "time"
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
+const (
+	MqttClientIdHeader = "EXNode"
+)
+
 // 全局配置
 type Globals struct {
 	MqttBroker            string

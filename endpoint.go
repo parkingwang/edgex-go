@@ -22,7 +22,7 @@ var (
 // Endpoint是接收、处理，并返回结果的可控制终端节点。
 type Endpoint interface {
 	NeedLifecycle
-	NeedNodeName
+	NeedNodeId
 	NeedMessages
 
 	// 处理RPC消息，返回处理结果
@@ -42,7 +42,7 @@ type EndpointOptions struct {
 
 type endpoint struct {
 	Endpoint
-	nodeName        string
+	nodeId          string
 	globals         *Globals
 	sequenceId      uint32
 	serialExecuting bool
@@ -59,8 +59,8 @@ type endpoint struct {
 	shutdownCancel  context.CancelFunc
 }
 
-func (e *endpoint) NodeName() string {
-	return e.nodeName
+func (e *endpoint) NodeId() string {
+	return e.nodeId
 }
 
 func (e *endpoint) NextMessageSequenceId() uint32 {
@@ -68,8 +68,8 @@ func (e *endpoint) NextMessageSequenceId() uint32 {
 	return e.sequenceId
 }
 
-func (e *endpoint) NextMessageByVirtualId(virtualNodeId string, body []byte) Message {
-	return NewMessageByVirtualId(e.nodeName, virtualNodeId, body, e.NextMessageSequenceId())
+func (e *endpoint) NextMessageByVirtualId(virtualId string, body []byte) Message {
+	return NewMessageByVirtualId(e.nodeId, virtualId, body, e.NextMessageSequenceId())
 }
 
 func (e *endpoint) NextMessageBySourceUuid(sourceUuid string, body []byte) Message {
@@ -81,7 +81,7 @@ func (e *endpoint) Startup() {
 
 	e.rpcServer = grpc.NewServer()
 	RegisterExecuteServer(e.rpcServer, &grpcExecutor{
-		nodeName:        e.nodeName,
+		nodeId:          e.nodeId,
 		serialExecution: e.serialExecuting,
 		serialLock:      new(sync.Mutex),
 		handler:         e.handler,
@@ -107,7 +107,7 @@ func (e *endpoint) Startup() {
 }
 
 func (e *endpoint) PublishInspectMessage(node MainNode) {
-	mqttSendInspectMessage(e.refMqttClient, e.nodeName, node)
+	mqttSendInspectMessage(e.refMqttClient, e.nodeId, node)
 }
 
 func (e *endpoint) Shutdown() {
@@ -124,7 +124,7 @@ func (e *endpoint) Serve(h func(in Message) (out Message)) {
 
 type grpcExecutor struct {
 	ExecuteServer
-	nodeName        string
+	nodeId          string
 	nextSequenceId  func() uint32
 	serialExecution bool        // 是否串行执行
 	serialLock      *sync.Mutex // 串行锁
@@ -150,7 +150,7 @@ func (ex *grpcExecutor) execute(c context.Context, i *Data) (o *Data, e error) {
 	switch in.Header().ControlVar {
 	// Ping Pong
 	case FrameVarPing:
-		pong := newControlMessageWithId(ex.nodeName, ex.nodeName, FrameVarPong, ex.nextSequenceId())
+		pong := newControlMessage(ex.nodeId, ex.nodeId, FrameVarPong, ex.nextSequenceId())
 		return &Data{Frames: pong.Bytes()}, nil
 
 	// Data
