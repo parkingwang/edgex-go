@@ -108,7 +108,7 @@ func NewMessageByVirtualId(nodeId, virtualId string, bodyBytes []byte, seqId uin
 }
 
 // 创建控制消息
-func newControlMessage(nodeId, virtualId string, ctrlVar byte, seqId uint32) Message {
+func newControlMessage(sourceUuid string, ctrlVar byte, seqId uint32) Message {
 	return &message{
 		header: &Header{
 			Magic:      FrameMagic,
@@ -116,7 +116,7 @@ func newControlMessage(nodeId, virtualId string, ctrlVar byte, seqId uint32) Mes
 			ControlVar: ctrlVar,
 			SequenceId: seqId,
 		},
-		sourceUuid: MakeSourceUuid(nodeId, virtualId),
+		sourceUuid: sourceUuid,
 		body:       []byte{},
 	}
 }
