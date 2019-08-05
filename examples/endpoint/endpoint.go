@@ -22,7 +22,7 @@ func main() {
 		endpoint := ctx.NewEndpoint(opts)
 
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			return endpoint.NextMessageBySourceUuid(in.SourceUuid(), []byte("ECHO"))
+			return endpoint.NextMessageOf(in.VirtualNodeId(), []byte("ECHO"))
 		})
 
 		endpoint.Startup()

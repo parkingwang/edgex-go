@@ -51,15 +51,15 @@ func main() {
 			case <-timer.C:
 				log.Debug("----> Send Exec")
 				execStart := time.Now()
-				msg := driver.NextMessageByVirtualId(ctx.NodeId(), []byte(fmt.Sprintf("%v", time.Now().UnixNano())))
+				msg := driver.NextMessageBy(ctx.NodeId(), []byte(fmt.Sprintf("%v", time.Now().UnixNano())))
 				rep, err := driver.Execute(testEndpointNodeId, msg, time.Second)
 				if nil != err {
 					log.Error("ScheduleExecute发生错误: ", err)
 				} else {
 					log.Debug("ScheduleExecute用时: ", time.Since(execStart))
-					sid := rep.SourceUuid()
+					sid := rep.VirtualNodeId()
 					body := string(rep.Body())
-					log.Debug("接收到响应：SourceUuid: " + sid + ", Body: " + body)
+					log.Debug("接收到响应：VirtualNodeId: " + sid + ", Body: " + body)
 				}
 
 			case <-ctx.TermChan():

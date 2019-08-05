@@ -36,8 +36,9 @@ type Message interface {
 	// Header 返回消息的Header
 	Header() Header
 
-	// SourceUuid 返回消息来源节点的ID
-	SourceUuid() string
+	// VirtualNodeId 虚拟节点ID
+	// 它由两部分组成：NodeId + VirtualId。在可以唯一标识一个虚拟设备。
+	VirtualNodeId() string
 
 	// SequenceId 返回消息Id
 	SequenceId() uint32
@@ -53,13 +54,13 @@ type Message interface {
 
 type message struct {
 	Message
-	header     *Header
-	sourceUuid string
-	body       []byte
+	header        *Header
+	virtualNodeId string
+	body          []byte
 }
 
-func (m *message) SourceUuid() string {
-	return m.sourceUuid
+func (m *message) VirtualNodeId() string {
+	return m.virtualNodeId
 }
 
 func (m *message) Header() Header {
@@ -80,14 +81,14 @@ func (m *message) Bytes() []byte {
 	buf.WriteByte(m.header.Version)
 	buf.WriteByte(m.header.ControlVar)
 	buf.Write(encodeUint32(m.header.SequenceId))
-	buf.WriteString(m.sourceUuid)
+	buf.WriteString(m.virtualNodeId)
 	buf.WriteByte(FrameEmpty)
 	buf.Write(m.body)
 	return buf.Bytes()
 }
 
 // 创建消息对象
-func NewMessageBySourceUuid(sourceUuid string, bodyBytes []byte, seqId uint32) Message {
+func NewMessageById(virtualNodeId string, bodyBytes []byte, seqId uint32) Message {
 	return &message{
 		header: &Header{
 			Magic:      FrameMagic,
@@ -95,28 +96,14 @@ func NewMessageBySourceUuid(sourceUuid string, bodyBytes []byte, seqId uint32) M
 			ControlVar: FrameVarData,
 			SequenceId: seqId,
 		},
-		sourceUuid: sourceUuid,
-		body:       bodyBytes,
+		virtualNodeId: virtualNodeId,
+		body:          bodyBytes,
 	}
 }
 
 // 创建消息对象
-func NewMessageByVirtualId(nodeId, virtualId string, bodyBytes []byte, seqId uint32) Message {
-	return NewMessageBySourceUuid(MakeSourceUuid(nodeId, virtualId), bodyBytes, seqId)
-}
-
-// 创建控制消息
-func newControlMessage(sourceUuid string, ctrlVar byte, seqId uint32) Message {
-	return &message{
-		header: &Header{
-			Magic:      FrameMagic,
-			Version:    FrameVersion,
-			ControlVar: ctrlVar,
-			SequenceId: seqId,
-		},
-		sourceUuid: sourceUuid,
-		body:       []byte{},
-	}
+func NewMessageWith(nodeId, virtualId string, bodyBytes []byte, seqId uint32) Message {
+	return NewMessageById(MakeVirtualNodeId(nodeId, virtualId), bodyBytes, seqId)
 }
 
 // 解析消息对象
@@ -129,8 +116,8 @@ func ParseMessage(data []byte) Message {
 	if _, err := reader.Read(seqId); nil != err {
 		panic(err)
 	}
-	uuid, _ := reader.ReadBytes(FrameEmpty)
-	body := make([]byte, len(data)-7-len(uuid))
+	vnId, _ := reader.ReadBytes(FrameEmpty)
+	body := make([]byte, len(data)-7-len(vnId))
 	if _, err := reader.Read(body); nil != err {
 		panic(err)
 	}
@@ -141,8 +128,8 @@ func ParseMessage(data []byte) Message {
 			ControlVar: vars,
 			SequenceId: decodeUint32(seqId),
 		},
-		sourceUuid: string(uuid[:len(uuid)-1]),
-		body:       body,
+		virtualNodeId: string(vnId[:len(vnId)-1]),
+		body:          body,
 	}
 }
 
@@ -159,8 +146,7 @@ func CheckMessage(data []byte) (bool, error) {
 	}
 }
 
-// 创建消息源名称
-func MakeSourceUuid(nodeId, virtualId string) string {
+func MakeVirtualNodeId(nodeId, virtualId string) string {
 	return nodeId + ":" + virtualId
 }
 

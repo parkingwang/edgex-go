@@ -13,7 +13,7 @@ import (
 
 func TestNewMessage(t *testing.T) {
 	body := []byte{FrameEmpty, 0xAA, FrameEmpty, 0xBB, 0xCC, FrameEmpty}
-	newMessage := NewMessageByVirtualId("CHEN", "NODE", body, 2019)
+	newMessage := NewMessageWith("CHEN", "NODE", body, 2019)
 
 	check := func(msg Message) {
 		header := msg.Header()
@@ -29,8 +29,8 @@ func TestNewMessage(t *testing.T) {
 		if header.SequenceId != 2019 || msg.SequenceId() != 2019 {
 			t.Error("SequenceId var not match, was: ", msg.SequenceId())
 		}
-		if MakeSourceUuid("CHEN", "NODE") != msg.SourceUuid() {
-			t.Error("SourceUuid not match, was: ", msg.SourceUuid())
+		if MakeVirtualNodeId("CHEN", "NODE") != msg.VirtualNodeId() {
+			t.Error("VirtualNodeId not match, was: ", msg.VirtualNodeId())
 		}
 		if !bytes.Equal(body, msg.Body()) {
 			t.Error("Body not match, was", hex.EncodeToString(msg.Body()))

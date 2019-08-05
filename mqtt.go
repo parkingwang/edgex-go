@@ -54,19 +54,19 @@ func mqttSendInspectMessage(client mqtt.Client, nodeId string, node MainNodeInfo
 			if "" != vd.Uuid {
 				log.Debugf("VirtualNodeInfo.Uuid 已设置为<%s>，它将被自动覆盖更新", vd.Uuid)
 			}
-			vd.Uuid = MakeSourceUuid(nodeId, vd.VirtualId)
+			vd.Uuid = MakeVirtualNodeId(nodeId, vd.VirtualId)
 		}
 	}
 	data, err := json.Marshal(node)
 	if nil != err {
 		log.Panic("Inspect数据序列化错误", err)
 	}
-	// 发送Inspect消息，其中消息来源为NodeName
+	// 发送Inspect消息，其中消息来源为NodeId
 	token := client.Publish(
 		TopicNodesInspect,
 		0,
 		false,
-		NewMessageByVirtualId(nodeId, nodeId, data, 0).Bytes(),
+		NewMessageWith(nodeId, nodeId, data, 0).Bytes(),
 	)
 	if token.Wait() && nil != token.Error() {
 		log.Error("发送Inspect消息出错", token.Error())

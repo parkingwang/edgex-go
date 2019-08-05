@@ -20,11 +20,11 @@ type NeedMessages interface {
 	// NextMessageSequenceId 返回内部消息流水号
 	NextMessageSequenceId() uint32
 
-	// NextMessageByVirtualId 返回指定虚拟节点ID，基于内部流水号的消息对象
-	NextMessageByVirtualId(virtualNodeId string, body []byte) Message
+	// NextMessageBy 根据指令VirtualId，使用内部NodeId，创建基于内部流水号的消息对象
+	NextMessageBy(virtualId string, body []byte) Message
 
-	// NextMessageBySourceUuid 返回指定源UUID，基于内部流水号的消息对象
-	NextMessageBySourceUuid(sourceUuid string, body []byte) Message
+	// NextMessageOf 根据完整VirtualNodeId，创建基于内部流水号的消息对象
+	NextMessageOf(virtualNodeId string, body []byte) Message
 }
 
 type NeedInspect interface {

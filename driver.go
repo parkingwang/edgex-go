@@ -62,12 +62,12 @@ func (d *driver) NextMessageSequenceId() uint32 {
 	return d.sequenceId
 }
 
-func (d *driver) NextMessageByVirtualId(virtualId string, body []byte) Message {
-	return NewMessageByVirtualId(d.nodeId, virtualId, body, d.NextMessageSequenceId())
+func (d *driver) NextMessageBy(virtualId string, body []byte) Message {
+	return NewMessageWith(d.nodeId, virtualId, body, d.NextMessageSequenceId())
 }
 
-func (d *driver) NextMessageBySourceUuid(sourceUuid string, body []byte) Message {
-	return NewMessageBySourceUuid(sourceUuid, body, d.NextMessageSequenceId())
+func (d *driver) NextMessageOf(virtualNodeId string, body []byte) Message {
+	return NewMessageById(virtualNodeId, body, d.NextMessageSequenceId())
 }
 
 func (d *driver) Startup() {

@@ -53,12 +53,12 @@ func (e *endpoint) NextMessageSequenceId() uint32 {
 	return e.sequenceId
 }
 
-func (e *endpoint) NextMessageByVirtualId(virtualId string, body []byte) Message {
-	return NewMessageByVirtualId(e.nodeId, virtualId, body, e.NextMessageSequenceId())
+func (e *endpoint) NextMessageBy(virtualId string, body []byte) Message {
+	return NewMessageWith(e.nodeId, virtualId, body, e.NextMessageSequenceId())
 }
 
-func (e *endpoint) NextMessageBySourceUuid(sourceUuid string, body []byte) Message {
-	return NewMessageBySourceUuid(sourceUuid, body, e.NextMessageSequenceId())
+func (e *endpoint) NextMessageOf(virtualNodeId string, body []byte) Message {
+	return NewMessageById(virtualNodeId, body, e.NextMessageSequenceId())
 }
 
 func (e *endpoint) Startup() {
@@ -72,8 +72,8 @@ func (e *endpoint) Startup() {
 		// $EdgeX/requests/ MyNodeId / SeqId / Remote调用者节点ID
 		callerNodeId := strings.Split(msg.Topic(), "/")[4]
 		input := ParseMessage(msg.Payload())
-		targetUuid := input.SourceUuid()
-		log.Debugf("接收到控制指令，目标：%s, 来源： %s", targetUuid, callerNodeId)
+		vnId := input.VirtualNodeId()
+		log.Debugf("接收到控制指令，目标：%s, 来源： %s", vnId, callerNodeId)
 		e.mqttRef.Publish(topicOfRepliesSend(e.nodeId, input.SequenceId(), callerNodeId),
 			qos, false,
 			e.handler(input).Bytes())

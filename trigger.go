@@ -64,12 +64,12 @@ func (t *trigger) NextMessageSequenceId() uint32 {
 	return t.sequenceId
 }
 
-func (t *trigger) NextMessageByVirtualId(virtualId string, body []byte) Message {
-	return NewMessageByVirtualId(t.nodeId, virtualId, body, t.NextMessageSequenceId())
+func (t *trigger) NextMessageBy(virtualId string, body []byte) Message {
+	return NewMessageWith(t.nodeId, virtualId, body, t.NextMessageSequenceId())
 }
 
-func (t *trigger) NextMessageBySourceUuid(sourceUuid string, body []byte) Message {
-	return NewMessageBySourceUuid(sourceUuid, body, t.NextMessageSequenceId())
+func (t *trigger) NextMessageOf(virtualNodeId string, body []byte) Message {
+	return NewMessageById(virtualNodeId, body, t.NextMessageSequenceId())
 }
 
 func (t *trigger) Startup() {
@@ -111,7 +111,7 @@ func (t *trigger) publish(mqttTopic string, virtualId string, data []byte, qos b
 		mqttTopic,
 		qos,
 		retained,
-		NewMessageByVirtualId(t.nodeId, virtualId, data, t.NextMessageSequenceId()).Bytes())
+		NewMessageWith(t.nodeId, virtualId, data, t.NextMessageSequenceId()).Bytes())
 	if token.Wait() && nil != token.Error() {
 		return errors.WithMessage(token.Error(), "发送事件消息出错")
 	} else {
