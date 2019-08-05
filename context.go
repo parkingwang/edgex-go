@@ -223,7 +223,7 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 	checkRequires(opts.Topic, "Trigger.Topic MUST be specified")
 	checkRequires(opts.AutoInspectFunc, "Trigger.AutoInspectFunc MUST be specified")
 	return &trigger{
-		refMqttClient:   c.mqttClient,
+		mqttRef:         c.mqttClient,
 		globals:         c.globals,
 		topic:           opts.Topic,
 		nodeId:          c.nodeId,
@@ -237,7 +237,7 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	checkRequires(opts.RpcAddr, "Endpoint.RpcAddr MUST be specified")
 	checkRequires(opts.AutoInspectFunc, "Endpoint.AutoInspectFunc MUST be specified")
 	return &endpoint{
-		refMqttClient:   c.mqttClient,
+		mqttRef:         c.mqttClient,
 		globals:         c.globals,
 		nodeId:          c.nodeId,
 		sequenceId:      0,
@@ -251,10 +251,10 @@ func (c *NodeContext) NewDriver(opts DriverOptions) Driver {
 	c.checkInit()
 	checkRequires(opts.Topics, "Driver.Topics MUST be specified")
 	return &driver{
-		refMqttClient: c.mqttClient,
-		globals:       c.globals,
-		nodeId:        c.nodeId,
-		topics:        opts.Topics,
+		mqttRef: c.mqttClient,
+		globals: c.globals,
+		nodeId:  c.nodeId,
+		topics:  opts.Topics,
 	}
 }
 

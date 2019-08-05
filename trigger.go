@@ -49,7 +49,7 @@ type trigger struct {
 	// MainNodeInfo 消息生产函数
 	autoInspectFunc func() MainNodeInfo
 	// MQTT
-	refMqttClient mqtt.Client
+	mqttRef mqtt.Client
 	// Shutdown
 	shutdownContext context.Context
 	shutdownCancel  context.CancelFunc
@@ -86,7 +86,7 @@ func (t *trigger) Startup() {
 }
 
 func (t *trigger) PublishInspect(node MainNodeInfo) {
-	mqttSendInspectMessage(t.refMqttClient, t.nodeId, node)
+	mqttSendInspectMessage(t.mqttRef, t.nodeId, node)
 }
 
 func (t *trigger) PublishEvent(virtualId string, data []byte) error {
@@ -107,7 +107,7 @@ func (t *trigger) PublishValueWith(virtualId string, data []byte, qos uint8, ret
 
 func (t *trigger) publish(mqttTopic string, virtualId string, data []byte, qos byte, retained bool) error {
 	// 构建完整的设备名称
-	token := t.refMqttClient.Publish(
+	token := t.mqttRef.Publish(
 		mqttTopic,
 		qos,
 		retained,
