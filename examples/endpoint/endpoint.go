@@ -23,10 +23,10 @@ func main() {
 		endpoint := ctx.NewEndpoint(opts)
 
 		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			sid := in.SourceNodeId()
+			sid := in.SourceUuid()
 			body := string(in.Body())
-			ctx.Log().Debugf("接收到数据, SourceNodeId: %s, Body: %s ", sid, body)
-			return endpoint.NextMessage("ABCD", []byte("ECHO"))
+			ctx.Log().Debugf("接收到数据, SourceUuid: %s, Body: %s ", sid, body)
+			return endpoint.NextMessageByVirtualId("ABCD", []byte("ECHO"))
 		})
 
 		endpoint.Startup()

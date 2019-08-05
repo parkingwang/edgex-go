@@ -52,15 +52,15 @@ func main() {
 				execStart := time.Now()
 				rep, err := driver.Execute(
 					testEndpointAddr,
-					driver.NextMessage(ctx.NodeName(), []byte(fmt.Sprintf("%v", time.Now().UnixNano()))),
+					driver.NextMessageByVirtualId(ctx.NodeName(), []byte(fmt.Sprintf("%v", time.Now().UnixNano()))),
 					time.Second)
 				if nil != err {
 					ctx.Log().Error("ScheduleExecute发生错误: ", err)
 				} else {
 					ctx.Log().Debug("ScheduleExecute用时: ", time.Since(execStart))
-					sid := rep.SourceNodeId()
+					sid := rep.SourceUuid()
 					body := string(rep.Body())
-					ctx.Log().Debug("SourceNodeId: " + sid + ", Body: " + body)
+					ctx.Log().Debug("SourceUuid: " + sid + ", Body: " + body)
 				}
 
 			case <-ctx.TermChan():

@@ -38,8 +38,8 @@ type Message interface {
 	// Header 返回消息的Header
 	Header() Header
 
-	// SourceNodeId 返回消息来源节点的ID
-	SourceNodeId() string
+	// SourceUuid 返回消息来源节点的ID
+	SourceUuid() string
 
 	// SequenceId 返回消息Id
 	SequenceId() uint32
@@ -55,13 +55,13 @@ type Message interface {
 
 type message struct {
 	Message
-	header       *Header
-	sourceNodeId string
-	body         []byte
+	header     *Header
+	sourceUuid string
+	body       []byte
 }
 
-func (m *message) SourceNodeId() string {
-	return m.sourceNodeId
+func (m *message) SourceUuid() string {
+	return m.sourceUuid
 }
 
 func (m *message) Header() Header {
@@ -82,14 +82,14 @@ func (m *message) Bytes() []byte {
 	buf.WriteByte(m.header.Version)
 	buf.WriteByte(m.header.ControlVar)
 	buf.Write(encodeUint32(m.header.SequenceId))
-	buf.WriteString(m.sourceNodeId)
+	buf.WriteString(m.sourceUuid)
 	buf.WriteByte(FrameEmpty)
 	buf.Write(m.body)
 	return buf.Bytes()
 }
 
 // 创建消息对象
-func NewMessageWithId(nodeName, virtualNodeId string, bodyBytes []byte, seqId uint32) Message {
+func NewMessageBySourceUuid(sourceUuid string, bodyBytes []byte, seqId uint32) Message {
 	return &message{
 		header: &Header{
 			Magic:      FrameMagic,
@@ -97,9 +97,14 @@ func NewMessageWithId(nodeName, virtualNodeId string, bodyBytes []byte, seqId ui
 			ControlVar: FrameVarData,
 			SequenceId: seqId,
 		},
-		sourceNodeId: MakeMessageSourceId(nodeName, virtualNodeId),
-		body:         bodyBytes,
+		sourceUuid: sourceUuid,
+		body:       bodyBytes,
 	}
+}
+
+// 创建消息对象
+func NewMessageByVirtualId(nodeName, virtualNodeId string, bodyBytes []byte, seqId uint32) Message {
+	return NewMessageBySourceUuid(MakeSourceUuid(nodeName, virtualNodeId), bodyBytes, seqId)
 }
 
 // 创建控制消息
@@ -111,8 +116,8 @@ func newControlMessageWithId(nodeName, virtualNodeId string, ctrlVar byte, seqId
 			ControlVar: ctrlVar,
 			SequenceId: seqId,
 		},
-		sourceNodeId: MakeMessageSourceId(nodeName, virtualNodeId),
-		body:         []byte{},
+		sourceUuid: MakeSourceUuid(nodeName, virtualNodeId),
+		body:       []byte{},
 	}
 }
 
@@ -138,8 +143,8 @@ func ParseMessage(data []byte) Message {
 			ControlVar: vars,
 			SequenceId: decodeUint32(seqId),
 		},
-		sourceNodeId: string(name[:len(name)-1]),
-		body:         body,
+		sourceUuid: string(name[:len(name)-1]),
+		body:       body,
 	}
 }
 
@@ -157,7 +162,7 @@ func CheckMessage(data []byte) (bool, error) {
 }
 
 // 创建消息源名称
-func MakeMessageSourceId(nodeName, virtualNodeId string) string {
+func MakeSourceUuid(nodeName, virtualNodeId string) string {
 	return nodeName + ":" + virtualNodeId
 }
 

@@ -14,8 +14,9 @@ import (
 //
 
 type Driver interface {
-	Lifecycle
-	NodeName
+	NeedLifecycle
+	NeedNodeName
+	NeedMessages
 
 	// Process 处理消息
 	Process(func(event Message))
@@ -26,12 +27,6 @@ type Driver interface {
 	// Hello 发起一个同步Hello消息，并获取响应消息。通常使用此函数来触发gRPC创建并预热两个节点之间的连接。
 	// Hello 函数调用的是Execute函数，发送Ping消息，返回消息为Pong消息。
 	Hello(endpointAddr string, timeout time.Duration) error
-
-	// NextSequenceId 返回流水号
-	NextSequenceId() uint32
-
-	// 基于内部流水号创建消息对象
-	NextMessage(virtualNodeId string, body []byte) Message
 }
 
 type DriverOptions struct {
@@ -56,13 +51,17 @@ func (d *driver) NodeName() string {
 	return d.nodeName
 }
 
-func (d *driver) NextSequenceId() uint32 {
+func (d *driver) NextMessageSequenceId() uint32 {
 	d.sequenceId = (d.sequenceId + 1) % math.MaxUint32
 	return d.sequenceId
 }
 
-func (d *driver) NextMessage(virtualNodeId string, body []byte) Message {
-	return NewMessageWithId(d.nodeName, virtualNodeId, body, d.NextSequenceId())
+func (d *driver) NextMessageByVirtualId(virtualNodeId string, body []byte) Message {
+	return NewMessageByVirtualId(d.nodeName, virtualNodeId, body, d.NextMessageSequenceId())
+}
+
+func (d *driver) NextMessageBySourceUuid(sourceUuid string, body []byte) Message {
+	return NewMessageBySourceUuid(sourceUuid, body, d.NextMessageSequenceId())
 }
 
 func (d *driver) Startup() {

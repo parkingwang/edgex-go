@@ -56,7 +56,7 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, node MainNode) 
 			if "" != vd.Uuid {
 				log.Debugf("VirtualNode.Uuid已设置为<%s>，它将被自动覆盖更新", vd.Uuid)
 			}
-			vd.Uuid = MakeMessageSourceId(nodeName, vd.NodeId)
+			vd.Uuid = MakeSourceUuid(nodeName, vd.NodeId)
 		}
 		// gRpc地址
 		if ok {
@@ -72,7 +72,7 @@ func mqttSendInspectMessage(client mqtt.Client, nodeName string, node MainNode) 
 		tNodesInspect,
 		0,
 		false,
-		NewMessageWithId(nodeName, nodeName, data, 0).Bytes(),
+		NewMessageByVirtualId(nodeName, nodeName, data, 0).Bytes(),
 	)
 	if token.Wait() && nil != token.Error() {
 		log.Error("发送Inspect消息出错", token.Error())

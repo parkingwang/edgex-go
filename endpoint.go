@@ -21,20 +21,12 @@ var (
 
 // Endpoint是接收、处理，并返回结果的可控制终端节点。
 type Endpoint interface {
-	Lifecycle
-	NodeName
+	NeedLifecycle
+	NeedNodeName
+	NeedMessages
 
 	// 处理RPC消息，返回处理结果
 	Serve(func(in Message) (out Message))
-
-	// NextSequenceId 返回流水号
-	NextSequenceId() uint32
-
-	// 返回指定虚拟节点ID，基于内部流水号的消息对象
-	NextMessage(virtualNodeId string, body []byte) Message
-
-	// 返回节点的响应消息，基于内部流水号
-	NextNodeMessage(body []byte) Message
 
 	// 发布Inspect消息
 	PublishInspectMessage(node MainNode)
@@ -71,17 +63,17 @@ func (e *endpoint) NodeName() string {
 	return e.nodeName
 }
 
-func (e *endpoint) NextSequenceId() uint32 {
+func (e *endpoint) NextMessageSequenceId() uint32 {
 	e.sequenceId = (e.sequenceId + 1) % math.MaxUint32
 	return e.sequenceId
 }
 
-func (e *endpoint) NextMessage(virtualNodeId string, body []byte) Message {
-	return NewMessageWithId(e.nodeName, virtualNodeId, body, e.NextSequenceId())
+func (e *endpoint) NextMessageByVirtualId(virtualNodeId string, body []byte) Message {
+	return NewMessageByVirtualId(e.nodeName, virtualNodeId, body, e.NextMessageSequenceId())
 }
 
-func (e *endpoint) NextNodeMessage(body []byte) Message {
-	return e.NextMessage(e.nodeName, body)
+func (e *endpoint) NextMessageBySourceUuid(sourceUuid string, body []byte) Message {
+	return NewMessageBySourceUuid(sourceUuid, body, e.NextMessageSequenceId())
 }
 
 func (e *endpoint) Startup() {
@@ -93,7 +85,7 @@ func (e *endpoint) Startup() {
 		serialExecution: e.serialExecuting,
 		serialLock:      new(sync.Mutex),
 		handler:         e.handler,
-		nextSequenceId:  e.NextSequenceId,
+		nextSequenceId:  e.NextMessageSequenceId,
 	})
 	// gRpc Serve
 	go func() {

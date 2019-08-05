@@ -13,8 +13,9 @@ import (
 
 // Trigger 触发器，用于产生事件
 type Trigger interface {
-	Lifecycle
-	NodeName
+	NeedLifecycle
+	NeedNodeName
+	NeedMessages
 
 	// PublishEvent 发送Event消息。发送消息的QoS使用默认设置。
 	PublishEvent(virtualNodeId string, data []byte) error
@@ -30,12 +31,6 @@ type Trigger interface {
 
 	// 发布Inspect消息
 	PublishInspect(node MainNode)
-
-	// NextSequenceId 返回流水号
-	NextSequenceId() uint32
-
-	// 基于内部流水号创建消息对象
-	NextMessage(virtualNodeId string, body []byte) Message
 }
 
 type TriggerOptions struct {
@@ -66,13 +61,17 @@ func (t *trigger) NodeName() string {
 	return t.nodeName
 }
 
-func (t *trigger) NextSequenceId() uint32 {
+func (t *trigger) NextMessageSequenceId() uint32 {
 	t.sequenceId = (t.sequenceId + 1) % math.MaxUint32
 	return t.sequenceId
 }
 
-func (t *trigger) NextMessage(virtualNodeId string, body []byte) Message {
-	return NewMessageWithId(t.nodeName, virtualNodeId, body, t.NextSequenceId())
+func (t *trigger) NextMessageByVirtualId(virtualNodeId string, body []byte) Message {
+	return NewMessageByVirtualId(t.nodeName, virtualNodeId, body, t.NextMessageSequenceId())
+}
+
+func (t *trigger) NextMessageBySourceUuid(sourceUuid string, body []byte) Message {
+	return NewMessageBySourceUuid(sourceUuid, body, t.NextMessageSequenceId())
 }
 
 func (t *trigger) Startup() {
@@ -114,7 +113,7 @@ func (t *trigger) publish(topic string, virtualNodeId string, data []byte, qos b
 		topic,
 		qos,
 		retained,
-		NewMessageWithId(t.nodeName, virtualNodeId, data, t.NextSequenceId()).Bytes())
+		NewMessageByVirtualId(t.nodeName, virtualNodeId, data, t.NextMessageSequenceId()).Bytes())
 	if token.Wait() && nil != token.Error() {
 		return errors.WithMessage(token.Error(), "发送事件消息出错")
 	} else {
