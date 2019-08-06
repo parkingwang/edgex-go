@@ -29,7 +29,6 @@ func main() {
 		ctx.Log().Debugf("创建Trigger节点: [%s]", nodeId)
 
 		timer := time.NewTicker(time.Millisecond * 10)
-		defer timer.Stop()
 
 		for {
 			select {
@@ -40,6 +39,7 @@ func main() {
 				}
 
 			case <-ctx.TermChan():
+				timer.Stop()
 				return nil
 			}
 		}

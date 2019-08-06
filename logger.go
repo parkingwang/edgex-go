@@ -25,7 +25,7 @@ var _ZapLoggerConfig = zap.Config{
 		EncodeDuration: zapcore.StringDurationEncoder,
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	},
-	OutputPaths:      []string{"stderr"},
+	OutputPaths:      []string{"stdout"},
 	ErrorOutputPaths: []string{"stderr"},
 }
 

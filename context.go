@@ -55,6 +55,7 @@ type Context interface {
 	TermChan() <-chan os.Signal
 
 	// TermAwait 阻塞等待系统中断退出信号
+	// 返回Error永远为nil，用于返回上层error接口
 	TermAwait() error
 }
 
@@ -123,9 +124,14 @@ type NodeContext struct {
 	globals    *Globals
 	nodeId     string
 	mqttClient mqtt.Client
+	signals    chan os.Signal
 }
 
 func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
+	// Signals
+	c.signals = make(chan os.Signal, 1)
+	signal.Notify(c.signals, syscall.SIGTERM, syscall.SIGINT)
+
 	c.nodeId = value.ToString(config["NodeId"])
 	checkIdFormat("NodeId", c.nodeId)
 	// Globals设置
@@ -252,14 +258,12 @@ func (c *NodeContext) NewDriver(opts DriverOptions) Driver {
 }
 
 func (c *NodeContext) TermChan() <-chan os.Signal {
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
-	signal.Ignore(syscall.SIGPIPE)
-	return sig
+	return c.signals
 }
 
 func (c *NodeContext) TermAwait() error {
-	<-c.TermChan()
+	s := <-c.TermChan()
+	log.Debugf("接收到系统终止信号: %v", s)
 	return nil
 }
 

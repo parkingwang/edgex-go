@@ -63,6 +63,7 @@ func main() {
 				}
 
 			case <-ctx.TermChan():
+				log.Debug("接收到系统终止信号")
 				timer.Stop()
 				return nil
 			}
