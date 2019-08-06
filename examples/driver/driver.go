@@ -45,7 +45,7 @@ func main() {
 		driver.Startup()
 		defer driver.Shutdown()
 
-		timer := time.NewTicker(time.Second)
+		timer := time.NewTicker(time.Millisecond)
 		for {
 			select {
 			case <-timer.C:

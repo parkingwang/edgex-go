@@ -116,7 +116,7 @@ func (d *driver) Startup() {
 	// 接收Replies
 	d.router = &router{
 		lock:     new(sync.Mutex),
-		handlers: make(map[string]func(Message) bool),
+		registry: make(map[string][]routerHandler),
 	}
 	rToken := d.mqttRef.Subscribe(topicOfRepliesListen(d.nodeId), 0, func(cli mqtt.Client, msg mqtt.Message) {
 		if d.globals.LogVerbose {
@@ -254,26 +254,40 @@ func (s *stats) toJSONString() []byte {
 
 ////////
 
+type routerHandler func(Message) bool
+
 // 消息路由
 type router struct {
 	lock     *sync.Mutex
-	handlers map[string]func(Message) bool
+	registry map[string][]routerHandler
 }
 
 func (r *router) dispatchThenRemove(mqttMsg mqtt.Message) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	t := mqttMsg.Topic()
+
+	topic := mqttMsg.Topic()
 	msg := ParseMessage(mqttMsg.Payload())
-	if handler, ok := r.handlers[t]; ok {
-		if handler(msg) {
-			delete(r.handlers, t)
+	if hs, ok := r.registry[topic]; ok {
+		remains := make([]routerHandler, 0)
+		for _, handler := range hs {
+			if !handler(msg) {
+				remains = append(remains, handler)
+			}
+		}
+		if 0 == len(remains) {
+			delete(r.registry, topic)
 		}
 	}
 }
 
-func (r *router) addFilter(topic string, handler func(Message) bool) {
+func (r *router) addFilter(topic string, handler routerHandler) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	r.handlers[topic] = handler
+	if hs, ok := r.registry[topic]; ok {
+		r.registry[topic] = append(hs, handler)
+	} else {
+		r.registry[topic] = []routerHandler{handler}
+	}
+
 }
