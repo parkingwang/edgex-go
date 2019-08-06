@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/eclipse/paho.mqtt.golang"
 	"math"
-	"strings"
 )
 
 //
@@ -19,7 +18,7 @@ type Endpoint interface {
 	NeedInspect
 
 	// 处理RPC消息，返回处理结果
-	Serve(func(in Message) (out Message))
+	Serve(func(in Message) (out []byte))
 }
 
 type EndpointOptions struct {
@@ -30,13 +29,13 @@ type EndpointOptions struct {
 
 type endpoint struct {
 	Endpoint
-	nodeId          string
-	globals         *Globals
-	sequenceId      uint32
-	serialExecuting bool
+	nodeId     string
+	globals    *Globals
+	sequenceId uint32
 	// MainNodeInfo
 	autoInspectFunc func() MainNodeInfo
-	handler         func(in Message) (out Message)
+	// Rpc
+	rpcHandler func(in Message) (out []byte)
 	// MQTT
 	mqttRef mqtt.Client
 	// Shutdown
@@ -66,17 +65,23 @@ func (e *endpoint) Startup() {
 	// 监听Endpoint异步RPC事件
 	qos := e.globals.MqttQoS
 	listenTopic := topicOfRequestListen(e.nodeId)
-	log.Debugf("监听控制指令Topic: %s", listenTopic)
+	log.Debugf("Mqtt客户端：EndpointListenTopic= %s", listenTopic)
 	e.mqttRef.Subscribe(listenTopic, qos, func(cli mqtt.Client, msg mqtt.Message) {
-		// 控制指令的Topic格式，已由Subscription确保其格式：
-		// $EdgeX/requests/ MyNodeId / SeqId / Remote调用者节点ID
-		callerNodeId := strings.Split(msg.Topic(), "/")[4]
+		callerNodeId := topicToRequestCaller(msg.Topic())
 		input := ParseMessage(msg.Payload())
-		vnId := input.VirtualNodeId()
-		log.Debugf("接收到控制指令，目标：%s, 来源： %s", vnId, callerNodeId)
-		e.mqttRef.Publish(topicOfRepliesSend(e.nodeId, input.SequenceId(), callerNodeId),
+		inVnId := input.VirtualNodeId()
+		inSeqId := input.SequenceId()
+		if e.globals.LogVerbose {
+			log.Debugf("接收到控制指令，目标：%s, 来源： %s, 流水号：%d",
+				inVnId, callerNodeId, inSeqId)
+		}
+		body := e.rpcHandler(input)
+		// 确保SequenceId，与Input的相同
+		output := NewMessageById(inVnId, body, inSeqId)
+		e.mqttRef.Publish(
+			topicOfRepliesSend(e.nodeId, callerNodeId),
 			qos, false,
-			e.handler(input).Bytes())
+			output.Bytes())
 	})
 	// 定时发送Inspect消息
 	if nil != e.autoInspectFunc {
@@ -94,6 +99,6 @@ func (e *endpoint) Shutdown() {
 	e.shutdownCancel()
 }
 
-func (e *endpoint) Serve(h func(in Message) (out Message)) {
-	e.handler = h
+func (e *endpoint) Serve(h func(in Message) (out []byte)) {
+	e.rpcHandler = h
 }

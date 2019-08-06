@@ -1,7 +1,6 @@
 package edgex
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -18,9 +17,11 @@ const (
 	prefixReplies  = "$EdgeX/replies/"
 
 	TopicSubscribeNodesInspect = prefixNodes + "inspect"
-	TopicSubscribeNodesOffline = prefixNodes + "offline/#"
+	TopicSubscribeNodesOffline = prefixNodes + "offline"
 	TopicSubscribeNodesEvents  = prefixEvents + "#"
 	TopicSubscribeNodesValues  = prefixValues + "#"
+
+	TopicPublishNodesOffline = TopicSubscribeNodesOffline
 )
 
 func topicOfEvents(topic string) string {
@@ -38,34 +39,38 @@ func topicOfStats(topic string) string {
 	return prefixStats + topic
 }
 
-func topicOfRequestSend(executorNodeId string, seqId uint32, callerNodeId string) string {
-	return fmt.Sprintf(prefixRequests+"%s/%d/%s", executorNodeId, seqId, callerNodeId)
+func topicOfRequestSend(executorNodeId, callerNodeId string) string {
+	// prefix / ExecutorNodeId / CallerNodeId
+	return prefixRequests + executorNodeId + "/" + callerNodeId
 }
 
-func topicOfRequestListen(nodeId string) string {
-	return fmt.Sprintf(prefixRequests+"%s/+/+", nodeId)
+func topicToRequestCaller(topic string) string {
+	// prefix / ExecutorNodeId / CallerNodeId
+	idx := strings.LastIndex(topic, "/")
+	return topic[idx+1:]
 }
 
-func topicOfRepliesSend(executorNodeId string, seqId uint32, callerNodeId string) string {
-	return fmt.Sprintf(prefixReplies+"%s/%d/%s", callerNodeId, seqId, executorNodeId)
+func topicOfRequestListen(callerNodeId string) string {
+	return prefixRequests + callerNodeId + "/+"
 }
 
-func topicOfRepliesFilter(executorNodeId string, seqId uint32, callerNodeId string) string {
-	return topicOfRepliesSend(executorNodeId, seqId, callerNodeId)
+func topicOfRepliesSend(executorNodeId, callerNodeId string) string {
+	// prefix / CallerNodeId / ExecutorNodeId
+	return prefixReplies + callerNodeId + "/" + executorNodeId
+}
+
+func topicOfRepliesFilter(executorNodeId, callerNodeId string) string {
+	return topicOfRepliesSend(executorNodeId, callerNodeId)
 }
 
 func topicOfRepliesListen(callerNodeId string) string {
-	return fmt.Sprintf(prefixReplies+"%s/+/+", callerNodeId)
+	return prefixReplies + callerNodeId + "/+"
 }
 
 func checkTopic(topic string) {
 	if strings.HasPrefix(topic, "/") {
 		log.Panicf("Topic MUST NOT starts with '/', was: %s", topic)
 	}
-}
-
-func topicOfOffline(typeName, name string) string {
-	return fmt.Sprintf(prefixNodes+"offline/%s/%s", typeName, name)
 }
 
 func unwrapEdgeXTopic(mqttRawTopic string) string {

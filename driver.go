@@ -99,7 +99,7 @@ func (d *driver) Startup() {
 		d.mqttListenTopics[t] = 0
 	}
 	for t, _ := range d.mqttListenTopics {
-		log.Info("开启监听事件: QoS= 0, Topic= " + t)
+		log.Info("Mqtt客户端：监听事件，QoS= 0, Topic= " + t)
 	}
 	mToken := d.mqttRef.SubscribeMultiple(d.mqttListenTopics, func(cli mqtt.Client, msg mqtt.Message) {
 		frame := msg.Payload()
@@ -116,10 +116,12 @@ func (d *driver) Startup() {
 	// 接收Replies
 	d.router = &router{
 		lock:     new(sync.Mutex),
-		handlers: make(map[string]func(mqtt.Message)),
+		handlers: make(map[string]func(Message) bool),
 	}
 	rToken := d.mqttRef.Subscribe(topicOfRepliesListen(d.nodeId), 0, func(cli mqtt.Client, msg mqtt.Message) {
-		log.Debug("接收到RPC响应，Topic: " + msg.Topic())
+		if d.globals.LogVerbose {
+			log.Debug("接收到RPC响应，Topic: " + msg.Topic())
+		}
 		d.router.dispatchThenRemove(msg)
 	})
 	if rToken.Wait() && nil != rToken.Error() {
@@ -168,7 +170,7 @@ func (d *driver) Call(remoteNodeId string, in Message, callback func(out Message
 	log.Debug("MQ_RPC调用Endpoint.NodeId: ", remoteNodeId)
 	// 发送Request消息
 	token := d.mqttRef.Publish(
-		topicOfRequestSend(remoteNodeId, in.SequenceId(), d.nodeId),
+		topicOfRequestSend(remoteNodeId, d.nodeId),
 		d.globals.MqttQoS, false,
 		in.Bytes())
 	if token.Wait() && nil != token.Error() {
@@ -176,9 +178,14 @@ func (d *driver) Call(remoteNodeId string, in Message, callback func(out Message
 		callback(nil, token.Error())
 	} else {
 		// 通过MQTT的Router来过滤订阅事件
-		topic := topicOfRepliesFilter(remoteNodeId, in.SequenceId(), d.nodeId)
-		d.router.register(topic, func(msg mqtt.Message) {
-			callback(ParseMessage(msg.Payload()), nil)
+		topic := topicOfRepliesFilter(remoteNodeId, d.nodeId)
+		// 过滤相同ID的消息
+		d.router.addFilter(topic, func(out Message) bool {
+			match := in.SequenceId() == out.SequenceId()
+			if match {
+				callback(out, nil)
+			}
+			return match
 		})
 	}
 }
@@ -250,20 +257,22 @@ func (s *stats) toJSONString() []byte {
 // 消息路由
 type router struct {
 	lock     *sync.Mutex
-	handlers map[string]func(msg mqtt.Message)
+	handlers map[string]func(Message) bool
 }
 
-func (r *router) dispatchThenRemove(msg mqtt.Message) {
+func (r *router) dispatchThenRemove(mqttMsg mqtt.Message) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	t := msg.Topic()
+	t := mqttMsg.Topic()
+	msg := ParseMessage(mqttMsg.Payload())
 	if handler, ok := r.handlers[t]; ok {
-		delete(r.handlers, t)
-		handler(msg)
+		if handler(msg) {
+			delete(r.handlers, t)
+		}
 	}
 }
 
-func (r *router) register(topic string, handler func(msg mqtt.Message)) {
+func (r *router) addFilter(topic string, handler func(Message) bool) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.handlers[topic] = handler

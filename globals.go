@@ -25,4 +25,6 @@ type Globals struct {
 	MqttCleanSession      bool
 	MqttMaxRetry          int
 	MqttQuitMillSec       uint
+	//
+	LogVerbose bool
 }

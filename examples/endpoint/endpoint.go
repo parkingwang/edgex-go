@@ -21,8 +21,8 @@ func main() {
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
-		endpoint.Serve(func(in edgex.Message) (out edgex.Message) {
-			return endpoint.NextMessageOf(in.VirtualNodeId(), []byte("ECHO"))
+		endpoint.Serve(func(in edgex.Message) (out []byte) {
+			return []byte("ECHO")
 		})
 
 		endpoint.Startup()

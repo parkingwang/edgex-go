@@ -24,6 +24,12 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 		opts.Username = scoped.MqttUsername
 		opts.Password = scoped.MqttPassword
 	}
+	opts.SetConnectionLostHandler(func(client mqtt.Client, err error) {
+		log.Error("Mqtt客户端：丢失连接（" + err.Error() + ")")
+	})
+	opts.SetOnConnectHandler(func(client mqtt.Client) {
+		log.Debug("Mqtt客户端：已连接")
+	})
 }
 
 ////

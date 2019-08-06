@@ -62,17 +62,15 @@ const (
 	EnvKeyMQBroker       = "EDGEX_MQTT_BROKER"
 	EnvKeyMQUsername     = "EDGEX_MQTT_USERNAME"
 	EnvKeyMQPassword     = "EDGEX_MQTT_PASSWORD"
-	EnvKeyMQQOS          = "EDGEX_MQTT_QOS"
+	EnvKeyMQQoS          = "EDGEX_MQTT_QOS"
 	EnvKeyMQRetained     = "EDGEX_MQTT_RETAINED"
 	EnvKeyMQCleanSession = "EDGEX_MQTT_CLEAN_SESSION"
 	EnvKeyConfig         = "EDGEX_CONFIG"
 	EnvKeyLogVerbose     = "EDGEX_LOG_VERBOSE"
-	EnvKeyGrpcAddress    = "EDGEX_GRPC_ADDRESS"
 
-	MqttBrokerDefault = "tcp://mqtt-broker.edgex.io:1883"
-
-	DefaultConfName = "application.toml"
-	DefaultConfDir  = "/etc/edgex/"
+	DefaultMqttBroker = "tcp://mqtt-broker.edgex.io:1883"
+	DefaultConfName   = "application.toml"
+	DefaultConfDir    = "/etc/edgex/"
 )
 
 var (
@@ -102,10 +100,10 @@ func CreateContext(globals *Globals) Context {
 // CreateDefaultContext 从环境变量中读取 Globals 参数，并创建返回Context对象。
 func CreateDefaultContext() Context {
 	return CreateContext(&Globals{
-		MqttBroker:            EnvGetString(EnvKeyMQBroker, MqttBrokerDefault),
+		MqttBroker:            EnvGetString(EnvKeyMQBroker, DefaultMqttBroker),
 		MqttUsername:          EnvGetString(EnvKeyMQUsername, ""),
 		MqttPassword:          EnvGetString(EnvKeyMQPassword, ""),
-		MqttQoS:               uint8(EnvGetInt64(EnvKeyMQQOS, 1)),
+		MqttQoS:               uint8(EnvGetInt64(EnvKeyMQQoS, 0)),
 		MqttRetained:          EnvGetBoolean(EnvKeyMQRetained, false),
 		MqttCleanSession:      EnvGetBoolean(EnvKeyMQCleanSession, true),
 		MqttKeepAlive:         time.Second * 3,
@@ -115,6 +113,7 @@ func CreateDefaultContext() Context {
 		MqttAutoReconnect:     true,
 		MqttMaxRetry:          120,
 		MqttQuitMillSec:       500,
+		LogVerbose:            EnvGetBoolean(EnvKeyLogVerbose, false),
 	})
 }
 
@@ -122,7 +121,6 @@ func CreateDefaultContext() Context {
 
 type NodeContext struct {
 	globals    *Globals
-	logVerbose bool
 	nodeId     string
 	mqttClient mqtt.Client
 }
@@ -134,7 +132,7 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	if globals, ok := value.ToMap(config["Globals"]); ok {
 		// 其它全局配置
 		if flag, ok := value.ToBool(globals["LogVerbose"]); ok {
-			c.logVerbose = flag
+			c.globals.LogVerbose = flag
 		}
 		// MQTT配置
 		if str, ok := value.ToStringB(globals["MqttBroker"]); ok {
@@ -181,18 +179,16 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	opts := mqtt.NewClientOptions()
 	clientId := fmt.Sprintf("%s:%s", MqttClientIdHeader, c.nodeId)
 	opts.SetClientID(clientId)
-	opts.SetWill(topicOfOffline(MqttClientIdHeader, c.nodeId), "offline", 1, true)
+	opts.SetWill(TopicPublishNodesOffline, c.nodeId, 0, true)
 	mqttSetOptions(opts, c.globals)
 	c.mqttClient = mqtt.NewClient(opts)
-	log.Info("Mqtt客户端连接Broker: ", c.globals.MqttBroker)
+	log.Infof("Mqtt客户端：Broker= %s，ClientId= %s", c.globals.MqttBroker, clientId)
 
 	// 连续重试
 	mqttAwaitConnection(c.mqttClient, c.globals.MqttMaxRetry)
 
 	if !c.mqttClient.IsConnected() {
 		log.Panic("Mqtt客户端连接无法连接Broker")
-	} else {
-		log.Info("Mqtt客户端连接成功：" + clientId)
 	}
 }
 
@@ -272,7 +268,7 @@ func (c *NodeContext) Log() *zap.SugaredLogger {
 }
 
 func (c *NodeContext) LogIfVerbose(fn func(log *zap.SugaredLogger)) {
-	if c.logVerbose {
+	if c.globals.LogVerbose {
 		fn(log)
 	}
 }
@@ -283,10 +279,9 @@ func (c *NodeContext) checkInit() {
 	}
 }
 
-func newContext(global *Globals) Context {
+func newContext(globals *Globals) Context {
 	return &NodeContext{
-		globals:    global,
-		logVerbose: EnvGetBoolean(EnvKeyLogVerbose, false),
+		globals: globals,
 	}
 }
 
