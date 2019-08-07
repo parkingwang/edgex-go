@@ -1,6 +1,7 @@
 package edgex
 
 import (
+	"container/list"
 	"context"
 	"errors"
 	"fmt"
@@ -29,13 +30,22 @@ type Driver interface {
 	Process(DriverHandler)
 
 	// 发送MQTT消息
-	Publish(mqttTopic string, msg Message, qos uint8, retained bool)
+	PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error
+
+	// 发送Event消息
+	PublishEvent(topic string, message Message) error
+
+	// 发送Value消息
+	PublishValue(topic string, message Message) error
+
+	// 发送Stats消息
+	PublishStats(message Message) error
 
 	// Execute 发起一个同步消息请求
 	Execute(remoteNodeId string, in Message, timeout time.Duration) (out Message, err error)
 
 	// Call 发起一个异步请求
-	Call(remoteNodeId string, in Message, callback func(out Message, err error))
+	Call(remoteNodeId string, in Message, future chan<- Message) error
 }
 
 type DriverOptions struct {
@@ -55,6 +65,7 @@ type driver struct {
 	// Stats
 	stats       *stats
 	statsTicker *time.Ticker
+	statsTopic  string
 	// MQTT
 	mqttRef mqtt.Client
 	// Topics
@@ -101,7 +112,7 @@ func (d *driver) Startup() {
 	for t, _ := range d.mqttListenTopics {
 		log.Info("Mqtt客户端：监听事件，QoS= 0, Topic= " + t)
 	}
-	mToken := d.mqttRef.SubscribeMultiple(d.mqttListenTopics, func(cli mqtt.Client, msg mqtt.Message) {
+	mulToken := d.mqttRef.SubscribeMultiple(d.mqttListenTopics, func(cli mqtt.Client, msg mqtt.Message) {
 		frame := msg.Payload()
 		if ok, err := CheckMessage(frame); !ok {
 			log.Error("消息格式异常: ", err)
@@ -110,36 +121,37 @@ func (d *driver) Startup() {
 			d.mqttListenWorker(topic, ParseMessage(frame))
 		}
 	})
-	if mToken.Wait() && nil != mToken.Error() {
-		log.Error("监听TRIGGER事件出错：", mToken.Error())
+	if mulToken.Wait() && nil != mulToken.Error() {
+		log.Panic("监听TRIGGER事件出错：", mulToken.Error())
 	}
 	// 接收Replies
 	d.router = &router{
-		lock:     new(sync.Mutex),
-		registry: make(map[string][]routerHandler),
+		lock:       new(sync.Mutex),
+		registries: make(map[string]*list.List),
 	}
-	rToken := d.mqttRef.Subscribe(topicOfRepliesListen(d.nodeId), 0, func(cli mqtt.Client, msg mqtt.Message) {
-		if d.globals.LogVerbose {
-			log.Debug("接收到RPC响应，Topic: " + msg.Topic())
-		}
-		d.router.dispatchThenRemove(msg)
-	})
-	if rToken.Wait() && nil != rToken.Error() {
-		log.Error("监听RPC事件出错：", rToken.Error())
+	subToken := d.mqttRef.Subscribe(
+		topicOfRepliesListen(d.nodeId), 0,
+		func(cli mqtt.Client, msg mqtt.Message) {
+			if d.globals.LogVerbose {
+				log.Debug("接收到RPC响应，Topic: " + msg.Topic())
+			}
+			d.router.dispatch(msg)
+		})
+	if subToken.Wait() && nil != subToken.Error() {
+		log.Panic("监听RPC事件出错：", subToken.Error())
 	}
 	// 发送Stats
 	d.stats = new(stats)
 	d.statsTicker = time.NewTicker(time.Second * 10)
+	d.statsTopic = topicOfStats(d.nodeId)
 	go func() {
-		mqttTopic := topicOfStats(d.nodeId)
 		for {
 			select {
 			case <-d.statsTicker.C:
-				d.publishMqtt(mqttTopic,
-					d.NextMessageBy(d.nodeId, d.stats.toJSONString()),
-					0,
-					false,
-				)
+				err := d.PublishStats(d.NextMessageBy(d.nodeId, d.stats.toJSONString()))
+				if nil != err {
+					log.Error("定时上报Stats消息，MQTT错误：", err)
+				}
 
 			case <-d.stopContext.Done():
 				return
@@ -166,7 +178,7 @@ func (d *driver) Process(f DriverHandler) {
 	d.mqttListenWorker = f
 }
 
-func (d *driver) Call(remoteNodeId string, in Message, callback func(out Message, err error)) {
+func (d *driver) Call(remoteNodeId string, in Message, future chan<- Message) error {
 	log.Debug("MQ_RPC调用Endpoint.NodeId: ", remoteNodeId)
 	// 发送Request消息
 	token := d.mqttRef.Publish(
@@ -174,56 +186,61 @@ func (d *driver) Call(remoteNodeId string, in Message, callback func(out Message
 		d.globals.MqttQoS, false,
 		in.Bytes())
 	if token.Wait() && nil != token.Error() {
-		log.Error("发送MQ_RPC消息出错", token.Error())
-		callback(nil, token.Error())
-	} else {
-		// 通过MQTT的Router来过滤订阅事件
-		topic := topicOfRepliesFilter(remoteNodeId, d.nodeId)
-		// 过滤相同ID的消息
-		d.router.addFilter(topic, func(out Message) bool {
-			match := in.SequenceId() == out.SequenceId()
-			if match {
-				callback(out, nil)
-			}
-			return match
-		})
+		return token.Error()
 	}
+	// 通过MQTT的Router来过滤订阅事件
+	topic := topicOfRepliesFilter(remoteNodeId, d.nodeId)
+	// 过滤相同ID的消息
+	matchSeqId := in.SequenceId()
+	d.router.register(topic, future, func(msg Message) bool {
+		return matchSeqId == msg.SequenceId()
+	})
+	return nil
 }
 
-func (d *driver) Execute(remoteNodeId string, in Message, timeout time.Duration) (out Message, err error) {
-	outC := make(chan Message, 1)
-	errC := make(chan error, 1)
-	d.Call(remoteNodeId, in, func(out Message, err error) {
-		if nil != err {
-			errC <- err
-		} else {
-			outC <- out
-		}
-	})
-	select {
-	case out := <-outC:
-		return out, nil
-
-	case err := <-errC:
+func (d *driver) Execute(remoteNodeId string, in Message, timeout time.Duration) (Message, error) {
+	output := make(chan Message, 1)
+	err := d.Call(remoteNodeId, in, output)
+	if nil != err {
 		return nil, err
+	}
+	select {
+	case msg := <-output:
+		return msg, nil
 
 	case <-time.After(timeout):
 		return nil, ErrExecuteTimeout
 	}
 }
 
-func (d *driver) Publish(mqttTopic string, msg Message, qos uint8, retained bool) {
-	d.publishMqtt(mqttTopic, msg, qos, retained)
+func (d *driver) PublishEvent(topic string, msg Message) error {
+	return d.PublishMqtt(
+		topicOfEvents(topic),
+		msg,
+		d.globals.MqttQoS, d.globals.MqttRetained)
 }
 
-func (d *driver) publishMqtt(mqttTopic string, msg Message, qos uint8, retained bool) {
+func (d *driver) PublishValues(topic string, msg Message) error {
+	return d.PublishMqtt(
+		topicOfValues(topic),
+		msg,
+		d.globals.MqttQoS, d.globals.MqttRetained)
+}
+
+func (d *driver) PublishStats(msg Message) error {
+	return d.PublishMqtt(
+		d.statsTopic,
+		msg,
+		0, false)
+}
+
+func (d *driver) PublishMqtt(mqttTopic string, msg Message, qos uint8, retained bool) error {
 	token := d.mqttRef.Publish(
 		mqttTopic,
 		qos, retained,
 		msg.Bytes())
-	if token.Wait() && nil != token.Error() {
-		log.Error("发送MQTT消息出错：", token.Error())
-	}
+	token.Wait()
+	return token.Error()
 }
 
 ////
@@ -254,40 +271,57 @@ func (s *stats) toJSONString() []byte {
 
 ////////
 
-type routerHandler func(Message) bool
+type registry struct {
+	future    chan<- Message
+	predicate func(Message) bool
+	missed    int
+}
+
+func (r *registry) invoke(msg Message) bool {
+	if r.predicate(msg) {
+		r.future <- msg
+		return true
+	} else {
+		r.missed++
+		return r.missed >= 10
+	}
+}
 
 // 消息路由
 type router struct {
-	lock     *sync.Mutex
-	registry map[string][]routerHandler
+	lock       *sync.Mutex
+	registries map[string]*list.List
 }
 
-func (r *router) dispatchThenRemove(mqttMsg mqtt.Message) {
+func (r *router) dispatch(mqttMsg mqtt.Message) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-
 	topic := mqttMsg.Topic()
+	rl, ok := r.registries[topic]
+	if !ok {
+		return
+	}
 	msg := ParseMessage(mqttMsg.Payload())
-	if hs, ok := r.registry[topic]; ok {
-		remains := make([]routerHandler, 0)
-		for _, handler := range hs {
-			if !handler(msg) {
-				remains = append(remains, handler)
-			}
-		}
-		if 0 == len(remains) {
-			delete(r.registry, topic)
+	for e := rl.Front(); e != nil; e = e.Next() {
+		reg := e.Value.(*registry)
+		if reg.invoke(msg) {
+			rl.Remove(e)
 		}
 	}
 }
 
-func (r *router) addFilter(topic string, handler routerHandler) {
+func (r *router) register(topic string, future chan<- Message, predicate func(Message) bool) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	if hs, ok := r.registry[topic]; ok {
-		r.registry[topic] = append(hs, handler)
-	} else {
-		r.registry[topic] = []routerHandler{handler}
+	reg := &registry{
+		future:    future,
+		predicate: predicate,
+		missed:    0,
 	}
-
+	l, ok := r.registries[topic]
+	if !ok {
+		l = list.New()
+		r.registries[topic] = l
+	}
+	l.PushBack(reg)
 }
