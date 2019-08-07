@@ -27,7 +27,7 @@ type NeedMessages interface {
 	NextMessageOf(virtualNodeId string, body []byte) Message
 }
 
+// 发布Inspect消息
 type NeedInspect interface {
-	// 发布Inspect消息
 	PublishInspect(node MainNodeInfo)
 }

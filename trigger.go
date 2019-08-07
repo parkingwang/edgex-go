@@ -18,16 +18,19 @@ type Trigger interface {
 	NeedMessages
 	NeedInspect
 
-	// PublishEvent 发送Event消息。发送消息的QoS使用默认设置。
+	// 发送MQTT消息
+	PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error
+
+	// PublishEvent 发送虚拟节点的Event消息。发送消息的QoS使用默认设置。
 	PublishEvent(virtualId string, data []byte) error
 
-	// PublishEventWith 发送Event消息。指定QOS参数。
+	// PublishEventWith 发送虚拟节点的Event消息。指定QOS参数。
 	PublishEventWith(virtualId string, data []byte, qos uint8, retained bool) error
 
-	// PublishValue 发送Value消息。发送消息的QoS使用默认设置。
+	// PublishValue 发送虚拟节点的Value消息。发送消息的QoS使用默认设置。
 	PublishValue(virtualId string, data []byte) error
 
-	// PublishValueWith 发送Value消息。指定QOS参数。
+	// PublishValueWith 发送虚拟节点的Value消息。指定QOS参数。
 	PublishValueWith(virtualId string, data []byte, qos uint8, retained bool) error
 }
 
@@ -94,7 +97,7 @@ func (t *trigger) PublishEvent(virtualId string, data []byte) error {
 }
 
 func (t *trigger) PublishEventWith(virtualId string, data []byte, qos uint8, retained bool) error {
-	return t.publish(t.mqttEventTopic, virtualId, data, qos, retained)
+	return t.publishMessage(t.mqttEventTopic, virtualId, data, qos, retained)
 }
 
 func (t *trigger) PublishValue(virtualId string, data []byte) error {
@@ -102,21 +105,26 @@ func (t *trigger) PublishValue(virtualId string, data []byte) error {
 }
 
 func (t *trigger) PublishValueWith(virtualId string, data []byte, qos uint8, retained bool) error {
-	return t.publish(t.mqttValueTopic, virtualId, data, qos, retained)
+	return t.publishMessage(t.mqttValueTopic, virtualId, data, qos, retained)
 }
 
-func (t *trigger) publish(mqttTopic string, virtualId string, data []byte, qos byte, retained bool) error {
-	// 构建完整的设备名称
+func (t *trigger) PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error {
 	token := t.mqttRef.Publish(
 		mqttTopic,
 		qos,
 		retained,
-		NewMessageWith(t.nodeId, virtualId, data, t.NextMessageSequenceId()).Bytes())
+		message.Bytes())
 	if token.Wait() && nil != token.Error() {
 		return errors.WithMessage(token.Error(), "发送事件消息出错")
 	} else {
 		return nil
 	}
+}
+
+func (t *trigger) publishMessage(mqttTopic string, virtualId string, data []byte, qos byte, retained bool) error {
+	return t.PublishMqtt(mqttTopic,
+		NewMessageWith(t.nodeId, virtualId, data, t.NextMessageSequenceId()),
+		qos, retained)
 }
 
 func (t *trigger) Shutdown() {

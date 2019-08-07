@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"github.com/nextabc-lab/edgex-go"
+	"time"
 )
 
 //
@@ -22,7 +24,7 @@ func main() {
 		endpoint := ctx.NewEndpoint(opts)
 
 		endpoint.Serve(func(in edgex.Message) (out []byte) {
-			return []byte("ECHO")
+			return []byte(fmt.Sprintf("TIME: %s", time.Now()))
 		})
 
 		endpoint.Startup()
