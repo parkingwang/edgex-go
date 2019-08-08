@@ -44,7 +44,7 @@ func autoNodeFunc() func() edgex.MainNodeInfo {
 				{
 					VirtualId: "main",
 					Desc:      "演示终端",
-					Commands:  "ECHO",
+					Commands:  "AT+ECHO",
 				},
 			},
 		}

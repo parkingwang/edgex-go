@@ -22,12 +22,15 @@ type MainNodeInfo struct {
 
 // 虚拟节点信息
 type VirtualNodeInfo struct {
-	Uuid      string                 `json:"uuid"`      // 自动生成的UUID；设备的唯一节点编号；
-	VirtualId string                 `json:"virtualId"` // 虚拟节点ID；须保证在单个节点内唯一性
-	MajorId   string                 `json:"majorId"`   // 设备主ID
-	MinorId   string                 `json:"minorId"`   // 设备次ID
-	Desc      string                 `json:"desc"`      // 设备描述信息
-	Virtual   bool                   `json:"virtual"`   // 是否为虚拟设备，即通过代理后转换的设备
-	Commands  string                 `json:"commands"`  // 设备控制命令
-	Attrs     map[string]interface{} `json:"attrs"`     // 其它属性
+	Uuid           string                 `json:"uuid"`           // 自动生成的UUID；设备的唯一节点编号；
+	VirtualId      string                 `json:"virtualId"`      // 虚拟节点ID；须保证在单个节点内唯一性
+	MajorId        string                 `json:"majorId"`        // 设备主ID
+	MinorId        string                 `json:"minorId"`        // 设备次ID
+	Desc           string                 `json:"desc"`           // 设备描述信息
+	Virtual        bool                   `json:"virtual"`        // 是否为虚拟设备，即通过代理后转换的设备
+	Commands       string                 `json:"commands"`       // 设备控制命令列表。以Query字符串
+	CommandStart   string                 `json:"commandStart"`   // 启动设备的指令
+	CommandStop    string                 `json:"commandStop"`    // 停止设备的指令
+	CommandTrigger string                 `json:"commandTrigger"` // 触发设备的指令
+	Attrs          map[string]interface{} `json:"attrs"`          // 其它属性
 }
