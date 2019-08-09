@@ -36,7 +36,7 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 
 func createStateMessage(state VirtualNodeState) Message {
 	if "" != state.Uuid {
-		log.Debugf("虚拟节点[%s]使用自定义Uuid：%s", state.Uuid)
+		log.Debugf("虚拟节点使用自定义Uuid：%s", state.Uuid)
 	} else {
 		checkIdFormat("VirtualId", state.VirtualId)
 		state.Uuid = MakeVirtualNodeId(state.NodeId, state.VirtualId)
@@ -45,8 +45,7 @@ func createStateMessage(state VirtualNodeState) Message {
 	if nil != err {
 		log.Panic("NodeProperties数据序列化错误", err)
 	}
-	nodeId := state.NodeId
-	return NewMessageWith(nodeId, nodeId, stateJSON, 0)
+	return NewMessageById(state.Uuid, stateJSON, 0)
 }
 
 func mqttSendNodeState(client mqtt.Client, state VirtualNodeState) {
