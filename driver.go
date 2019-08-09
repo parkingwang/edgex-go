@@ -39,7 +39,7 @@ type Driver interface {
 	PublishValue(topic string, message Message) error
 
 	// 发送Stats消息
-	PublishStats(message Message) error
+	PublishStatistics(data []byte) error
 
 	// Execute 发起一个同步消息请求
 	Execute(remoteNodeId string, in Message, timeout time.Duration) (out Message, err error)
@@ -148,7 +148,7 @@ func (d *driver) Startup() {
 		for {
 			select {
 			case <-d.statisticsTicker.C:
-				err := d.PublishStats(d.NextMessageBy(d.nodeId, d.statistics.toJSONString()))
+				err := d.PublishStatistics(d.NextMessageBy(d.nodeId, d.statistics.toJSONString()))
 				if nil != err {
 					log.Error("定时上报Stats消息，MQTT错误：", err)
 				}
@@ -228,10 +228,10 @@ func (d *driver) PublishValues(topic string, msg Message) error {
 		d.globals.MqttQoS, d.globals.MqttRetained)
 }
 
-func (d *driver) PublishStats(msg Message) error {
+func (d *driver) PublishStatistics(data []byte) error {
 	return d.PublishMqtt(
 		d.statisticsTopic,
-		msg,
+		d.NextMessageBy(d.nodeId, data),
 		0, false)
 }
 
