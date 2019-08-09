@@ -148,7 +148,7 @@ func (d *driver) Startup() {
 		for {
 			select {
 			case <-d.statisticsTicker.C:
-				err := d.PublishStatistics(d.NextMessageBy(d.nodeId, d.statistics.toJSONString()))
+				err := d.PublishStatistics(d.statistics.toJSONString())
 				if nil != err {
 					log.Error("定时上报Stats消息，MQTT错误：", err)
 				}
