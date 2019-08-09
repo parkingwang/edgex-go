@@ -89,6 +89,8 @@ func mqttSendNodeProperties(client mqtt.Client, properties MainNodeProperties) {
 	propertiesJSON, err := json.Marshal(properties)
 	if nil != err {
 		log.Panic("NodeProperties数据序列化错误", err)
+	} else {
+		log.Debug("NodeProperties: " + string(propertiesJSON))
 	}
 	token := client.Publish(
 		TopicOfProperties(nodeId),
