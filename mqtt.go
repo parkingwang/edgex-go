@@ -3,7 +3,7 @@ package edgex
 import (
 	"context"
 	"encoding/json"
-	"github.com/eclipse/paho.mqtt.golang"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"runtime"
 	"time"
 )
@@ -34,52 +34,75 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 
 ////
 
-func mqttSendInspectMessage(client mqtt.Client, nodeId string, node MainNodeProperties) {
-	checkIdFormat("NodeType", node.NodeType)
-	if 0 == len(node.VirtualNodes) {
+func createStateMessage(state VirtualNodeState) Message {
+	if "" != state.Uuid {
+		log.Debugf("虚拟节点[%s]使用自定义Uuid：%s", state.Uuid)
+	} else {
+		checkIdFormat("VirtualId", state.VirtualId)
+		state.Uuid = MakeVirtualNodeId(state.NodeId, state.VirtualId)
+	}
+	stateJSON, err := json.Marshal(state)
+	if nil != err {
+		log.Panic("NodeProperties数据序列化错误", err)
+	}
+	nodeId := state.NodeId
+	return NewMessageWith(nodeId, nodeId, stateJSON, 0)
+}
+
+func mqttSendNodeState(client mqtt.Client, state VirtualNodeState) {
+	token := client.Publish(
+		TopicOfStates(state.NodeId),
+		0,
+		false,
+		createStateMessage(state).Bytes(),
+	)
+	if token.Wait() && nil != token.Error() {
+		log.Error("发送State消息出错", token.Error())
+	}
+}
+
+func mqttSendNodeProperties(client mqtt.Client, properties MainNodeProperties) {
+	checkIdFormat("NodeType", properties.NodeType)
+	if 0 == len(properties.VirtualNodes) {
 		log.Panic("缺少虚拟节点数据")
 	}
-	// 自动更新虚拟设备的参数
-	if "" != node.NodeId {
-		log.Debugf("MainNodeProperties.NodeId 已设置为<%s>，它将被自动覆盖更新", node.NodeId)
+	if "" == properties.HostOS {
+		properties.HostOS = runtime.GOOS
 	}
-	node.NodeId = nodeId
-	if "" == node.HostOS {
-		node.HostOS = runtime.GOOS
+	if "" == properties.HostArch {
+		properties.HostArch = runtime.GOARCH
 	}
-	if "" == node.HostArch {
-		node.HostArch = runtime.GOARCH
-	}
+	nodeId := properties.NodeId
 	// 更新设备列表参数
-	for _, vd := range node.VirtualNodes {
+	for _, vd := range properties.VirtualNodes {
 		// 自动生成UUID
 		if "" == vd.VirtualId {
 			log.Panic("必须指定VirtualNode.VirtualId，并确保其节点范围内的唯一性")
 		} else {
-			checkIdFormat("VirtualId", vd.VirtualId)
 			if "" != vd.Uuid {
-				log.Debugf("VirtualNodeProperties.Uuid 已设置为<%s>，它将被自动覆盖更新", vd.Uuid)
+				log.Debugf("虚拟节点[%s]使用自定义Uuid：%s", vd.Description, vd.Uuid)
+			} else {
+				checkIdFormat("VirtualId", vd.VirtualId)
+				vd.Uuid = MakeVirtualNodeId(nodeId, vd.VirtualId)
 			}
-			vd.Uuid = MakeVirtualNodeId(nodeId, vd.VirtualId)
 		}
 	}
-	data, err := json.Marshal(node)
+	propertiesJSON, err := json.Marshal(properties)
 	if nil != err {
-		log.Panic("Inspect数据序列化错误", err)
+		log.Panic("NodeProperties数据序列化错误", err)
 	}
-	// 发送Inspect消息，其中消息来源为NodeId
 	token := client.Publish(
-		TopicSubscribeNodesInspect,
+		TopicOfProperties(nodeId),
 		0,
 		false,
-		NewMessageWith(nodeId, nodeId, data, 0).Bytes(),
+		NewMessageWith(nodeId, nodeId, propertiesJSON, 0).Bytes(),
 	)
 	if token.Wait() && nil != token.Error() {
-		log.Error("发送Inspect消息出错", token.Error())
+		log.Error("发送Properties消息出错", token.Error())
 	}
 }
 
-func scheduleSendInspect(shutdown context.Context, inspectTask func()) {
+func scheduleSendProperties(shutdown context.Context, inspectTask func()) {
 	// 在1分钟内上报Inspect消息
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()

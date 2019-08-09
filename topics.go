@@ -9,34 +9,44 @@ import (
 //
 
 const (
-	prefixNodes    = "$EdgeX/nodes/"
-	prefixEvents   = "$EdgeX/events/"
-	prefixValues   = "$EdgeX/values/"
-	prefixStats    = "$EdgeX/stats/"
-	prefixRequests = "$EdgeX/requests/"
-	prefixReplies  = "$EdgeX/replies/"
+	prefixProperties = "$EdgeX/properties/"
+	prefixEvents     = "$EdgeX/events/"
+	prefixValues     = "$EdgeX/values/"
+	prefixStates     = "$EdgeX/states/"
+	prefixStatistics = "$EdgeX/statistics/"
+	prefixRequests   = "$EdgeX/requests/"
+	prefixReplies    = "$EdgeX/replies/"
 
-	TopicSubscribeNodesInspect = prefixNodes + "inspect"
-	TopicSubscribeNodesOffline = prefixNodes + "offline"
-	TopicSubscribeNodesEvents  = prefixEvents + "#"
-	TopicSubscribeNodesValues  = prefixValues + "#"
-
-	TopicPublishNodesOffline = TopicSubscribeNodesOffline
+	TopicSubscribeProperties = prefixProperties + "#"
+	TopicSubscribeEvents     = prefixEvents + "#"
+	TopicSubscribeValues     = prefixValues + "#"
+	TopicSubscribeStatistics = prefixStatistics + "#"
+	TopicSubscribeStates     = prefixStates + "#"
 )
 
-func topicOfEvents(topic string) string {
-	checkTopic(topic)
-	return prefixEvents + topic
+func TopicOfEvents(exTopic string) string {
+	checkTopicAllowed(exTopic)
+	return prefixEvents + exTopic
 }
 
-func topicOfValues(topic string) string {
-	checkTopic(topic)
-	return prefixValues + topic
+func TopicOfValues(exTopic string) string {
+	checkTopicAllowed(exTopic)
+	return prefixValues + exTopic
 }
 
-func topicOfStats(topic string) string {
-	checkTopic(topic)
-	return prefixStats + topic
+func TopicOfStates(nodeId string) string {
+	checkTopicAllowed(nodeId)
+	return prefixStates + nodeId
+}
+
+func TopicOfStatistics(nodeId string) string {
+	checkTopicAllowed(nodeId)
+	return prefixStatistics + nodeId
+}
+
+func TopicOfProperties(nodeId string) string {
+	checkTopicAllowed(nodeId)
+	return prefixProperties + nodeId
 }
 
 func topicOfRequestSend(executorNodeId, callerNodeId string) string {
@@ -44,10 +54,10 @@ func topicOfRequestSend(executorNodeId, callerNodeId string) string {
 	return prefixRequests + executorNodeId + "/" + callerNodeId
 }
 
-func topicToRequestCaller(topic string) string {
+func topicToRequestCaller(exTopic string) string {
 	// prefix / ExecutorNodeId / CallerNodeId
-	idx := strings.LastIndex(topic, "/")
-	return topic[idx+1:]
+	idx := strings.LastIndex(exTopic, "/")
+	return exTopic[idx+1:]
 }
 
 func topicOfRequestListen(callerNodeId string) string {
@@ -67,22 +77,24 @@ func topicOfRepliesListen(callerNodeId string) string {
 	return prefixReplies + callerNodeId + "/+"
 }
 
-func checkTopic(topic string) {
+func checkTopicAllowed(topic string) {
 	if strings.HasPrefix(topic, "/") {
 		log.Panicf("Topic MUST NOT starts with '/', was: %s", topic)
 	}
 }
 
 func unwrapEdgeXTopic(mqttRawTopic string) string {
-	if "" != mqttRawTopic || strings.HasPrefix(mqttRawTopic, "$EdgeX/") {
+	if "" != mqttRawTopic {
 		if strings.HasPrefix(mqttRawTopic, prefixEvents) {
 			return mqttRawTopic[len(prefixEvents):]
-		} else if strings.HasPrefix(mqttRawTopic, prefixStats) {
-			return mqttRawTopic[len(prefixStats):]
+		} else if strings.HasPrefix(mqttRawTopic, prefixStatistics) {
+			return mqttRawTopic[len(prefixStatistics):]
 		} else if strings.HasPrefix(mqttRawTopic, prefixValues) {
 			return mqttRawTopic[len(prefixValues):]
-		} else if strings.HasPrefix(mqttRawTopic, prefixNodes) {
-			return mqttRawTopic[len(prefixNodes):]
+		} else if strings.HasPrefix(mqttRawTopic, prefixProperties) {
+			return mqttRawTopic[len(prefixProperties):]
+		} else if strings.HasPrefix(mqttRawTopic, prefixStates) {
+			return mqttRawTopic[len(prefixStates):]
 		} else {
 			return mqttRawTopic
 		}

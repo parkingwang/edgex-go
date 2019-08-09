@@ -23,8 +23,8 @@ type DriverHandler func(topic string, event Message)
 
 type Driver interface {
 	NeedLifecycle
-	NeedNodeId
-	NeedMessages
+	NeedAccessNodeId
+	NeedCreateMessages
 
 	// Process 处理消息
 	Process(DriverHandler)
@@ -63,9 +63,9 @@ type driver struct {
 	sequenceId uint32
 	opts       DriverOptions
 	// Stats
-	stats       *stats
-	statsTicker *time.Ticker
-	statsTopic  string
+	statistics       *statistics
+	statisticsTicker *time.Ticker
+	statisticsTopic  string
 	// MQTT
 	mqttRef mqtt.Client
 	// Topics
@@ -99,11 +99,11 @@ func (d *driver) Startup() {
 	// 监听所有Trigger的UserTopic
 	d.mqttListenTopics = make(map[string]byte)
 	for _, t := range d.opts.EventTopics {
-		eTopic := topicOfEvents(t)
+		eTopic := TopicOfEvents(t)
 		d.mqttListenTopics[eTopic] = 0
 	}
 	for _, t := range d.opts.ValueTopics {
-		vTopic := topicOfValues(t)
+		vTopic := TopicOfValues(t)
 		d.mqttListenTopics[vTopic] = 0
 	}
 	for _, t := range d.opts.CustomTopics {
@@ -141,14 +141,14 @@ func (d *driver) Startup() {
 		log.Panic("监听RPC事件出错：", subToken.Error())
 	}
 	// 发送Stats
-	d.stats = new(stats)
-	d.statsTicker = time.NewTicker(time.Second * 10)
-	d.statsTopic = topicOfStats(d.nodeId)
+	d.statistics = new(statistics)
+	d.statisticsTicker = time.NewTicker(time.Second * 10)
+	d.statisticsTopic = TopicOfStatistics(d.nodeId)
 	go func() {
 		for {
 			select {
-			case <-d.statsTicker.C:
-				err := d.PublishStats(d.NextMessageBy(d.nodeId, d.stats.toJSONString()))
+			case <-d.statisticsTicker.C:
+				err := d.PublishStats(d.NextMessageBy(d.nodeId, d.statistics.toJSONString()))
 				if nil != err {
 					log.Error("定时上报Stats消息，MQTT错误：", err)
 				}
@@ -179,6 +179,7 @@ func (d *driver) Process(f DriverHandler) {
 }
 
 func (d *driver) Call(remoteNodeId string, in Message, future chan<- Message) error {
+	d.checkReady()
 	log.Debug("MQ_RPC调用Endpoint.NodeId: ", remoteNodeId)
 	// 发送Request消息
 	token := d.mqttRef.Publish(
@@ -215,26 +216,27 @@ func (d *driver) Execute(remoteNodeId string, in Message, timeout time.Duration)
 
 func (d *driver) PublishEvent(topic string, msg Message) error {
 	return d.PublishMqtt(
-		topicOfEvents(topic),
+		TopicOfEvents(topic),
 		msg,
 		d.globals.MqttQoS, d.globals.MqttRetained)
 }
 
 func (d *driver) PublishValues(topic string, msg Message) error {
 	return d.PublishMqtt(
-		topicOfValues(topic),
+		TopicOfValues(topic),
 		msg,
 		d.globals.MqttQoS, d.globals.MqttRetained)
 }
 
 func (d *driver) PublishStats(msg Message) error {
 	return d.PublishMqtt(
-		d.statsTopic,
+		d.statisticsTopic,
 		msg,
 		0, false)
 }
 
 func (d *driver) PublishMqtt(mqttTopic string, msg Message, qos uint8, retained bool) error {
+	d.checkReady()
 	token := d.mqttRef.Publish(
 		mqttTopic,
 		qos, retained,
@@ -243,24 +245,30 @@ func (d *driver) PublishMqtt(mqttTopic string, msg Message, qos uint8, retained 
 	return token.Error()
 }
 
+func (d *driver) checkReady() {
+	if d.stopCancel == nil || d.stopContext == nil {
+		log.Panic("Driver未启动，须调用Startup()/Shutdown()")
+	}
+}
+
 ////
 
-type stats struct {
+type statistics struct {
 	uptime    time.Time
 	recvCount int64
 	recvBytes int64
 }
 
-func (s *stats) up() {
+func (s *statistics) up() {
 	s.uptime = time.Now()
 }
 
-func (s *stats) updateRecv(size int64) {
+func (s *statistics) updateRecv(size int64) {
 	s.recvCount++
 	s.recvBytes += size
 }
 
-func (s *stats) toJSONString() []byte {
+func (s *statistics) toJSONString() []byte {
 	du := time.Now().Sub(s.uptime).Seconds()
 	return []byte(fmt.Sprintf(`{
   "uptime": %d, 

@@ -19,7 +19,7 @@ import (
 
 // Context 是一个提供基础通讯环境和参数设置的对象。通过Context来创建Trigger, Endpoint, Driver组件，并为组件提供MQTT通讯能力。
 type Context interface {
-	NeedNodeId
+	NeedAccessNodeId
 	// 使用默认配置结构来初化Context
 	InitialWithConfig(config map[string]interface{})
 
@@ -185,7 +185,11 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	opts := mqtt.NewClientOptions()
 	clientId := fmt.Sprintf("%s:%s", MqttClientIdHeader, c.nodeId)
 	opts.SetClientID(clientId)
-	opts.SetWill(TopicPublishNodesOffline, c.nodeId, 0, true)
+	opts.SetWill(TopicOfStates(c.nodeId), string(createStateMessage(VirtualNodeState{
+		NodeId:    c.nodeId,
+		VirtualId: c.nodeId,
+		State:     "offline",
+	}).Bytes()), 0, true)
 	mqttSetOptions(opts, c.globals)
 	c.mqttClient = mqtt.NewClient(opts)
 	log.Infof("Mqtt客户端：Broker= %s，ClientId= %s", c.globals.MqttBroker, clientId)
@@ -223,7 +227,6 @@ func (c *NodeContext) LoadConfigByName(fileName string) map[string]interface{} {
 func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 	c.checkInit()
 	checkRequires(opts.Topic, "Trigger.Topic MUST be specified")
-	checkRequires(opts.AutoInspectFunc, "Trigger.AutoInspectFunc MUST be specified")
 	return &trigger{
 		mqttRef:         c.mqttClient,
 		globals:         c.globals,
@@ -236,7 +239,6 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 
 func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	c.checkInit()
-	checkRequires(opts.AutoInspectFunc, "Endpoint.AutoInspectFunc MUST be specified")
 	return &endpoint{
 		mqttRef:         c.mqttClient,
 		globals:         c.globals,

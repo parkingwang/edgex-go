@@ -14,9 +14,9 @@ import (
 // Trigger 触发器，用于产生事件。
 type Trigger interface {
 	NeedLifecycle
-	NeedNodeId
-	NeedMessages
-	NeedInspect
+	NeedAccessNodeId
+	NeedCreateMessages
+	NeedInspectProperties
 
 	// 发送MQTT消息
 	PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error
@@ -54,8 +54,8 @@ type trigger struct {
 	// MQTT
 	mqttRef mqtt.Client
 	// Shutdown
-	shutdownContext context.Context
-	shutdownCancel  context.CancelFunc
+	stopContext context.Context
+	stopCancel  context.CancelFunc
 }
 
 func (t *trigger) NodeId() string {
@@ -76,20 +76,28 @@ func (t *trigger) NextMessageOf(virtualNodeId string, body []byte) Message {
 }
 
 func (t *trigger) Startup() {
-	t.shutdownContext, t.shutdownCancel = context.WithCancel(context.Background())
+	t.stopContext, t.stopCancel = context.WithCancel(context.Background())
 	// 重建Topic前缀
-	t.mqttEventTopic = topicOfEvents(t.topic)
-	t.mqttValueTopic = topicOfValues(t.topic)
+	t.mqttEventTopic = TopicOfEvents(t.topic)
+	t.mqttValueTopic = TopicOfValues(t.topic)
 	// 定时发送Inspect消息
 	if nil != t.autoInspectFunc {
-		go scheduleSendInspect(t.shutdownContext, func() {
-			t.PublishInspect(t.autoInspectFunc())
+		go scheduleSendProperties(t.stopContext, func() {
+			t.PublishNodeProperties(t.autoInspectFunc())
 		})
 	}
 }
 
-func (t *trigger) PublishInspect(node MainNodeProperties) {
-	mqttSendInspectMessage(t.mqttRef, t.nodeId, node)
+func (t *trigger) PublishNodeProperties(node MainNodeProperties) {
+	t.checkReady()
+	node.NodeId = t.nodeId
+	mqttSendNodeProperties(t.mqttRef, node)
+}
+
+func (t *trigger) PublishNodeState(state VirtualNodeState) {
+	t.checkReady()
+	state.NodeId = t.nodeId
+	mqttSendNodeState(t.mqttRef, state)
 }
 
 func (t *trigger) PublishEvent(virtualId string, data []byte) error {
@@ -109,6 +117,7 @@ func (t *trigger) PublishValueWith(virtualId string, data []byte, qos uint8, ret
 }
 
 func (t *trigger) PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error {
+	t.checkReady()
 	token := t.mqttRef.Publish(
 		mqttTopic,
 		qos,
@@ -128,5 +137,11 @@ func (t *trigger) publishMessage(mqttTopic string, virtualId string, data []byte
 }
 
 func (t *trigger) Shutdown() {
-	t.shutdownCancel()
+	t.stopCancel()
+}
+
+func (t *trigger) checkReady() {
+	if t.stopCancel == nil || t.stopContext == nil {
+		log.Panic("Trigger未启动，须调用Startup()/Shutdown()")
+	}
 }

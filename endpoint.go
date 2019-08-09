@@ -13,9 +13,9 @@ import (
 // Endpoint是接收、处理，并返回结果的可控制终端节点。
 type Endpoint interface {
 	NeedLifecycle
-	NeedNodeId
-	NeedMessages
-	NeedInspect
+	NeedAccessNodeId
+	NeedCreateMessages
+	NeedInspectProperties
 
 	// 处理RPC消息，返回处理结果
 	Serve(func(in Message) (out []byte))
@@ -39,8 +39,8 @@ type endpoint struct {
 	// MQTT
 	mqttRef mqtt.Client
 	// Shutdown
-	shutdownContext context.Context
-	shutdownCancel  context.CancelFunc
+	stopContext context.Context
+	stopCancel  context.CancelFunc
 }
 
 func (e *endpoint) NodeId() string {
@@ -61,7 +61,7 @@ func (e *endpoint) NextMessageOf(virtualNodeId string, body []byte) Message {
 }
 
 func (e *endpoint) Startup() {
-	e.shutdownContext, e.shutdownCancel = context.WithCancel(context.Background())
+	e.stopContext, e.stopCancel = context.WithCancel(context.Background())
 	// 监听Endpoint异步RPC事件
 	qos := e.globals.MqttQoS
 	listenTopic := topicOfRequestListen(e.nodeId)
@@ -85,20 +85,34 @@ func (e *endpoint) Startup() {
 	})
 	// 定时发送Inspect消息
 	if nil != e.autoInspectFunc {
-		go scheduleSendInspect(e.shutdownContext, func() {
-			e.PublishInspect(e.autoInspectFunc())
+		go scheduleSendProperties(e.stopContext, func() {
+			e.PublishNodeProperties(e.autoInspectFunc())
 		})
 	}
 }
 
-func (e *endpoint) PublishInspect(node MainNodeProperties) {
-	mqttSendInspectMessage(e.mqttRef, e.nodeId, node)
+func (e *endpoint) PublishNodeProperties(properties MainNodeProperties) {
+	e.checkReady()
+	properties.NodeId = e.nodeId
+	mqttSendNodeProperties(e.mqttRef, properties)
+}
+
+func (e *endpoint) PublishNodeState(state VirtualNodeState) {
+	e.checkReady()
+	state.NodeId = e.nodeId
+	mqttSendNodeState(e.mqttRef, state)
 }
 
 func (e *endpoint) Shutdown() {
-	e.shutdownCancel()
+	e.stopCancel()
 }
 
 func (e *endpoint) Serve(h func(in Message) (out []byte)) {
 	e.rpcHandler = h
+}
+
+func (e *endpoint) checkReady() {
+	if e.stopCancel == nil || e.stopContext == nil {
+		log.Panic("Endpoint未启动，须调用Startup()/Shutdown()")
+	}
 }

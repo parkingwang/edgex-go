@@ -11,12 +11,12 @@ type NeedLifecycle interface {
 }
 
 // 节点ID接口
-type NeedNodeId interface {
+type NeedAccessNodeId interface {
 	NodeId() string
 }
 
 // 创建消息接口
-type NeedMessages interface {
+type NeedCreateMessages interface {
 	// NextMessageSequenceId 返回内部消息流水号
 	NextMessageSequenceId() uint32
 
@@ -28,6 +28,10 @@ type NeedMessages interface {
 }
 
 // 发布Inspect消息
-type NeedInspect interface {
-	PublishInspect(node MainNodeProperties)
+type NeedInspectProperties interface {
+	// 发送节点属性消息
+	PublishNodeProperties(properties MainNodeProperties)
+
+	// 发送节点状态消息
+	PublishNodeState(state VirtualNodeState)
 }

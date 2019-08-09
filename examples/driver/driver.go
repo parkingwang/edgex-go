@@ -19,7 +19,7 @@ func main() {
 				"scheduled/+",
 			},
 			CustomTopics: []string{
-				edgex.TopicSubscribeNodesInspect,
+				edgex.TopicSubscribeProperties,
 			},
 		}
 
