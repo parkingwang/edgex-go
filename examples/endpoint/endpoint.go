@@ -36,11 +36,11 @@ func main() {
 	})
 }
 
-func autoNodeFunc() func() edgex.MainNodeInfo {
-	return func() edgex.MainNodeInfo {
-		return edgex.MainNodeInfo{
+func autoNodeFunc() func() edgex.MainNodeProperties {
+	return func() edgex.MainNodeProperties {
+		return edgex.MainNodeProperties{
 			NodeType: edgex.NodeTypeEndpoint,
-			VirtualNodes: []*edgex.VirtualNodeInfo{
+			VirtualNodes: []*edgex.VirtualNodeProperties{
 				{
 					VirtualId: "main",
 					Desc:      "演示终端",

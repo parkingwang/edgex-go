@@ -35,8 +35,8 @@ type Trigger interface {
 }
 
 type TriggerOptions struct {
-	Topic           string              // 触发器发送事件的主题
-	AutoInspectFunc func() MainNodeInfo // Inspect消息生成函数
+	Topic           string                    // 触发器发送事件的主题
+	AutoInspectFunc func() MainNodeProperties // Inspect消息生成函数
 }
 
 //// trigger
@@ -49,8 +49,8 @@ type trigger struct {
 	mqttValueTopic string // MQTT使用的ValueTopic
 	nodeId         string // Trigger的名称
 	sequenceId     uint32 // Trigger产生的消息ID序列
-	// MainNodeInfo 消息生产函数
-	autoInspectFunc func() MainNodeInfo
+	// MainNodeProperties 消息生产函数
+	autoInspectFunc func() MainNodeProperties
 	// MQTT
 	mqttRef mqtt.Client
 	// Shutdown
@@ -88,7 +88,7 @@ func (t *trigger) Startup() {
 	}
 }
 
-func (t *trigger) PublishInspect(node MainNodeInfo) {
+func (t *trigger) PublishInspect(node MainNodeProperties) {
 	mqttSendInspectMessage(t.mqttRef, t.nodeId, node)
 }
 

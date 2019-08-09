@@ -34,14 +34,14 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 
 ////
 
-func mqttSendInspectMessage(client mqtt.Client, nodeId string, node MainNodeInfo) {
+func mqttSendInspectMessage(client mqtt.Client, nodeId string, node MainNodeProperties) {
 	checkIdFormat("NodeType", node.NodeType)
 	if 0 == len(node.VirtualNodes) {
 		log.Panic("缺少虚拟节点数据")
 	}
 	// 自动更新虚拟设备的参数
 	if "" != node.NodeId {
-		log.Debugf("MainNodeInfo.NodeId 已设置为<%s>，它将被自动覆盖更新", node.NodeId)
+		log.Debugf("MainNodeProperties.NodeId 已设置为<%s>，它将被自动覆盖更新", node.NodeId)
 	}
 	node.NodeId = nodeId
 	if "" == node.HostOS {
@@ -58,7 +58,7 @@ func mqttSendInspectMessage(client mqtt.Client, nodeId string, node MainNodeInfo
 		} else {
 			checkIdFormat("VirtualId", vd.VirtualId)
 			if "" != vd.Uuid {
-				log.Debugf("VirtualNodeInfo.Uuid 已设置为<%s>，它将被自动覆盖更新", vd.Uuid)
+				log.Debugf("VirtualNodeProperties.Uuid 已设置为<%s>，它将被自动覆盖更新", vd.Uuid)
 			}
 			vd.Uuid = MakeVirtualNodeId(nodeId, vd.VirtualId)
 		}

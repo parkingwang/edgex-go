@@ -29,5 +29,5 @@ type NeedMessages interface {
 
 // 发布Inspect消息
 type NeedInspect interface {
-	PublishInspect(node MainNodeInfo)
+	PublishInspect(node MainNodeProperties)
 }

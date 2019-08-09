@@ -22,7 +22,7 @@ type Endpoint interface {
 }
 
 type EndpointOptions struct {
-	AutoInspectFunc func() MainNodeInfo // // Inspect消息生成函数
+	AutoInspectFunc func() MainNodeProperties // // Inspect消息生成函数
 }
 
 //// Endpoint实现
@@ -32,8 +32,8 @@ type endpoint struct {
 	nodeId     string
 	globals    *Globals
 	sequenceId uint32
-	// MainNodeInfo
-	autoInspectFunc func() MainNodeInfo
+	// MainNodeProperties
+	autoInspectFunc func() MainNodeProperties
 	// Rpc
 	rpcHandler func(in Message) (out []byte)
 	// MQTT
@@ -91,7 +91,7 @@ func (e *endpoint) Startup() {
 	}
 }
 
-func (e *endpoint) PublishInspect(node MainNodeInfo) {
+func (e *endpoint) PublishInspect(node MainNodeProperties) {
 	mqttSendInspectMessage(e.mqttRef, e.nodeId, node)
 }
 
