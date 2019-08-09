@@ -53,8 +53,8 @@ func autoNodeFunc() func() edgex.MainNodeProperties {
 			NodeType: edgex.NodeTypeTrigger,
 			VirtualNodes: []*edgex.VirtualNodeProperties{
 				{
-					VirtualId: "TIMER",
-					Desc:      "演示Trigger",
+					VirtualId:   "TIMER",
+					Description: "演示Trigger",
 				},
 			},
 		}

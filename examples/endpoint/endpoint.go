@@ -42,9 +42,11 @@ func autoNodeFunc() func() edgex.MainNodeProperties {
 			NodeType: edgex.NodeTypeEndpoint,
 			VirtualNodes: []*edgex.VirtualNodeProperties{
 				{
-					VirtualId: "main",
-					Desc:      "演示终端",
-					Commands:  "ECHO",
+					VirtualId:   "main",
+					Description: "演示终端",
+					StateCommands: map[string]string{
+						"echo": "AT+ECHO",
+					},
 				},
 			},
 		}
