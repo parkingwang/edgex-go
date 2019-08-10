@@ -19,7 +19,7 @@ func main() {
 		ctx.Initial(nodeId)
 
 		opts := edgex.EndpointOptions{
-			AutoInspectFunc: autoNodeFunc(),
+			NodePropertiesFunc: makeNodeProperties,
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
@@ -36,19 +36,17 @@ func main() {
 	})
 }
 
-func autoNodeFunc() func() edgex.MainNodeProperties {
-	return func() edgex.MainNodeProperties {
-		return edgex.MainNodeProperties{
-			NodeType: edgex.NodeTypeEndpoint,
-			VirtualNodes: []*edgex.VirtualNodeProperties{
-				{
-					VirtualId:   "main",
-					Description: "演示终端",
-					StateCommands: map[string]string{
-						"echo": "AT+ECHO",
-					},
+func makeNodeProperties() edgex.MainNodeProperties {
+	return edgex.MainNodeProperties{
+		NodeType: edgex.NodeTypeEndpoint,
+		VirtualNodes: []*edgex.VirtualNodeProperties{
+			{
+				VirtualId:   "main",
+				Description: "演示终端",
+				StateCommands: map[string]string{
+					"echo": "AT+ECHO",
 				},
 			},
-		}
+		},
 	}
 }

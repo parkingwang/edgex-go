@@ -22,7 +22,7 @@ type Endpoint interface {
 }
 
 type EndpointOptions struct {
-	AutoInspectFunc func() MainNodeProperties // // Inspect消息生成函数
+	NodePropertiesFunc func() MainNodeProperties // // Inspect消息生成函数
 }
 
 //// Endpoint实现
@@ -30,10 +30,9 @@ type EndpointOptions struct {
 type endpoint struct {
 	Endpoint
 	nodeId     string
+	opts       EndpointOptions
 	globals    *Globals
 	sequenceId uint32
-	// MainNodeProperties
-	autoInspectFunc func() MainNodeProperties
 	// Rpc
 	rpcHandler func(in Message) (out []byte)
 	// MQTT
@@ -64,15 +63,15 @@ func (e *endpoint) Startup() {
 	e.stopContext, e.stopCancel = context.WithCancel(context.Background())
 	// 监听Endpoint异步RPC事件
 	qos := e.globals.MqttQoS
-	listenTopic := topicOfRequestListen(e.nodeId)
-	log.Debugf("Mqtt客户端：EndpointListenTopic= %s", listenTopic)
-	e.mqttRef.Subscribe(listenTopic, qos, func(cli mqtt.Client, msg mqtt.Message) {
+	rpcTopic := topicOfRequestListen(e.nodeId)
+	log.Debugf("Mqtt客户端：Endpoint RPC Topic= %s", rpcTopic)
+	e.mqttRef.Subscribe(rpcTopic, qos, func(cli mqtt.Client, msg mqtt.Message) {
 		callerNodeId := topicToRequestCaller(msg.Topic())
 		input := ParseMessage(msg.Payload())
 		inVnId := input.VirtualNodeId()
 		inSeqId := input.SequenceId()
 		if e.globals.LogVerbose {
-			log.Debugf("接收到控制指令，目标：%s, 来源： %s, 流水号：%d",
+			log.Debugf("接收到RPC控制指令，目标：%s, 来源： %s, 流水号：%d",
 				inVnId, callerNodeId, inSeqId)
 		}
 		body := e.rpcHandler(input)
@@ -83,10 +82,11 @@ func (e *endpoint) Startup() {
 			qos, false,
 			output.Bytes())
 	})
-	// 定时发送Inspect消息
-	if nil != e.autoInspectFunc {
+	// 定时发送Properties消息
+	if nil != e.opts.NodePropertiesFunc {
+		prop := e.opts.NodePropertiesFunc()
 		go scheduleSendProperties(e.stopContext, func() {
-			e.PublishNodeProperties(e.autoInspectFunc())
+			e.PublishNodeProperties(prop)
 		})
 	}
 }
@@ -94,7 +94,7 @@ func (e *endpoint) Startup() {
 func (e *endpoint) PublishNodeProperties(properties MainNodeProperties) {
 	e.checkReady()
 	properties.NodeId = e.nodeId
-	mqttSendNodeProperties(e.mqttRef, properties)
+	mqttSendNodeProperties(e.globals, e.mqttRef, properties)
 }
 
 func (e *endpoint) PublishNodeState(state VirtualNodeState) {

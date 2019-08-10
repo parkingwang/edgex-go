@@ -60,8 +60,8 @@ type driver struct {
 	Driver
 	globals    *Globals
 	nodeId     string
-	sequenceId uint32
 	opts       DriverOptions
+	sequenceId uint32
 	// Stats
 	statistics       *statistics
 	statisticsTicker *time.Ticker
@@ -109,7 +109,7 @@ func (d *driver) Startup() {
 	for _, t := range d.opts.CustomTopics {
 		d.mqttListenTopics[t] = 0
 	}
-	for t, _ := range d.mqttListenTopics {
+	for t := range d.mqttListenTopics {
 		log.Info("Mqtt客户端：监听事件，QoS= 0, Topic= " + t)
 	}
 	mulToken := d.mqttRef.SubscribeMultiple(d.mqttListenTopics, func(cli mqtt.Client, msg mqtt.Message) {

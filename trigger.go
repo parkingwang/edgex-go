@@ -35,24 +35,23 @@ type Trigger interface {
 }
 
 type TriggerOptions struct {
-	Topic           string                    // 触发器发送事件的主题
-	AutoInspectFunc func() MainNodeProperties // Inspect消息生成函数
+	Topic              string                    // 触发器发送事件的主题
+	NodePropertiesFunc func() MainNodeProperties // Inspect消息生成函数
 }
 
 //// trigger
 
 type trigger struct {
 	Trigger
-	globals        *Globals
-	topic          string // Trigger的Topic
+	nodeId     string // Trigger的名称
+	opts       TriggerOptions
+	globals    *Globals
+	sequenceId uint32 // Trigger产生的消息ID序列
+	// MQTT
+	mqttRef        mqtt.Client
 	mqttEventTopic string // MQTT使用的EventTopic
 	mqttValueTopic string // MQTT使用的ValueTopic
-	nodeId         string // Trigger的名称
-	sequenceId     uint32 // Trigger产生的消息ID序列
-	// MainNodeProperties 消息生产函数
-	autoInspectFunc func() MainNodeProperties
-	// MQTT
-	mqttRef mqtt.Client
+
 	// Shutdown
 	stopContext context.Context
 	stopCancel  context.CancelFunc
@@ -78,20 +77,21 @@ func (t *trigger) NextMessageOf(virtualNodeId string, body []byte) Message {
 func (t *trigger) Startup() {
 	t.stopContext, t.stopCancel = context.WithCancel(context.Background())
 	// 重建Topic前缀
-	t.mqttEventTopic = TopicOfEvents(t.topic)
-	t.mqttValueTopic = TopicOfValues(t.topic)
-	// 定时发送Inspect消息
-	if nil != t.autoInspectFunc {
+	t.mqttEventTopic = TopicOfEvents(t.opts.Topic)
+	t.mqttValueTopic = TopicOfValues(t.opts.Topic)
+	// 定时发送Properties消息
+	if nil != t.opts.NodePropertiesFunc {
+		prop := t.opts.NodePropertiesFunc()
 		go scheduleSendProperties(t.stopContext, func() {
-			t.PublishNodeProperties(t.autoInspectFunc())
+			t.PublishNodeProperties(prop)
 		})
 	}
 }
 
-func (t *trigger) PublishNodeProperties(node MainNodeProperties) {
+func (t *trigger) PublishNodeProperties(properties MainNodeProperties) {
 	t.checkReady()
-	node.NodeId = t.nodeId
-	mqttSendNodeProperties(t.mqttRef, node)
+	properties.NodeId = t.nodeId
+	mqttSendNodeProperties(t.globals, t.mqttRef, properties)
 }
 
 func (t *trigger) PublishNodeState(state VirtualNodeState) {

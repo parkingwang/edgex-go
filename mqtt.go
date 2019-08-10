@@ -60,7 +60,7 @@ func mqttSendNodeState(client mqtt.Client, state VirtualNodeState) {
 	}
 }
 
-func mqttSendNodeProperties(client mqtt.Client, properties MainNodeProperties) {
+func mqttSendNodeProperties(globals *Globals, client mqtt.Client, properties MainNodeProperties) {
 	checkIdFormat("NodeType", properties.NodeType)
 	if 0 == len(properties.VirtualNodes) {
 		log.Panic("缺少虚拟节点数据")
@@ -89,7 +89,7 @@ func mqttSendNodeProperties(client mqtt.Client, properties MainNodeProperties) {
 	propertiesJSON, err := json.Marshal(properties)
 	if nil != err {
 		log.Panic("NodeProperties数据序列化错误", err)
-	} else {
+	} else if globals.LogVerbose {
 		log.Debug("NodeProperties: " + string(propertiesJSON))
 	}
 	token := client.Publish(
@@ -104,7 +104,7 @@ func mqttSendNodeProperties(client mqtt.Client, properties MainNodeProperties) {
 }
 
 func scheduleSendProperties(shutdown context.Context, inspectTask func()) {
-	// 在1分钟内上报Inspect消息
+	// 在1分钟内上报Properties消息
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 

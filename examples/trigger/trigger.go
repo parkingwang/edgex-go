@@ -18,8 +18,8 @@ func main() {
 		ctx.Initial(nodeId)
 
 		opts := edgex.TriggerOptions{
-			Topic:           "example/timer",
-			AutoInspectFunc: autoNodeFunc(),
+			Topic:              "example/timer",
+			NodePropertiesFunc: makeProperties,
 		}
 		trigger := ctx.NewTrigger(opts)
 
@@ -47,16 +47,14 @@ func main() {
 	})
 }
 
-func autoNodeFunc() func() edgex.MainNodeProperties {
-	return func() edgex.MainNodeProperties {
-		return edgex.MainNodeProperties{
-			NodeType: edgex.NodeTypeTrigger,
-			VirtualNodes: []*edgex.VirtualNodeProperties{
-				{
-					VirtualId:   "TIMER",
-					Description: "演示Trigger",
-				},
+func makeProperties() edgex.MainNodeProperties {
+	return edgex.MainNodeProperties{
+		NodeType: edgex.NodeTypeTrigger,
+		VirtualNodes: []*edgex.VirtualNodeProperties{
+			{
+				VirtualId:   "TIMER",
+				Description: "演示Trigger",
 			},
-		}
+		},
 	}
 }

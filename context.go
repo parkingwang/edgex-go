@@ -188,7 +188,7 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	opts.SetWill(TopicOfStates(c.nodeId), string(createStateMessage(VirtualNodeState{
 		NodeId:    c.nodeId,
 		VirtualId: c.nodeId,
-		State:     "offline",
+		State:     "OFFLINE",
 	}).Bytes()), 0, true)
 	mqttSetOptions(opts, c.globals)
 	c.mqttClient = mqtt.NewClient(opts)
@@ -228,23 +228,22 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 	c.checkInit()
 	checkRequires(opts.Topic, "Trigger.Topic MUST be specified")
 	return &trigger{
-		mqttRef:         c.mqttClient,
-		globals:         c.globals,
-		topic:           opts.Topic,
-		nodeId:          c.nodeId,
-		sequenceId:      0,
-		autoInspectFunc: opts.AutoInspectFunc,
+		mqttRef:    c.mqttClient,
+		globals:    c.globals,
+		nodeId:     c.nodeId,
+		opts:       opts,
+		sequenceId: 0,
 	}
 }
 
 func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	c.checkInit()
 	return &endpoint{
-		mqttRef:         c.mqttClient,
-		globals:         c.globals,
-		nodeId:          c.nodeId,
-		sequenceId:      0,
-		autoInspectFunc: opts.AutoInspectFunc,
+		mqttRef:    c.mqttClient,
+		globals:    c.globals,
+		nodeId:     c.nodeId,
+		opts:       opts,
+		sequenceId: 0,
 	}
 }
 
