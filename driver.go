@@ -110,19 +110,19 @@ func (d *driver) Startup() {
 		d.mqttListenTopics[t] = 0
 	}
 	for t := range d.mqttListenTopics {
-		log.Info("Driver: 订阅MQTT事件，QoS= 0, Topic= " + t)
+		log.Info("订阅MQTT事件，QoS= 0, Topic= " + t)
 	}
 	mulToken := d.mqttRef.SubscribeMultiple(d.mqttListenTopics, func(cli mqtt.Client, msg mqtt.Message) {
 		frame := msg.Payload()
 		if ok, err := CheckMessage(frame); !ok {
-			log.Error("Driver: 消息格式异常", err)
+			log.Error("消息格式异常", err)
 		} else {
 			topic := unwrapEdgeXTopic(msg.Topic())
 			d.mqttListenWorker(topic, ParseMessage(frame))
 		}
 	})
 	if mulToken.Wait() && nil != mulToken.Error() {
-		log.Panic("Driver: 订阅事件出错", mulToken.Error())
+		log.Panic("订阅事件出错", mulToken.Error())
 	}
 	// 接收Replies
 	d.router = &router{
@@ -133,12 +133,12 @@ func (d *driver) Startup() {
 		topicOfRepliesListen(d.nodeId), 0,
 		func(cli mqtt.Client, msg mqtt.Message) {
 			if d.globals.LogVerbose {
-				log.Debug("Driver: 接收到RPC响应，Topic= " + msg.Topic())
+				log.Debug("接收到RPC响应，Topic= " + msg.Topic())
 			}
 			d.router.dispatch(msg)
 		})
 	if subToken.Wait() && nil != subToken.Error() {
-		log.Panic("Driver: 订阅RPC事件出错", subToken.Error())
+		log.Panic("订阅RPC事件出错", subToken.Error())
 	}
 	// 发送Stats
 	d.statistics = new(statistics)
@@ -150,7 +150,7 @@ func (d *driver) Startup() {
 			case <-d.statisticsTicker.C:
 				err := d.PublishStatistics(d.statistics.toJSONString())
 				if nil != err {
-					log.Error("Driver: 定时上报Stats消息，MQTT错误", err)
+					log.Error("定时上报Stats消息，MQTT错误", err)
 				}
 
 			case <-d.stopContext.Done():
@@ -164,11 +164,11 @@ func (d *driver) Shutdown() {
 	topics := make([]string, 0)
 	for t := range d.mqttListenTopics {
 		topics = append(topics, t)
-		log.Info("Driver: 取消订阅, Topic= ", t)
+		log.Info("取消订阅, Topic= ", t)
 	}
 	token := d.mqttRef.Unsubscribe(topics...)
 	if token.Wait() && nil != token.Error() {
-		log.Error("Driver: 取消订阅出错：", token.Error())
+		log.Error("取消订阅出错：", token.Error())
 	}
 	// shutdown
 	d.stopCancel()
@@ -180,7 +180,7 @@ func (d *driver) Process(f DriverHandler) {
 
 func (d *driver) Call(remoteNodeId string, in Message, future chan<- Message) error {
 	d.checkReady()
-	log.Debug("Driver: MQ_RPC调用，Endpoint.NodeId= ", remoteNodeId)
+	log.Debug(" MQ_RPC调用，Endpoint.NodeId= ", remoteNodeId)
 	// 发送Request消息
 	token := d.mqttRef.Publish(
 		topicOfRequestSend(remoteNodeId, d.nodeId),
@@ -247,7 +247,7 @@ func (d *driver) PublishMqtt(mqttTopic string, msg Message, qos uint8, retained 
 
 func (d *driver) checkReady() {
 	if d.stopCancel == nil || d.stopContext == nil {
-		log.Panic("Driver: 未启动，须调用Startup()/Shutdown()")
+		log.Panic("Driver未启动，须调用Startup()/Shutdown()")
 	}
 }
 

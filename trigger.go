@@ -141,6 +141,6 @@ func (t *trigger) Shutdown() {
 
 func (t *trigger) checkReady() {
 	if t.stopCancel == nil || t.stopContext == nil {
-		log.Panic("Trigger: 未启动，须调用Startup()/Shutdown()")
+		log.Panic("Trigger未启动，须调用Startup()/Shutdown()")
 	}
 }

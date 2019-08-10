@@ -19,6 +19,7 @@ var _ZapLoggerConfig = zap.Config{
 		LevelKey:       "L",
 		NameKey:        "N",
 		MessageKey:     "M",
+		CallerKey:      "C",
 		LineEnding:     zapcore.DefaultLineEnding,
 		EncodeLevel:    zapcore.CapitalColorLevelEncoder,
 		EncodeTime:     zapcore.ISO8601TimeEncoder,
