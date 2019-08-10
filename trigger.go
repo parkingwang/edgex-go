@@ -3,7 +3,6 @@ package edgex
 import (
 	"context"
 	"github.com/eclipse/paho.mqtt.golang"
-	"github.com/pkg/errors"
 	"math"
 )
 
@@ -124,7 +123,7 @@ func (t *trigger) PublishMqtt(mqttTopic string, message Message, qos uint8, reta
 		retained,
 		message.Bytes())
 	if token.Wait() && nil != token.Error() {
-		return errors.WithMessage(token.Error(), "发送事件消息出错")
+		return token.Error()
 	} else {
 		return nil
 	}
@@ -142,6 +141,6 @@ func (t *trigger) Shutdown() {
 
 func (t *trigger) checkReady() {
 	if t.stopCancel == nil || t.stopContext == nil {
-		log.Panic("Trigger未启动，须调用Startup()/Shutdown()")
+		log.Panic("Trigger: 未启动，须调用Startup()/Shutdown()")
 	}
 }

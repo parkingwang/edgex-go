@@ -198,7 +198,7 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	mqttAwaitConnection(c.mqttClient, c.globals.MqttMaxRetry)
 
 	if !c.mqttClient.IsConnected() {
-		log.Panic("Mqtt客户端连接无法连接Broker")
+		log.Panic("Mqtt客户端：连接无法连接Broker")
 	}
 }
 
@@ -226,7 +226,7 @@ func (c *NodeContext) LoadConfigByName(fileName string) map[string]interface{} {
 
 func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 	c.checkInit()
-	checkRequires(opts.Topic, "Trigger.Topic MUST be specified")
+	checkRequires(opts.Topic, "NodeContext: 必须设置参数选项Trigger.Topic")
 	return &trigger{
 		mqttRef:    c.mqttClient,
 		globals:    c.globals,
@@ -249,7 +249,7 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 
 func (c *NodeContext) NewDriver(opts DriverOptions) Driver {
 	c.checkInit()
-	checkRequires(opts.EventTopics, "Driver.Topics MUST be specified")
+	checkRequires(opts.EventTopics, "NodeContext: 必须设置参数选项Driver.Topics")
 	return &driver{
 		mqttRef: c.mqttClient,
 		globals: c.globals,
@@ -280,7 +280,7 @@ func (c *NodeContext) LogIfVerbose(fn func(log *zap.SugaredLogger)) {
 
 func (c *NodeContext) checkInit() {
 	if nil == c.mqttClient {
-		log.Panic("Context未初始化")
+		log.Panic("NodeContext: 未初始化")
 	}
 }
 
@@ -309,12 +309,12 @@ func LoadConfigByName(fileName string) map[string]interface{} {
 	config := make(map[string]interface{})
 	file, err := searchConfig(fileName, DefaultConfDir+fileName, os.Getenv(EnvKeyConfig))
 	if nil != err {
-		log.Panic("未设置任何配置文件")
+		log.Panic("NodeContext: 未设置任何配置文件")
 	} else {
-		log.Info("加载配置文件：", file)
+		log.Info("NodeContext: 加载配置文件：", file)
 	}
 	if _, err := toml.DecodeFile(file, &config); nil != err {
-		log.Error(fmt.Sprintf("读取配置文件(%s)出错: ", file), err)
+		log.Error(fmt.Sprintf("NodeContext: 读取配置文件(%s)出错: ", file), err)
 	}
 	return config
 }

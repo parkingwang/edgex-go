@@ -64,14 +64,14 @@ func (e *endpoint) Startup() {
 	// 监听Endpoint异步RPC事件
 	qos := e.globals.MqttQoS
 	rpcTopic := topicOfRequestListen(e.nodeId)
-	log.Debugf("Mqtt客户端：Endpoint RPC Topic= %s", rpcTopic)
+	log.Debugf("Endpoint: 订阅RPCTopic= %s", rpcTopic)
 	e.mqttRef.Subscribe(rpcTopic, qos, func(cli mqtt.Client, msg mqtt.Message) {
 		callerNodeId := topicToRequestCaller(msg.Topic())
 		input := ParseMessage(msg.Payload())
 		inVnId := input.VirtualNodeId()
 		inSeqId := input.SequenceId()
 		if e.globals.LogVerbose {
-			log.Debugf("接收到RPC控制指令，目标：%s, 来源： %s, 流水号：%d",
+			log.Debugf("Endpoint: 接收到RPC控制指令，目标：%s, 来源： %s, 流水号：%d",
 				inVnId, callerNodeId, inSeqId)
 		}
 		body := e.rpcHandler(input)
@@ -113,6 +113,6 @@ func (e *endpoint) Serve(h func(in Message) (out []byte)) {
 
 func (e *endpoint) checkReady() {
 	if e.stopCancel == nil || e.stopContext == nil {
-		log.Panic("Endpoint未启动，须调用Startup()/Shutdown()")
+		log.Panic("Endpoint: 未启动，须调用Startup()/Shutdown()")
 	}
 }
