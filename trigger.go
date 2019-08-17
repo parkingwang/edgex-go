@@ -2,8 +2,8 @@ package edgex
 
 import (
 	"context"
+	"github.com/beinan/fastid"
 	"github.com/eclipse/paho.mqtt.golang"
-	"math"
 )
 
 //
@@ -42,10 +42,10 @@ type TriggerOptions struct {
 
 type trigger struct {
 	Trigger
-	nodeId     string // Trigger的名称
-	opts       TriggerOptions
-	globals    *Globals
-	sequenceId uint32 // Trigger产生的消息ID序列
+	nodeId   string // Trigger的名称
+	opts     TriggerOptions
+	globals  *Globals
+	seqIdRef *fastid.Config // Trigger产生的消息ID序列
 	// MQTT
 	mqttRef        mqtt.Client
 	mqttEventTopic string // MQTT使用的EventTopic
@@ -60,9 +60,8 @@ func (t *trigger) NodeId() string {
 	return t.nodeId
 }
 
-func (t *trigger) NextMessageSequenceId() uint32 {
-	t.sequenceId = (t.sequenceId + 1) % math.MaxUint32
-	return t.sequenceId
+func (t *trigger) NextMessageSequenceId() int64 {
+	return t.seqIdRef.GenInt64ID()
 }
 
 func (t *trigger) NextMessageBy(virtualId string, body []byte) Message {

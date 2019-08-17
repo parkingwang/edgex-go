@@ -4,8 +4,9 @@ go 1.12
 
 require (
 	github.com/BurntSushi/toml v0.3.1
+	github.com/beinan/fastid v0.0.0-20190107221622-c03a08f42c37
 	github.com/eclipse/paho.mqtt.golang v1.2.0
-	github.com/pkg/errors v0.8.1
+	github.com/pkg/errors v0.8.1 // indirect
 	github.com/yoojia/go-value v0.1.0
 	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/multierr v1.1.0 // indirect

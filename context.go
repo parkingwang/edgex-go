@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/BurntSushi/toml"
+	"github.com/beinan/fastid"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/yoojia/go-value"
 	"go.uber.org/zap"
@@ -125,6 +126,7 @@ type NodeContext struct {
 	nodeId     string
 	mqttClient mqtt.Client
 	signals    chan os.Signal
+	sequenceId *fastid.Config
 }
 
 func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
@@ -134,6 +136,9 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 
 	c.nodeId = value.ToString(config["NodeId"])
 	checkIdFormat("NodeId", c.nodeId)
+
+	c.sequenceId = fastid.CommonConfig
+
 	// Globals设置
 	if globals, ok := value.ToMap(config["Globals"]); ok {
 		// 其它全局配置
@@ -228,22 +233,22 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 	c.checkInit()
 	checkRequires(opts.Topic, "必须设置参数选项Trigger.Topic")
 	return &trigger{
-		mqttRef:    c.mqttClient,
-		globals:    c.globals,
-		nodeId:     c.nodeId,
-		opts:       opts,
-		sequenceId: 0,
+		mqttRef:  c.mqttClient,
+		globals:  c.globals,
+		nodeId:   c.nodeId,
+		opts:     opts,
+		seqIdRef: c.sequenceId,
 	}
 }
 
 func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	c.checkInit()
 	return &endpoint{
-		mqttRef:    c.mqttClient,
-		globals:    c.globals,
-		nodeId:     c.nodeId,
-		opts:       opts,
-		sequenceId: 0,
+		mqttRef:  c.mqttClient,
+		globals:  c.globals,
+		nodeId:   c.nodeId,
+		opts:     opts,
+		seqIdRef: c.sequenceId,
 	}
 }
 
@@ -251,10 +256,11 @@ func (c *NodeContext) NewDriver(opts DriverOptions) Driver {
 	c.checkInit()
 	checkRequires(opts.EventTopics, "必须设置参数选项Driver.Topics")
 	return &driver{
-		mqttRef: c.mqttClient,
-		globals: c.globals,
-		nodeId:  c.nodeId,
-		opts:    opts,
+		mqttRef:  c.mqttClient,
+		globals:  c.globals,
+		nodeId:   c.nodeId,
+		opts:     opts,
+		seqIdRef: c.sequenceId,
 	}
 }
 

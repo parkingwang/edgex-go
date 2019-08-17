@@ -2,8 +2,8 @@ package edgex
 
 import (
 	"context"
+	"github.com/beinan/fastid"
 	"github.com/eclipse/paho.mqtt.golang"
-	"math"
 )
 
 //
@@ -29,10 +29,10 @@ type EndpointOptions struct {
 
 type endpoint struct {
 	Endpoint
-	nodeId     string
-	opts       EndpointOptions
-	globals    *Globals
-	sequenceId uint32
+	nodeId   string
+	opts     EndpointOptions
+	globals  *Globals
+	seqIdRef *fastid.Config
 	// Rpc
 	rpcHandler func(in Message) (out []byte)
 	// MQTT
@@ -46,9 +46,8 @@ func (e *endpoint) NodeId() string {
 	return e.nodeId
 }
 
-func (e *endpoint) NextMessageSequenceId() uint32 {
-	e.sequenceId = (e.sequenceId + 1) % math.MaxUint32
-	return e.sequenceId
+func (e *endpoint) NextMessageSequenceId() int64 {
+	return e.seqIdRef.GenInt64ID()
 }
 
 func (e *endpoint) NextMessageBy(virtualId string, body []byte) Message {

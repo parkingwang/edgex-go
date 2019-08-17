@@ -18,6 +18,10 @@ const (
 	FrameVarData      = 0xDA
 )
 
+const (
+	sequenceIdByteSize = 8
+)
+
 var (
 	ErrInvalidMessageLength = errors.New("INVALID_MESSAGE:LENGTH")
 	ErrInvalidMessageHeader = errors.New("INVALID_MESSAGE:HEADER")
@@ -25,10 +29,10 @@ var (
 
 // Header 头部
 type Header struct {
-	Magic      byte   // Magic字段，固定为 0xED
-	Version    byte   // 协议版本
-	ControlVar byte   // 控制变量
-	SequenceId uint32 // 消息流水ID
+	Magic      byte  // Magic字段，固定为 0xED
+	Version    byte  // 协议版本
+	ControlVar byte  // 控制变量
+	SequenceId int64 // 消息流水ID，具有唯一性
 }
 
 // Message 消息接口。
@@ -40,8 +44,9 @@ type Message interface {
 	// 它由两部分组成：NodeId + VirtualId。在可以唯一标识一个虚拟设备。
 	VirtualNodeId() string
 
-	// SequenceId 返回消息Id
-	SequenceId() uint32
+	// SequenceId 返回消息Id。
+	// 消息ID使用SnowflakeID生成器具有唯一性。
+	SequenceId() int64
 
 	// Body 返回消息体字节
 	Body() []byte
@@ -67,7 +72,7 @@ func (m *message) Header() Header {
 	return *m.header
 }
 
-func (m *message) SequenceId() uint32 {
+func (m *message) SequenceId() int64 {
 	return m.header.SequenceId
 }
 
@@ -80,7 +85,7 @@ func (m *message) Bytes() []byte {
 	buf.WriteByte(m.header.Magic)
 	buf.WriteByte(m.header.Version)
 	buf.WriteByte(m.header.ControlVar)
-	buf.Write(encodeUint32(m.header.SequenceId))
+	buf.Write(encodeInt64(m.header.SequenceId))
 	buf.WriteString(m.virtualNodeId)
 	buf.WriteByte(FrameEmpty)
 	buf.Write(m.body)
@@ -88,7 +93,7 @@ func (m *message) Bytes() []byte {
 }
 
 // 创建消息对象
-func NewMessageById(virtualNodeId string, bodyBytes []byte, seqId uint32) Message {
+func NewMessageById(virtualNodeId string, bodyBytes []byte, seqId int64) Message {
 	return &message{
 		header: &Header{
 			Magic:      FrameMagic,
@@ -102,7 +107,7 @@ func NewMessageById(virtualNodeId string, bodyBytes []byte, seqId uint32) Messag
 }
 
 // 创建消息对象
-func NewMessageWith(nodeId, virtualId string, bodyBytes []byte, seqId uint32) Message {
+func NewMessageWith(nodeId, virtualId string, bodyBytes []byte, seqId int64) Message {
 	return NewMessageById(MakeVirtualNodeId(nodeId, virtualId), bodyBytes, seqId)
 }
 
@@ -112,12 +117,12 @@ func ParseMessage(data []byte) Message {
 	magic, _ := reader.ReadByte()
 	version, _ := reader.ReadByte()
 	vars, _ := reader.ReadByte()
-	seqId := make([]byte, 4)
+	seqId := make([]byte, sequenceIdByteSize)
 	if _, err := reader.Read(seqId); nil != err {
 		panic(err)
 	}
 	vnId, _ := reader.ReadBytes(FrameEmpty)
-	body := make([]byte, len(data)-7-len(vnId))
+	body := make([]byte, len(data)-(3 /*Magic+Ver+Var*/ +sequenceIdByteSize)-len(vnId))
 	if _, err := reader.Read(body); nil != err {
 		panic(err)
 	}
@@ -126,7 +131,7 @@ func ParseMessage(data []byte) Message {
 			Magic:      magic,
 			Version:    version,
 			ControlVar: vars,
-			SequenceId: decodeUint32(seqId),
+			SequenceId: decodeInt64(seqId),
 		},
 		virtualNodeId: string(vnId[:len(vnId)-1]),
 		body:          body,
@@ -150,16 +155,16 @@ func MakeVirtualNodeId(nodeId, virtualId string) string {
 	return nodeId + ":" + virtualId
 }
 
-func encodeUint32(num uint32) []byte {
-	bs := make([]byte, 4)
-	binary.BigEndian.PutUint32(bs, num)
+func encodeInt64(num int64) []byte {
+	bs := make([]byte, sequenceIdByteSize)
+	binary.BigEndian.PutUint64(bs, uint64(num))
 	return bs
 }
 
-func decodeUint32(bs []byte) uint32 {
+func decodeInt64(bs []byte) int64 {
 	if nil == bs || 0 == len(bs) {
 		return 0
 	} else {
-		return binary.BigEndian.Uint32(bs)
+		return int64(binary.BigEndian.Uint64(bs))
 	}
 }

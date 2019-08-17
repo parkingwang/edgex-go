@@ -5,8 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/beinan/fastid"
 	"github.com/eclipse/paho.mqtt.golang"
-	"math"
 	"sync"
 	"time"
 )
@@ -58,10 +58,10 @@ type DriverOptions struct {
 
 type driver struct {
 	Driver
-	globals    *Globals
-	nodeId     string
-	opts       DriverOptions
-	sequenceId uint32
+	globals  *Globals
+	nodeId   string
+	opts     DriverOptions
+	seqIdRef *fastid.Config
 	// Stats
 	statistics       *statistics
 	statisticsTicker *time.Ticker
@@ -81,9 +81,8 @@ func (d *driver) NodeId() string {
 	return d.nodeId
 }
 
-func (d *driver) NextMessageSequenceId() uint32 {
-	d.sequenceId = (d.sequenceId + 1) % math.MaxUint32
-	return d.sequenceId
+func (d *driver) NextMessageSequenceId() int64 {
+	return d.seqIdRef.GenInt64ID()
 }
 
 func (d *driver) NextMessageBy(virtualId string, body []byte) Message {

@@ -18,7 +18,7 @@ type NeedAccessNodeId interface {
 // 创建消息接口
 type NeedCreateMessages interface {
 	// NextMessageSequenceId 返回内部消息流水号
-	NextMessageSequenceId() uint32
+	NextMessageSequenceId() int64
 
 	// NextMessageBy 根据指令VirtualId，使用内部NodeId，创建基于内部流水号的消息对象
 	NextMessageBy(virtualId string, body []byte) Message
