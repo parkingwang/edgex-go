@@ -23,8 +23,8 @@ type Endpoint interface {
 	// PublishAction 发送虚拟节点的Action发送消息的QoS使用默认设置。
 	PublishAction(virtualId string, data []byte, eventId int64) error
 
-	// PublishActionWith 发送虚拟节点的Action消息。指定QOS参数。
-	PublishActionWith(virtualId string, data []byte, eventId int64, qos uint8, retained bool) error
+	// PublishActionMessage 发送虚拟节点的Action发送消息的QoS使用默认设置。
+	PublishActionMessage(message Message) error
 
 	// 处理RPC消息，返回处理结果
 	Serve(func(in Message) (out []byte))
@@ -70,11 +70,14 @@ func (e *endpoint) NewMessageOf(virtualNodeId string, body []byte, eventId int64
 }
 
 func (e *endpoint) PublishAction(virtualId string, data []byte, eventId int64) error {
-	return e.PublishActionWith(virtualId, data, eventId, e.globals.MqttQoS, e.globals.MqttRetained)
+	return e.PublishActionMessage(e.NewMessageBy(virtualId, data, eventId))
 }
 
-func (e *endpoint) PublishActionWith(virtualId string, data []byte, eventId int64, qos uint8, retained bool) error {
-	return e.publishMessage(e.mqttActionTopic, virtualId, eventId, data, qos, retained)
+func (e *endpoint) PublishActionMessage(message Message) error {
+	return e.PublishMqtt(
+		e.mqttActionTopic,
+		message,
+		e.globals.MqttQoS, e.globals.MqttRetained)
 }
 
 func (e *endpoint) PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error {
@@ -89,13 +92,6 @@ func (e *endpoint) PublishMqtt(mqttTopic string, message Message, qos uint8, ret
 	} else {
 		return nil
 	}
-}
-
-func (e *endpoint) publishMessage(mqttTopic string, virtualId string, eventId int64, data []byte, qos byte, retained bool) error {
-	return e.PublishMqtt(
-		mqttTopic,
-		NewMessageWith(e.nodeId, virtualId, data, eventId),
-		qos, retained)
 }
 
 func (e *endpoint) Startup() {
