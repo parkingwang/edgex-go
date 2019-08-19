@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/beinan/fastid"
 	"github.com/eclipse/paho.mqtt.golang"
+	"time"
 )
 
 //
@@ -101,23 +102,37 @@ func (e *endpoint) Startup() {
 	e.mqttActionTopic = TopicOfActions(e.nodeId) // Action使用当前节点作为子Topic
 	e.mqttRpcTopic = topicOfRequestListen(e.nodeId)
 
-	log.Debugf("订阅RPCTopic= %s", e.mqttRpcTopic)
+	log.Debugf("订阅RPC-Topic= %s", e.mqttRpcTopic)
 	e.mqttRef.Subscribe(e.mqttRpcTopic, qos, func(cli mqtt.Client, msg mqtt.Message) {
 		callerNodeId := topicToRequestCaller(msg.Topic())
 		input := ParseMessage(msg.Payload())
-		inVnId := input.VirtualNodeId()
+		vnId := input.VirtualNodeId()
 		eventId := input.EventId()
 		if e.globals.LogVerbose {
-			log.Debugf("接收到RPC控制指令，目标：%s, 来源： %s, 事件号：%d",
-				inVnId, callerNodeId, eventId)
+			log.Debugf("接收RPC控制指令，目标：%s, 来源： %s, 事件号：%d",
+				vnId, callerNodeId, eventId)
 		}
 		body := e.rpcHandler(input)
 		// 确保EventId，与Input的相同
-		output := NewMessageById(inVnId, body, eventId)
-		e.mqttRef.Publish(
-			topicOfRepliesSend(e.nodeId, callerNodeId),
-			qos, false,
-			output.Bytes())
+		for i := 0; i <= 3; i++ {
+			token := e.mqttRef.Publish(
+				topicOfRepliesSend(e.nodeId, callerNodeId),
+				qos, false,
+				NewMessageById(vnId, body, eventId).Bytes())
+			if token.Wait() && nil != token.Error() {
+				log.Error("返回RPC响应出错，正在重试(500ms)：", token.Error())
+				<-time.After(500 * time.Millisecond)
+			} else {
+				break
+			}
+		}
+		// Endpoint执行指令，触发Action事件
+		go func() {
+			if err := e.PublishActionMessage(
+				NewMessageById(vnId, []byte("ACT+SRC:"+callerNodeId), eventId)); nil != err {
+				log.Error("发送RPC动作Action广播出错：", err)
+			}
+		}()
 	})
 	// 定时发送Properties消息
 	if nil != e.opts.NodePropertiesFunc {
