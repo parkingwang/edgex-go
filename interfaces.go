@@ -20,11 +20,8 @@ type NeedCreateMessages interface {
 	// GenerateEventId 返回消息事件ID
 	GenerateEventId() int64
 
-	// NextMessageBy 根据指令VirtualId，使用内部NodeId，创建基于内部流水号的消息对象
-	NewMessageBy(virtualId string, body []byte, eventId int64) Message
-
-	// NewMessageOf 根据完整VirtualNodeId，创建基于内部流水号的消息对象
-	NewMessageOf(virtualNodeId string, body []byte, eventId int64) Message
+	// NewMessage 创建基于节点的消息对象
+	NewMessage(groupId, majorId, minorId string, body []byte, eventId int64) Message
 }
 
 // 发布State/Properties消息

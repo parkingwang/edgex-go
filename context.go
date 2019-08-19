@@ -132,8 +132,7 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	signal.Notify(c.signals, syscall.SIGTERM, syscall.SIGINT)
 
 	c.nodeId = value.ToString(config["NodeId"])
-	checkIdFormat("NodeId", c.nodeId)
-
+	checkRequiredId(c.nodeId, "NodeId")
 	c.sequenceId = fastid.CommonConfig
 
 	// Globals设置
@@ -188,9 +187,10 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	clientId := fmt.Sprintf("%s:%s", MqttClientIdHeader, c.nodeId)
 	opts.SetClientID(clientId)
 	opts.SetWill(TopicOfStates(c.nodeId), string(createStateMessage(VirtualNodeState{
-		NodeId:    c.nodeId,
-		VirtualId: c.nodeId,
-		State:     "OFFLINE",
+		NodeId:  c.nodeId,
+		GroupId: c.nodeId,
+		MajorId: c.nodeId,
+		State:   "OFFLINE",
 	}).Bytes()), 0, true)
 	mqttSetOptions(opts, c.globals)
 	c.mqttClient = mqtt.NewClient(opts)
@@ -228,7 +228,7 @@ func (c *NodeContext) LoadConfigByName(fileName string) map[string]interface{} {
 
 func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 	c.checkInit()
-	checkRequires(opts.Topic, "必须设置参数选项Trigger.Topic")
+	checkRequired(opts.Topic, "必须设置参数选项Trigger.Topic")
 	return &trigger{
 		mqttRef:  c.mqttClient,
 		globals:  c.globals,

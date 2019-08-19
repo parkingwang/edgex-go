@@ -21,13 +21,13 @@ type Trigger interface {
 	PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error
 
 	// PublishEvent 发送虚拟节点的Event消息。发送消息的QoS使用默认设置。
-	PublishEvent(virtualId string, data []byte, eventId int64) error
+	PublishEvent(groupId, majorId, minorId string, data []byte, eventId int64) error
 
 	// PublishEventMessage 发送虚拟节点的Event消息。
 	PublishEventMessage(message Message) error
 
 	// PublishValue 发送虚拟节点的Value消息。发送消息的QoS使用默认设置。
-	PublishValue(virtualId string, data []byte, eventId int64) error
+	PublishValue(groupId, majorId, minorId string, data []byte, eventId int64) error
 
 	// PublishValueMessage 发送虚拟节点的Value消息
 	PublishValueMessage(message Message) error
@@ -65,12 +65,8 @@ func (t *trigger) GenerateEventId() int64 {
 	return t.seqIdRef.GenInt64ID()
 }
 
-func (t *trigger) NewMessageBy(virtualId string, body []byte, eventId int64) Message {
-	return NewMessageWith(t.nodeId, virtualId, body, eventId)
-}
-
-func (t *trigger) NewMessageOf(virtualNodeId string, body []byte, eventId int64) Message {
-	return NewMessageById(virtualNodeId, body, eventId)
+func (t *trigger) NewMessage(groupId, majorId, minorId string, body []byte, eventId int64) Message {
+	return NewMessage(t.nodeId, groupId, majorId, minorId, body, eventId)
 }
 
 func (t *trigger) Startup() {
@@ -100,8 +96,8 @@ func (t *trigger) PublishNodeState(state VirtualNodeState) {
 	mqttSendNodeState(t.mqttRef, state)
 }
 
-func (t *trigger) PublishEvent(virtualId string, data []byte, eventId int64) error {
-	return t.PublishEventMessage(t.NewMessageBy(virtualId, data, eventId))
+func (t *trigger) PublishEvent(groupId, majorId, minorId string, data []byte, eventId int64) error {
+	return t.PublishEventMessage(t.NewMessage(groupId, majorId, minorId, data, eventId))
 }
 
 func (t *trigger) PublishEventMessage(message Message) error {
@@ -111,8 +107,8 @@ func (t *trigger) PublishEventMessage(message Message) error {
 		t.globals.MqttQoS, t.globals.MqttRetained)
 }
 
-func (t *trigger) PublishValue(virtualId string, data []byte, eventId int64) error {
-	return t.PublishValueMessage(t.NewMessageBy(virtualId, data, eventId))
+func (t *trigger) PublishValue(groupId, majorId, minorId string, data []byte, eventId int64) error {
+	return t.PublishValueMessage(t.NewMessage(groupId, majorId, minorId, data, eventId))
 }
 
 func (t *trigger) PublishValueMessage(message Message) error {

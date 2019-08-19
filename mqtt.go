@@ -35,17 +35,16 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 ////
 
 func createStateMessage(state VirtualNodeState) Message {
-	if "" != state.Uuid {
-		log.Debugf("NodeState: 虚拟节点使用自定义Uuid：%s", state.Uuid)
+	if "" != state.UnionId {
+		log.Debugf("NodeState: 虚拟节点使用自定义Uuid：%s", state.UnionId)
 	} else {
-		checkIdFormat("VirtualId", state.VirtualId)
-		state.Uuid = MakeVirtualNodeId(state.NodeId, state.VirtualId)
+		state.UnionId = MakeUnionId(state.NodeId, state.GroupId, state.MajorId, state.MinorId)
 	}
 	stateJSON, err := json.Marshal(state)
 	if nil != err {
 		log.Panic("NodeState: 数据序列化错误", err)
 	}
-	return NewMessageById(state.Uuid, stateJSON, 0)
+	return NewMessageByUnionId(state.UnionId, stateJSON, 0)
 }
 
 func mqttSendNodeState(client mqtt.Client, state VirtualNodeState) {
@@ -61,7 +60,7 @@ func mqttSendNodeState(client mqtt.Client, state VirtualNodeState) {
 }
 
 func mqttSendNodeProperties(globals *Globals, client mqtt.Client, properties MainNodeProperties) {
-	checkIdFormat("NodeType", properties.NodeType)
+	checkRequired(properties.NodeType, "NodeType是必须的")
 	if 0 == len(properties.VirtualNodes) {
 		log.Panic("NodeProperties: 缺少虚拟节点数据")
 	}
@@ -73,17 +72,11 @@ func mqttSendNodeProperties(globals *Globals, client mqtt.Client, properties Mai
 	}
 	nodeId := properties.NodeId
 	// 更新设备列表参数
-	for _, vd := range properties.VirtualNodes {
-		// 自动生成UUID
-		if "" == vd.VirtualId {
-			log.Panic("NodeProperties: 必须指定VirtualNode.VirtualId，并确保其节点范围内的唯一性")
+	for _, vn := range properties.VirtualNodes {
+		if "" != vn.UnionId {
+			log.Debugf("NodeProperties: 虚拟节点[%s]使用自定义UnionId：%s", vn.Description, vn.UnionId)
 		} else {
-			if "" != vd.Uuid {
-				log.Debugf("NodeProperties: 虚拟节点[%s]使用自定义Uuid：%s", vd.Description, vd.Uuid)
-			} else {
-				checkIdFormat("VirtualId", vd.VirtualId)
-				vd.Uuid = MakeVirtualNodeId(nodeId, vd.VirtualId)
-			}
+			vn.UnionId = MakeUnionId(nodeId, vn.GroupId, vn.MajorId, vn.MinorId)
 		}
 	}
 	propertiesJSON, err := json.Marshal(properties)
@@ -96,7 +89,7 @@ func mqttSendNodeProperties(globals *Globals, client mqtt.Client, properties Mai
 		TopicOfProperties(nodeId),
 		0,
 		false,
-		NewMessageWith(nodeId, nodeId, propertiesJSON, 0).Bytes(),
+		NewMessage(nodeId, nodeId, nodeId, "", propertiesJSON, 0).Bytes(),
 	)
 	if token.Wait() && nil != token.Error() {
 		log.Error("NodeProperties: 发送消息出错", token.Error())

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"strings"
 )
 
 //
@@ -40,9 +41,20 @@ type Message interface {
 	// Header 返回消息的Header
 	Header() Header
 
-	// VirtualNodeId 虚拟节点ID
-	// 它由两部分组成：NodeId + VirtualId。在可以唯一标识一个虚拟设备。
-	VirtualNodeId() string
+	// NodeId 返回节点ID
+	NodeId() string
+
+	// GroupId 返回组ID
+	GroupId() string
+
+	// MajorId 返回主ID
+	MajorId() string
+
+	// MinorId 返回次ID
+	MinorId() string
+
+	// UnionId 返回 NodeId:GroupId:MajorId:MinorId 的组合ID
+	UnionId() string
 
 	// EventId 返回消息Id。
 	// 消息ID使用SnowflakeID生成器具有唯一性。
@@ -59,13 +71,30 @@ type Message interface {
 
 type message struct {
 	Message
-	header        *Header
-	virtualNodeId string
-	body          []byte
+	header   *Header
+	unionId  string
+	_unionId []string
+	body     []byte
 }
 
-func (m *message) VirtualNodeId() string {
-	return m.virtualNodeId
+func (m *message) UnionId() string {
+	return m.unionId
+}
+
+func (m *message) NodeId() string {
+	return m._unionId[0]
+}
+
+func (m *message) GroupId() string {
+	return m._unionId[1]
+}
+
+func (m *message) MajorId() string {
+	return m._unionId[2]
+}
+
+func (m *message) MinorId() string {
+	return m._unionId[3]
 }
 
 func (m *message) Header() Header {
@@ -86,14 +115,23 @@ func (m *message) Bytes() []byte {
 	buf.WriteByte(m.header.Version)
 	buf.WriteByte(m.header.ControlVar)
 	buf.Write(encodeInt64(m.header.EventId))
-	buf.WriteString(m.virtualNodeId)
+	buf.WriteString(m.unionId)
 	buf.WriteByte(FrameEmpty)
 	buf.Write(m.body)
 	return buf.Bytes()
 }
 
+func splitUnionId(unionId string) []string {
+	_unionId := strings.Split(unionId, ":")
+	remains := 4 - len(_unionId)
+	for i := 0; i < remains; i++ {
+		_unionId = append(_unionId, "")
+	}
+	return _unionId[:4]
+}
+
 // 创建消息对象
-func NewMessageById(virtualNodeId string, bodyBytes []byte, eventId int64) Message {
+func NewMessageByUnionId(unionId string, bodyBytes []byte, eventId int64) Message {
 	return &message{
 		header: &Header{
 			Magic:      FrameMagic,
@@ -101,14 +139,18 @@ func NewMessageById(virtualNodeId string, bodyBytes []byte, eventId int64) Messa
 			ControlVar: FrameVarData,
 			EventId:    eventId,
 		},
-		virtualNodeId: virtualNodeId,
-		body:          bodyBytes,
+		unionId:  unionId,
+		_unionId: splitUnionId(unionId),
+		body:     bodyBytes,
 	}
 }
 
 // 创建消息对象
-func NewMessageWith(nodeId, virtualId string, bodyBytes []byte, eventId int64) Message {
-	return NewMessageById(MakeVirtualNodeId(nodeId, virtualId), bodyBytes, eventId)
+func NewMessage(nodeId, groupId, majorId, minorId string, bodyBytes []byte, eventId int64) Message {
+	return NewMessageByUnionId(
+		MakeUnionId(nodeId, groupId, majorId, minorId),
+		bodyBytes,
+		eventId)
 }
 
 // 解析消息对象
@@ -121,11 +163,12 @@ func ParseMessage(data []byte) Message {
 	if _, err := reader.Read(eventId); nil != err {
 		panic(err)
 	}
-	vnId, _ := reader.ReadBytes(FrameEmpty)
-	body := make([]byte, len(data)-(3 /*Magic+Ver+Var*/ +eventIdByteSize)-len(vnId))
+	uid, _ := reader.ReadBytes(FrameEmpty)
+	body := make([]byte, len(data)-(3 /*Magic+Ver+Var*/ +eventIdByteSize)-len(uid))
 	if _, err := reader.Read(body); nil != err {
 		panic(err)
 	}
+	unionId := string(uid[:len(uid)-1])
 	return &message{
 		header: &Header{
 			Magic:      magic,
@@ -133,13 +176,17 @@ func ParseMessage(data []byte) Message {
 			ControlVar: vars,
 			EventId:    decodeInt64(eventId),
 		},
-		virtualNodeId: string(vnId[:len(vnId)-1]),
-		body:          body,
+		unionId:  unionId,
+		_unionId: splitUnionId(unionId),
+		body:     body,
 	}
 }
 
-func MakeVirtualNodeId(nodeId, virtualId string) string {
-	return nodeId + ":" + virtualId
+func MakeUnionId(nodeId, groupId, majorId, minorId string) string {
+	checkRequiredId(nodeId, "nodeId")
+	checkRequiredId(groupId, "groupId")
+	checkRequiredId(majorId, "majorId")
+	return nodeId + ":" + groupId + ":" + majorId + ":" + minorId
 }
 
 func encodeInt64(num int64) []byte {

@@ -22,7 +22,7 @@ type Endpoint interface {
 	PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error
 
 	// PublishAction 发送虚拟节点的Action发送消息的QoS使用默认设置。
-	PublishAction(virtualId string, data []byte, eventId int64) error
+	PublishAction(groupId, majorId, minorId string, data []byte, eventId int64) error
 
 	// PublishActionMessage 发送虚拟节点的Action发送消息的QoS使用默认设置。
 	PublishActionMessage(message Message) error
@@ -62,16 +62,12 @@ func (e *endpoint) GenerateEventId() int64 {
 	return e.eventIdRef.GenInt64ID()
 }
 
-func (e *endpoint) NewMessageBy(virtualId string, body []byte, eventId int64) Message {
-	return NewMessageWith(e.nodeId, virtualId, body, eventId)
+func (e *endpoint) NewMessage(groupId, majorId, minorId string, body []byte, eventId int64) Message {
+	return NewMessage(e.nodeId, groupId, majorId, minorId, body, eventId)
 }
 
-func (e *endpoint) NewMessageOf(virtualNodeId string, body []byte, eventId int64) Message {
-	return NewMessageById(virtualNodeId, body, eventId)
-}
-
-func (e *endpoint) PublishAction(virtualId string, data []byte, eventId int64) error {
-	return e.PublishActionMessage(e.NewMessageBy(virtualId, data, eventId))
+func (e *endpoint) PublishAction(groupId, majorId, minorId string, data []byte, eventId int64) error {
+	return e.PublishActionMessage(e.NewMessage(groupId, majorId, minorId, data, eventId))
 }
 
 func (e *endpoint) PublishActionMessage(message Message) error {
@@ -106,19 +102,19 @@ func (e *endpoint) Startup() {
 	e.mqttRef.Subscribe(e.mqttRpcTopic, qos, func(cli mqtt.Client, msg mqtt.Message) {
 		callerNodeId := topicToRequestCaller(msg.Topic())
 		input := ParseMessage(msg.Payload())
-		vnId := input.VirtualNodeId()
+		unionId := input.UnionId()
 		eventId := input.EventId()
 		if e.globals.LogVerbose {
 			log.Debugf("接收RPC控制指令，目标：%s, 来源： %s, 事件号：%d",
-				vnId, callerNodeId, eventId)
+				unionId, callerNodeId, eventId)
 		}
 		body := e.rpcHandler(input)
 		// 确保EventId，与Input的相同
-		for i := 0; i <= 3; i++ {
+		for i := 0; i <= 5; i++ {
 			token := e.mqttRef.Publish(
 				topicOfRepliesSend(e.nodeId, callerNodeId),
 				qos, false,
-				NewMessageById(vnId, body, eventId).Bytes())
+				NewMessageByUnionId(unionId, body, eventId).Bytes())
 			if token.Wait() && nil != token.Error() {
 				log.Error("返回RPC响应出错，正在重试(500ms)：", token.Error())
 				<-time.After(500 * time.Millisecond)
@@ -129,7 +125,7 @@ func (e *endpoint) Startup() {
 		// Endpoint执行指令，触发Action事件
 		go func() {
 			if err := e.PublishActionMessage(
-				NewMessageById(vnId, []byte("ACT+SRC:"+callerNodeId), eventId)); nil != err {
+				NewMessageByUnionId(unionId, []byte("ACT+SRC:"+callerNodeId), eventId)); nil != err {
 				log.Error("发送RPC动作Action广播出错：", err)
 			}
 		}()

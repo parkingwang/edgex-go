@@ -36,6 +36,8 @@ func main() {
 				data := fmt.Sprintf("%d", c.UnixNano())
 				if e := trigger.PublishEvent(
 					"TIMER",
+					"Major",
+					"",
 					[]byte(data),
 					trigger.GenerateEventId(),
 				); nil != e {
@@ -56,7 +58,8 @@ func makeProperties() edgex.MainNodeProperties {
 		NodeType: edgex.NodeTypeTrigger,
 		VirtualNodes: []*edgex.VirtualNodeProperties{
 			{
-				VirtualId:   "TIMER",
+				GroupId:     "TIMER",
+				MajorId:     "TIMER",
 				Description: "演示Trigger",
 			},
 		},
