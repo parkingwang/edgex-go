@@ -49,9 +49,6 @@ type Context interface {
 	// NewEndpoint 创建Endpoint对象，并绑定Context为Endpoint节点。
 	NewEndpoint(opts EndpointOptions) Endpoint
 
-	// NewDriver 创建Driver对象，并绑定Context为Driver节点。
-	NewDriver(opts DriverOptions) Driver
-
 	// TermChan 返回监听系统中断退出信号的通道
 	TermChan() <-chan os.Signal
 
@@ -244,23 +241,11 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 	c.checkInit()
 	return &endpoint{
-		mqttRef:  c.mqttClient,
-		globals:  c.globals,
-		nodeId:   c.nodeId,
-		opts:     opts,
-		seqIdRef: c.sequenceId,
-	}
-}
-
-func (c *NodeContext) NewDriver(opts DriverOptions) Driver {
-	c.checkInit()
-	checkRequires(opts.EventTopics, "必须设置参数选项Driver.Topics")
-	return &driver{
-		mqttRef:  c.mqttClient,
-		globals:  c.globals,
-		nodeId:   c.nodeId,
-		opts:     opts,
-		seqIdRef: c.sequenceId,
+		mqttRef:    c.mqttClient,
+		globals:    c.globals,
+		nodeId:     c.nodeId,
+		opts:       opts,
+		eventIdRef: c.sequenceId,
 	}
 }
 

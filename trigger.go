@@ -15,22 +15,28 @@ type Trigger interface {
 	NeedLifecycle
 	NeedAccessNodeId
 	NeedCreateMessages
-	NeedInspectProperties
+	NeedProperties
 
 	// 发送MQTT消息
 	PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error
 
 	// PublishEvent 发送虚拟节点的Event消息。发送消息的QoS使用默认设置。
-	PublishEvent(virtualId string, data []byte) error
+	PublishEvent(virtualId string, data []byte, eventId int64) error
 
 	// PublishEventWith 发送虚拟节点的Event消息。指定QOS参数。
-	PublishEventWith(virtualId string, data []byte, qos uint8, retained bool) error
+	PublishEventWith(virtualId string, data []byte, eventId int64, qos uint8, retained bool) error
 
 	// PublishValue 发送虚拟节点的Value消息。发送消息的QoS使用默认设置。
-	PublishValue(virtualId string, data []byte) error
+	PublishValue(virtualId string, data []byte, eventId int64) error
 
 	// PublishValueWith 发送虚拟节点的Value消息。指定QOS参数。
-	PublishValueWith(virtualId string, data []byte, qos uint8, retained bool) error
+	PublishValueWith(virtualId string, data []byte, eventId int64, qos uint8, retained bool) error
+
+	// PublishAction 发送虚拟节点的Action发送消息的QoS使用默认设置。
+	PublishAction(virtualId string, data []byte, eventId int64) error
+
+	// PublishActionWith 发送虚拟节点的Action消息。指定QOS参数。
+	PublishActionWith(virtualId string, data []byte, eventId int64, qos uint8, retained bool) error
 }
 
 type TriggerOptions struct {
@@ -47,9 +53,10 @@ type trigger struct {
 	globals  *Globals
 	seqIdRef *fastid.Config // Trigger产生的消息ID序列
 	// MQTT
-	mqttRef        mqtt.Client
-	mqttEventTopic string // MQTT使用的EventTopic
-	mqttValueTopic string // MQTT使用的ValueTopic
+	mqttRef         mqtt.Client
+	mqttEventTopic  string // MQTT使用的EventTopic
+	mqttValueTopic  string // MQTT使用的ValueTopic
+	mqttActionTopic string // MQTT使用的ActionTopic
 
 	// Shutdown
 	stopContext context.Context
@@ -60,16 +67,16 @@ func (t *trigger) NodeId() string {
 	return t.nodeId
 }
 
-func (t *trigger) NextMessageSequenceId() int64 {
+func (t *trigger) GenerateEventId() int64 {
 	return t.seqIdRef.GenInt64ID()
 }
 
-func (t *trigger) NextMessageBy(virtualId string, body []byte) Message {
-	return NewMessageWith(t.nodeId, virtualId, body, t.NextMessageSequenceId())
+func (t *trigger) NewMessageBy(virtualId string, body []byte, eventId int64) Message {
+	return NewMessageWith(t.nodeId, virtualId, body, eventId)
 }
 
-func (t *trigger) NextMessageOf(virtualNodeId string, body []byte) Message {
-	return NewMessageById(virtualNodeId, body, t.NextMessageSequenceId())
+func (t *trigger) NewMessageOf(virtualNodeId string, body []byte, eventId int64) Message {
+	return NewMessageById(virtualNodeId, body, eventId)
 }
 
 func (t *trigger) Startup() {
@@ -77,6 +84,7 @@ func (t *trigger) Startup() {
 	// 重建Topic前缀
 	t.mqttEventTopic = TopicOfEvents(t.opts.Topic)
 	t.mqttValueTopic = TopicOfValues(t.opts.Topic)
+	t.mqttActionTopic = TopicOfActions(t.nodeId) // Action使用当前节点作为子Topic
 	// 定时发送Properties消息
 	if nil != t.opts.NodePropertiesFunc {
 		prop := t.opts.NodePropertiesFunc()
@@ -98,20 +106,28 @@ func (t *trigger) PublishNodeState(state VirtualNodeState) {
 	mqttSendNodeState(t.mqttRef, state)
 }
 
-func (t *trigger) PublishEvent(virtualId string, data []byte) error {
-	return t.PublishEventWith(virtualId, data, t.globals.MqttQoS, t.globals.MqttRetained)
+func (t *trigger) PublishEvent(virtualId string, data []byte, eventId int64) error {
+	return t.PublishEventWith(virtualId, data, eventId, t.globals.MqttQoS, t.globals.MqttRetained)
 }
 
-func (t *trigger) PublishEventWith(virtualId string, data []byte, qos uint8, retained bool) error {
-	return t.publishMessage(t.mqttEventTopic, virtualId, data, qos, retained)
+func (t *trigger) PublishEventWith(virtualId string, data []byte, eventId int64, qos uint8, retained bool) error {
+	return t.publishMessage(t.mqttEventTopic, virtualId, eventId, data, qos, retained)
 }
 
-func (t *trigger) PublishValue(virtualId string, data []byte) error {
-	return t.PublishValueWith(virtualId, data, t.globals.MqttQoS, t.globals.MqttRetained)
+func (t *trigger) PublishValue(virtualId string, data []byte, eventId int64) error {
+	return t.PublishValueWith(virtualId, data, eventId, t.globals.MqttQoS, t.globals.MqttRetained)
 }
 
-func (t *trigger) PublishValueWith(virtualId string, data []byte, qos uint8, retained bool) error {
-	return t.publishMessage(t.mqttValueTopic, virtualId, data, qos, retained)
+func (t *trigger) PublishValueWith(virtualId string, data []byte, eventId int64, qos uint8, retained bool) error {
+	return t.publishMessage(t.mqttValueTopic, virtualId, eventId, data, qos, retained)
+}
+
+func (t *trigger) PublishAction(virtualId string, data []byte, eventId int64) error {
+	return t.PublishActionWith(virtualId, data, eventId, t.globals.MqttQoS, t.globals.MqttRetained)
+}
+
+func (t *trigger) PublishActionWith(virtualId string, data []byte, eventId int64, qos uint8, retained bool) error {
+	return t.publishMessage(t.mqttActionTopic, virtualId, eventId, data, qos, retained)
 }
 
 func (t *trigger) PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error {
@@ -128,13 +144,15 @@ func (t *trigger) PublishMqtt(mqttTopic string, message Message, qos uint8, reta
 	}
 }
 
-func (t *trigger) publishMessage(mqttTopic string, virtualId string, data []byte, qos byte, retained bool) error {
-	return t.PublishMqtt(mqttTopic,
-		NewMessageWith(t.nodeId, virtualId, data, t.NextMessageSequenceId()),
+func (t *trigger) publishMessage(mqttTopic string, virtualId string, eventId int64, data []byte, qos byte, retained bool) error {
+	return t.PublishMqtt(
+		mqttTopic,
+		NewMessageWith(t.nodeId, virtualId, data, eventId),
 		qos, retained)
 }
 
 func (t *trigger) Shutdown() {
+	t.mqttRef.Unsubscribe(t.mqttValueTopic, t.mqttEventTopic, t.mqttActionTopic)
 	t.stopCancel()
 }
 

@@ -19,7 +19,7 @@ const (
 )
 
 const (
-	sequenceIdByteSize = 8
+	eventIdByteSize = 8
 )
 
 var (
@@ -32,7 +32,7 @@ type Header struct {
 	Magic      byte  // Magic字段，固定为 0xED
 	Version    byte  // 协议版本
 	ControlVar byte  // 控制变量
-	SequenceId int64 // 消息流水ID，具有唯一性
+	EventId    int64 // 消息事件ID，具有唯一性
 }
 
 // Message 消息接口。
@@ -44,9 +44,9 @@ type Message interface {
 	// 它由两部分组成：NodeId + VirtualId。在可以唯一标识一个虚拟设备。
 	VirtualNodeId() string
 
-	// SequenceId 返回消息Id。
+	// EventId 返回消息Id。
 	// 消息ID使用SnowflakeID生成器具有唯一性。
-	SequenceId() int64
+	EventId() int64
 
 	// Body 返回消息体字节
 	Body() []byte
@@ -72,8 +72,8 @@ func (m *message) Header() Header {
 	return *m.header
 }
 
-func (m *message) SequenceId() int64 {
-	return m.header.SequenceId
+func (m *message) EventId() int64 {
+	return m.header.EventId
 }
 
 func (m *message) Body() []byte {
@@ -85,7 +85,7 @@ func (m *message) Bytes() []byte {
 	buf.WriteByte(m.header.Magic)
 	buf.WriteByte(m.header.Version)
 	buf.WriteByte(m.header.ControlVar)
-	buf.Write(encodeInt64(m.header.SequenceId))
+	buf.Write(encodeInt64(m.header.EventId))
 	buf.WriteString(m.virtualNodeId)
 	buf.WriteByte(FrameEmpty)
 	buf.Write(m.body)
@@ -93,13 +93,13 @@ func (m *message) Bytes() []byte {
 }
 
 // 创建消息对象
-func NewMessageById(virtualNodeId string, bodyBytes []byte, seqId int64) Message {
+func NewMessageById(virtualNodeId string, bodyBytes []byte, eventId int64) Message {
 	return &message{
 		header: &Header{
 			Magic:      FrameMagic,
 			Version:    FrameVersion,
 			ControlVar: FrameVarData,
-			SequenceId: seqId,
+			EventId:    eventId,
 		},
 		virtualNodeId: virtualNodeId,
 		body:          bodyBytes,
@@ -107,8 +107,8 @@ func NewMessageById(virtualNodeId string, bodyBytes []byte, seqId int64) Message
 }
 
 // 创建消息对象
-func NewMessageWith(nodeId, virtualId string, bodyBytes []byte, seqId int64) Message {
-	return NewMessageById(MakeVirtualNodeId(nodeId, virtualId), bodyBytes, seqId)
+func NewMessageWith(nodeId, virtualId string, bodyBytes []byte, eventId int64) Message {
+	return NewMessageById(MakeVirtualNodeId(nodeId, virtualId), bodyBytes, eventId)
 }
 
 // 解析消息对象
@@ -117,12 +117,12 @@ func ParseMessage(data []byte) Message {
 	magic, _ := reader.ReadByte()
 	version, _ := reader.ReadByte()
 	vars, _ := reader.ReadByte()
-	seqId := make([]byte, sequenceIdByteSize)
-	if _, err := reader.Read(seqId); nil != err {
+	eventId := make([]byte, eventIdByteSize)
+	if _, err := reader.Read(eventId); nil != err {
 		panic(err)
 	}
 	vnId, _ := reader.ReadBytes(FrameEmpty)
-	body := make([]byte, len(data)-(3 /*Magic+Ver+Var*/ +sequenceIdByteSize)-len(vnId))
+	body := make([]byte, len(data)-(3 /*Magic+Ver+Var*/ +eventIdByteSize)-len(vnId))
 	if _, err := reader.Read(body); nil != err {
 		panic(err)
 	}
@@ -131,23 +131,10 @@ func ParseMessage(data []byte) Message {
 			Magic:      magic,
 			Version:    version,
 			ControlVar: vars,
-			SequenceId: decodeInt64(seqId),
+			EventId:    decodeInt64(eventId),
 		},
 		virtualNodeId: string(vnId[:len(vnId)-1]),
 		body:          body,
-	}
-}
-
-// 检查是否符合消息协议格式
-func CheckMessage(data []byte) (bool, error) {
-	if 8 > len(data) {
-		return false, ErrInvalidMessageLength
-	} else if FrameMagic != data[0] {
-		return false, ErrInvalidMessageHeader
-	} else if FrameVersion != data[1] {
-		return false, ErrInvalidMessageHeader
-	} else {
-		return true, nil
 	}
 }
 
@@ -156,7 +143,7 @@ func MakeVirtualNodeId(nodeId, virtualId string) string {
 }
 
 func encodeInt64(num int64) []byte {
-	bs := make([]byte, sequenceIdByteSize)
+	bs := make([]byte, eventIdByteSize)
 	binary.BigEndian.PutUint64(bs, uint64(num))
 	return bs
 }

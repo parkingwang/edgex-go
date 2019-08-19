@@ -26,8 +26,8 @@ func TestNewMessage(t *testing.T) {
 		if header.ControlVar != FrameVarData {
 			t.Error("Control var not match")
 		}
-		if header.SequenceId != 2019 || msg.SequenceId() != 2019 {
-			t.Error("SequenceId var not match, was: ", msg.SequenceId())
+		if header.EventId != 2019 || msg.EventId() != 2019 {
+			t.Error("EventId var not match, was: ", msg.EventId())
 		}
 		if MakeVirtualNodeId("CHEN", "NODE") != msg.VirtualNodeId() {
 			t.Error("VirtualNodeId not match, was: ", msg.VirtualNodeId())

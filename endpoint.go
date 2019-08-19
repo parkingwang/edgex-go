@@ -15,7 +15,16 @@ type Endpoint interface {
 	NeedLifecycle
 	NeedAccessNodeId
 	NeedCreateMessages
-	NeedInspectProperties
+	NeedProperties
+
+	// 发送MQTT消息，使用原生MQTT Topic来发送
+	PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error
+
+	// PublishAction 发送虚拟节点的Action发送消息的QoS使用默认设置。
+	PublishAction(virtualId string, data []byte, eventId int64) error
+
+	// PublishActionWith 发送虚拟节点的Action消息。指定QOS参数。
+	PublishActionWith(virtualId string, data []byte, eventId int64, qos uint8, retained bool) error
 
 	// 处理RPC消息，返回处理结果
 	Serve(func(in Message) (out []byte))
@@ -29,14 +38,16 @@ type EndpointOptions struct {
 
 type endpoint struct {
 	Endpoint
-	nodeId   string
-	opts     EndpointOptions
-	globals  *Globals
-	seqIdRef *fastid.Config
+	nodeId     string
+	opts       EndpointOptions
+	globals    *Globals
+	eventIdRef *fastid.Config
 	// Rpc
 	rpcHandler func(in Message) (out []byte)
 	// MQTT
-	mqttRef mqtt.Client
+	mqttRef         mqtt.Client
+	mqttActionTopic string // MQTT使用的ActionTopic
+	mqttRpcTopic    string // MQTT使用的RpcTopic
 	// Shutdown
 	stopContext context.Context
 	stopCancel  context.CancelFunc
@@ -46,36 +57,67 @@ func (e *endpoint) NodeId() string {
 	return e.nodeId
 }
 
-func (e *endpoint) NextMessageSequenceId() int64 {
-	return e.seqIdRef.GenInt64ID()
+func (e *endpoint) GenerateEventId() int64 {
+	return e.eventIdRef.GenInt64ID()
 }
 
-func (e *endpoint) NextMessageBy(virtualId string, body []byte) Message {
-	return NewMessageWith(e.nodeId, virtualId, body, e.NextMessageSequenceId())
+func (e *endpoint) NewMessageBy(virtualId string, body []byte, eventId int64) Message {
+	return NewMessageWith(e.nodeId, virtualId, body, eventId)
 }
 
-func (e *endpoint) NextMessageOf(virtualNodeId string, body []byte) Message {
-	return NewMessageById(virtualNodeId, body, e.NextMessageSequenceId())
+func (e *endpoint) NewMessageOf(virtualNodeId string, body []byte, eventId int64) Message {
+	return NewMessageById(virtualNodeId, body, eventId)
+}
+
+func (e *endpoint) PublishAction(virtualId string, data []byte, eventId int64) error {
+	return e.PublishActionWith(virtualId, data, eventId, e.globals.MqttQoS, e.globals.MqttRetained)
+}
+
+func (e *endpoint) PublishActionWith(virtualId string, data []byte, eventId int64, qos uint8, retained bool) error {
+	return e.publishMessage(e.mqttActionTopic, virtualId, eventId, data, qos, retained)
+}
+
+func (e *endpoint) PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error {
+	e.checkReady()
+	token := e.mqttRef.Publish(
+		mqttTopic,
+		qos,
+		retained,
+		message.Bytes())
+	if token.Wait() && nil != token.Error() {
+		return token.Error()
+	} else {
+		return nil
+	}
+}
+
+func (e *endpoint) publishMessage(mqttTopic string, virtualId string, eventId int64, data []byte, qos byte, retained bool) error {
+	return e.PublishMqtt(
+		mqttTopic,
+		NewMessageWith(e.nodeId, virtualId, data, eventId),
+		qos, retained)
 }
 
 func (e *endpoint) Startup() {
 	e.stopContext, e.stopCancel = context.WithCancel(context.Background())
 	// 监听Endpoint异步RPC事件
 	qos := e.globals.MqttQoS
-	rpcTopic := topicOfRequestListen(e.nodeId)
-	log.Debugf("订阅RPCTopic= %s", rpcTopic)
-	e.mqttRef.Subscribe(rpcTopic, qos, func(cli mqtt.Client, msg mqtt.Message) {
+	e.mqttActionTopic = TopicOfActions(e.nodeId) // Action使用当前节点作为子Topic
+	e.mqttRpcTopic = topicOfRequestListen(e.nodeId)
+
+	log.Debugf("订阅RPCTopic= %s", e.mqttRpcTopic)
+	e.mqttRef.Subscribe(e.mqttRpcTopic, qos, func(cli mqtt.Client, msg mqtt.Message) {
 		callerNodeId := topicToRequestCaller(msg.Topic())
 		input := ParseMessage(msg.Payload())
 		inVnId := input.VirtualNodeId()
-		inSeqId := input.SequenceId()
+		eventId := input.EventId()
 		if e.globals.LogVerbose {
-			log.Debugf("接收到RPC控制指令，目标：%s, 来源： %s, 流水号：%d",
-				inVnId, callerNodeId, inSeqId)
+			log.Debugf("接收到RPC控制指令，目标：%s, 来源： %s, 事件号：%d",
+				inVnId, callerNodeId, eventId)
 		}
 		body := e.rpcHandler(input)
-		// 确保SequenceId，与Input的相同
-		output := NewMessageById(inVnId, body, inSeqId)
+		// 确保EventId，与Input的相同
+		output := NewMessageById(inVnId, body, eventId)
 		e.mqttRef.Publish(
 			topicOfRepliesSend(e.nodeId, callerNodeId),
 			qos, false,
@@ -103,6 +145,7 @@ func (e *endpoint) PublishNodeState(state VirtualNodeState) {
 }
 
 func (e *endpoint) Shutdown() {
+	e.mqttRef.Unsubscribe(e.mqttRpcTopic)
 	e.stopCancel()
 }
 

@@ -17,18 +17,18 @@ type NeedAccessNodeId interface {
 
 // 创建消息接口
 type NeedCreateMessages interface {
-	// NextMessageSequenceId 返回内部消息流水号
-	NextMessageSequenceId() int64
+	// GenerateEventId 返回消息事件ID
+	GenerateEventId() int64
 
 	// NextMessageBy 根据指令VirtualId，使用内部NodeId，创建基于内部流水号的消息对象
-	NextMessageBy(virtualId string, body []byte) Message
+	NewMessageBy(virtualId string, body []byte, eventId int64) Message
 
-	// NextMessageOf 根据完整VirtualNodeId，创建基于内部流水号的消息对象
-	NextMessageOf(virtualNodeId string, body []byte) Message
+	// NewMessageOf 根据完整VirtualNodeId，创建基于内部流水号的消息对象
+	NewMessageOf(virtualNodeId string, body []byte, eventId int64) Message
 }
 
-// 发布Inspect消息
-type NeedInspectProperties interface {
+// 发布State/Properties消息
+type NeedProperties interface {
 	// 发送节点属性消息
 	PublishNodeProperties(properties MainNodeProperties)
 
