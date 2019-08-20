@@ -12,7 +12,7 @@ import (
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
-func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
+func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals, onConnectedFunc func(mqtt.Client)) {
 	opts.AddBroker(scoped.MqttBroker)
 	opts.SetKeepAlive(scoped.MqttKeepAlive)
 	opts.SetPingTimeout(scoped.MqttPingTimeout)
@@ -25,10 +25,11 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals) {
 		opts.Password = scoped.MqttPassword
 	}
 	opts.SetConnectionLostHandler(func(client mqtt.Client, err error) {
-		log.Error("Mqtt客户端：丢失连接（" + err.Error() + ")")
+		log.Error("Mqtt客户端：丢失连接[CONNECTION-LOST]（" + err.Error() + ")")
 	})
 	opts.SetOnConnectHandler(func(client mqtt.Client) {
-		log.Debug("Mqtt客户端：已连接")
+		log.Debug("Mqtt客户端：已连接[CONNECTED]")
+		onConnectedFunc(client)
 	})
 }
 

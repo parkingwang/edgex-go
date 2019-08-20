@@ -186,13 +186,29 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	opts := mqtt.NewClientOptions()
 	clientId := fmt.Sprintf("%s:%s", MqttClientIdHeader, c.nodeId)
 	opts.SetClientID(clientId)
-	opts.SetWill(TopicOfStates(c.nodeId), string(createStateMessage(VirtualNodeState{
+
+	stateTopic := TopicOfStates(c.nodeId)
+	opts.SetWill(stateTopic, string(createStateMessage(VirtualNodeState{
 		NodeId:  c.nodeId,
 		GroupId: c.nodeId,
 		MajorId: c.nodeId,
 		State:   "OFFLINE",
-	}).Bytes()), 0, true)
-	mqttSetOptions(opts, c.globals)
+	}).Bytes()), 0, false)
+
+	mqttSetOptions(opts, c.globals, func(client mqtt.Client) {
+		token := client.Publish(
+			stateTopic, 0, false,
+			string(createStateMessage(VirtualNodeState{
+				NodeId:  c.nodeId,
+				GroupId: c.nodeId,
+				MajorId: c.nodeId,
+				State:   "ONLINE",
+			}).Bytes()),
+		)
+		if token.Wait() && nil != token.Error() {
+			log.Error("Mqtt客户端连接通知出错：", token.Error())
+		}
+	})
 	c.mqttClient = mqtt.NewClient(opts)
 	log.Infof("Mqtt客户端：Broker= %s，ClientId= %s", c.globals.MqttBroker, clientId)
 
