@@ -188,23 +188,9 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 	opts.SetClientID(clientId)
 
 	stateTopic := TopicOfStates(c.nodeId)
-	opts.SetWill(stateTopic, string(createStateMessage(VirtualNodeState{
-		NodeId:  c.nodeId,
-		GroupId: c.nodeId,
-		MajorId: c.nodeId,
-		State:   "OFFLINE",
-	}).Bytes()), 0, false)
-
+	opts.SetWill(stateTopic, "OFFLINE", 0, false)
 	mqttSetOptions(opts, c.globals, func(client mqtt.Client) {
-		token := client.Publish(
-			stateTopic, 0, false,
-			string(createStateMessage(VirtualNodeState{
-				NodeId:  c.nodeId,
-				GroupId: c.nodeId,
-				MajorId: c.nodeId,
-				State:   "ONLINE",
-			}).Bytes()),
-		)
+		token := client.Publish(stateTopic, 0, false, "ALIVE")
 		if token.Wait() && nil != token.Error() {
 			log.Error("Mqtt客户端连接通知出错：", token.Error())
 		}
