@@ -42,10 +42,10 @@ type TriggerOptions struct {
 
 type trigger struct {
 	Trigger
-	nodeId   string // Trigger的名称
-	opts     TriggerOptions
-	globals  *Globals
-	seqIdRef *fastid.Config // Trigger产生的消息ID序列
+	nodeId     string // Trigger的名称
+	opts       TriggerOptions
+	globals    *Globals
+	eventIdRef *fastid.Config // Trigger产生的消息ID序列
 	// MQTT
 	mqttRef         mqtt.Client
 	mqttEventTopic  string // MQTT使用的EventTopic
@@ -62,7 +62,7 @@ func (t *trigger) NodeId() string {
 }
 
 func (t *trigger) GenerateEventId() int64 {
-	return t.seqIdRef.GenInt64ID()
+	return t.eventIdRef.GenInt64ID()
 }
 
 func (t *trigger) NewMessage(groupId, majorId, minorId string, body []byte, eventId int64) Message {

@@ -123,7 +123,7 @@ type NodeContext struct {
 	nodeId     string
 	mqttClient mqtt.Client
 	signals    chan os.Signal
-	sequenceId *fastid.Config
+	eventId    *fastid.Config
 }
 
 func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
@@ -133,7 +133,7 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 
 	c.nodeId = value.ToString(config["NodeId"])
 	checkRequiredId(c.nodeId, "NodeId")
-	c.sequenceId = fastid.CommonConfig
+	c.eventId = fastid.CommonConfig
 
 	// Globals设置
 	if globals, ok := value.ToMap(config["Globals"]); ok {
@@ -232,11 +232,11 @@ func (c *NodeContext) NewTrigger(opts TriggerOptions) Trigger {
 	c.checkInit()
 	checkRequired(opts.Topic, "必须设置参数选项Trigger.Topic")
 	return &trigger{
-		mqttRef:  c.mqttClient,
-		globals:  c.globals,
-		nodeId:   c.nodeId,
-		opts:     opts,
-		seqIdRef: c.sequenceId,
+		mqttRef:    c.mqttClient,
+		globals:    c.globals,
+		nodeId:     c.nodeId,
+		opts:       opts,
+		eventIdRef: c.eventId,
 	}
 }
 
@@ -247,7 +247,7 @@ func (c *NodeContext) NewEndpoint(opts EndpointOptions) Endpoint {
 		globals:    c.globals,
 		nodeId:     c.nodeId,
 		opts:       opts,
-		eventIdRef: c.sequenceId,
+		eventIdRef: c.eventId,
 	}
 }
 
