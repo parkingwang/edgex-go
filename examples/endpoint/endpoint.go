@@ -23,8 +23,8 @@ func main() {
 		}
 		endpoint := ctx.NewEndpoint(opts)
 
-		endpoint.Serve(func(in edgex.Message) (out []byte) {
-			return []byte(fmt.Sprintf("TIME: %s", time.Now()))
+		endpoint.Serve(func(in edgex.Message) (out []byte, act []byte) {
+			return []byte(fmt.Sprintf("TIME: %s", time.Now())), edgex.ActionNOP
 		})
 
 		endpoint.Startup()

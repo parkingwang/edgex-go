@@ -11,6 +11,16 @@ import (
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
+var (
+	ActionNOP     []byte = nil
+	ActionOPEN           = []byte("ACT+OPEN")
+	ActionCLOSE          = []byte("ACT+CLOSE")
+	ActionTRIGGER        = []byte("ACT+TRIGGER")
+)
+
+// 指令处理函数，返回两个结果：1. 处理结果；2. 动作消息
+type EndpointServeHandler func(request Message) (response []byte, action [] byte)
+
 // Endpoint是接收、处理，并返回结果的可控制终端节点。
 type Endpoint interface {
 	NeedLifecycle
@@ -27,8 +37,8 @@ type Endpoint interface {
 	// PublishActionMessage 发送虚拟节点的Action发送消息的QoS使用默认设置。
 	PublishActionMessage(message Message) error
 
-	// 处理RPC消息，返回处理结果
-	Serve(func(in Message) (out []byte))
+	// 处理RPC消息，返回处理结果及Action
+	Serve(handler EndpointServeHandler)
 }
 
 type EndpointOptions struct {
@@ -44,7 +54,7 @@ type endpoint struct {
 	globals    *Globals
 	eventIdRef *snowflake.Node
 	// Rpc
-	rpcHandler func(in Message) (out []byte)
+	rpcServeHandler EndpointServeHandler
 	// MQTT
 	mqttRef         mqtt.Client
 	mqttActionTopic string // MQTT使用的ActionTopic
@@ -108,13 +118,13 @@ func (e *endpoint) Startup() {
 			log.Debugf("接收RPC控制指令，目标：%s, 来源： %s, 事件号：%d",
 				unionId, callerNodeId, eventId)
 		}
-		body := e.rpcHandler(input)
+		output, action := e.rpcServeHandler(input)
 		// 确保EventId，与Input的相同
 		for i := 0; i <= 5; i++ {
 			token := e.mqttRef.Publish(
 				topicOfRepliesSend(e.nodeId, callerNodeId),
 				qos, false,
-				NewMessageByUnionId(unionId, body, eventId).Bytes())
+				NewMessageByUnionId(unionId, output, eventId).Bytes())
 			if token.Wait() && nil != token.Error() {
 				log.Error("返回RPC响应出错，正在重试(500ms)：", token.Error())
 				<-time.After(500 * time.Millisecond)
@@ -123,12 +133,14 @@ func (e *endpoint) Startup() {
 			}
 		}
 		// Endpoint执行指令，触发Action事件
-		go func() {
-			if err := e.PublishActionMessage(
-				NewMessageByUnionId(unionId, []byte("ACT+SRC:"+callerNodeId), eventId)); nil != err {
-				log.Error("发送RPC动作Action广播出错：", err)
-			}
-		}()
+		if nil != action && len(action) > 0 {
+			go func() {
+				if err := e.PublishActionMessage(
+					NewMessageByUnionId(unionId, action, eventId)); nil != err {
+					log.Error("发送RPC动作Action广播出错：", err)
+				}
+			}()
+		}
 	})
 	// 定时发送Properties消息
 	if nil != e.opts.NodePropertiesFunc {
@@ -156,8 +168,8 @@ func (e *endpoint) Shutdown() {
 	e.stopCancel()
 }
 
-func (e *endpoint) Serve(h func(in Message) (out []byte)) {
-	e.rpcHandler = h
+func (e *endpoint) Serve(h EndpointServeHandler) {
+	e.rpcServeHandler = h
 }
 
 func (e *endpoint) checkReady() {

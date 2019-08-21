@@ -28,3 +28,12 @@ type CardEvent struct {
 	State     string `json:"state"`   // 状态
 	Index     uint32 `json:"index"`   // 内部流水号
 }
+
+// 返回方向名称
+func DirectName(dir byte) string {
+	if dir == DirectIn {
+		return "IN"
+	} else {
+		return "OUT"
+	}
+}
