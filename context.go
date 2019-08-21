@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -58,14 +59,14 @@ type Context interface {
 	// 返回Error永远为nil，用于返回上层error接口
 	TermAwait() error
 
-	// StoreAttr 存入Attr数值，指定超时时间。如果Key已存在，添加将失败，并返回False。
-	StoreAttr(key string, val interface{}, timeout time.Duration) bool
+	// StoreAttr 存入Attr数值
+	StoreAttr(key string, val interface{})
 
 	// LoadAttr 读取Attr数值，返回是否存在标记位
 	LoadAttr(key string) (val interface{}, ok bool)
 
-	// RemoteAttr 删除Attr
-	RemoteAttr(key string)
+	// RemoveAttr 删除Attr
+	RemoveAttr(key string)
 }
 
 const (
@@ -136,7 +137,7 @@ type NodeContext struct {
 	mqttClient mqtt.Client
 	signals    chan os.Signal
 	eventId    *snowflake.Node
-	attrs      *ExpiringMap
+	attrs      *sync.Map
 }
 
 func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
@@ -154,7 +155,7 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 		c.eventId = node
 	}
 	log.Debugf("EventId Generator, TestId: %d", c.eventId.Generate().Int64())
-	c.attrs = NewExpiringMap()
+	c.attrs = new(sync.Map)
 
 	// Globals设置
 	if globals, ok := value.ToMap(config["Globals"]); ok {
@@ -292,16 +293,16 @@ func (c *NodeContext) LogIfVerbose(fn func(log *zap.SugaredLogger)) {
 	}
 }
 
-func (c *NodeContext) StoreAttr(key string, val interface{}, ttl time.Duration) bool {
-	return c.attrs.Add(key, val, ttl)
+func (c *NodeContext) StoreAttr(key string, val interface{}) {
+	c.attrs.Store(key, val)
 }
 
 func (c *NodeContext) LoadAttr(key string) (val interface{}, ok bool) {
-	return c.attrs.Get(key)
+	return c.attrs.Load(key)
 }
 
-func (c *NodeContext) RemoteAttr(key string) {
-	c.attrs.Del(key)
+func (c *NodeContext) RemoveAttr(key string) {
+	c.attrs.Delete(key)
 }
 
 func (c *NodeContext) checkInit() {
