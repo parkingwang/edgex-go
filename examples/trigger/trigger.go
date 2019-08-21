@@ -28,20 +28,23 @@ func main() {
 
 		ctx.Log().Debugf("创建Trigger节点: [%s]", nodeId)
 
-		timer := time.NewTicker(time.Millisecond * 10)
+		timer := time.NewTicker(time.Second)
 
 		for {
 			select {
 			case c := <-timer.C:
 				data := fmt.Sprintf("%d", c.UnixNano())
+				eventId := trigger.GenerateEventId()
 				if e := trigger.PublishEvent(
 					"TIMER",
 					"Major",
 					"",
 					[]byte(data),
-					trigger.GenerateEventId(),
+					eventId,
 				); nil != e {
 					ctx.Log().Error("Trigger发送消息失败")
+				} else {
+					ctx.Log().Debugf("Trigger发送消息： %d", eventId)
 				}
 
 			case <-ctx.TermChan():
