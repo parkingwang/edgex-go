@@ -61,7 +61,7 @@ func makeProperties() edgex.MainNodeProperties {
 		NodeType: edgex.NodeTypeTrigger,
 		VirtualNodes: []*edgex.VirtualNodeProperties{
 			{
-				GroupId:     "TIMER",
+				BoardId:     "TIMER",
 				MajorId:     "TIMER",
 				Description: "演示Trigger",
 			},

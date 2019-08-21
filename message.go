@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"strings"
 )
 
@@ -23,11 +22,6 @@ const (
 	eventIdByteSize = 8
 )
 
-var (
-	ErrInvalidMessageLength = errors.New("INVALID_MESSAGE:LENGTH")
-	ErrInvalidMessageHeader = errors.New("INVALID_MESSAGE:HEADER")
-)
-
 // Header 头部
 type Header struct {
 	Magic      byte  // Magic字段，固定为 0xED
@@ -44,8 +38,8 @@ type Message interface {
 	// NodeId 返回节点ID
 	NodeId() string
 
-	// GroupId 返回组ID
-	GroupId() string
+	// BoardId 返回主板ID
+	BoardId() string
 
 	// MajorId 返回主ID
 	MajorId() string
@@ -53,7 +47,7 @@ type Message interface {
 	// MinorId 返回次ID
 	MinorId() string
 
-	// UnionId 返回 NodeId:GroupId:MajorId:MinorId 的组合ID
+	// UnionId 返回 NodeId:BoardId:MajorId:MinorId 的组合ID
 	UnionId() string
 
 	// EventId 返回消息Id。
@@ -85,7 +79,7 @@ func (m *message) NodeId() string {
 	return m._unionId[0]
 }
 
-func (m *message) GroupId() string {
+func (m *message) BoardId() string {
 	return m._unionId[1]
 }
 

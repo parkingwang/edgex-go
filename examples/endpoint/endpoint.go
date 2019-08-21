@@ -41,7 +41,7 @@ func makeNodeProperties() edgex.MainNodeProperties {
 		NodeType: edgex.NodeTypeEndpoint,
 		VirtualNodes: []*edgex.VirtualNodeProperties{
 			{
-				GroupId:     "main",
+				BoardId:     "main",
 				MajorId:     "main",
 				Description: "演示终端",
 				StateCommands: map[string]string{

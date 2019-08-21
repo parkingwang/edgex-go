@@ -36,14 +36,12 @@ func mqttSetOptions(opts *mqtt.ClientOptions, scoped *Globals, onConnectedFunc f
 ////
 
 func createStateMessage(state VirtualNodeState) Message {
-	if "" != state.UnionId {
-		log.Debugf("NodeState: 虚拟节点使用自定义Uuid：%s", state.UnionId)
-	} else {
-		state.UnionId = MakeUnionId(state.NodeId, state.GroupId, state.MajorId, state.MinorId)
+	if "" == state.UnionId {
+		state.UnionId = MakeUnionId(state.NodeId, state.BoardId, state.MajorId, state.MinorId)
 	}
 	stateJSON, err := json.Marshal(state)
 	if nil != err {
-		log.Panic("NodeState: 数据序列化错误", err)
+		log.Panic("数据序列化错误", err)
 	}
 	return NewMessageByUnionId(state.UnionId, stateJSON, 0)
 }
@@ -74,15 +72,13 @@ func mqttSendNodeProperties(globals *Globals, client mqtt.Client, properties Mai
 	nodeId := properties.NodeId
 	// 更新设备列表参数
 	for _, vn := range properties.VirtualNodes {
-		if "" != vn.UnionId {
-			log.Debugf("NodeProperties: 虚拟节点[%s]使用自定义UnionId：%s", vn.Description, vn.UnionId)
-		} else {
-			vn.UnionId = MakeUnionId(nodeId, vn.GroupId, vn.MajorId, vn.MinorId)
+		if "" == vn.UnionId {
+			vn.UnionId = MakeUnionId(nodeId, vn.BoardId, vn.MajorId, vn.MinorId)
 		}
 	}
 	propertiesJSON, err := json.Marshal(properties)
 	if nil != err {
-		log.Panic("NodeProperties: 数据序列化错误", err)
+		log.Panic("数据序列化错误", err)
 	} else if globals.LogVerbose {
 		log.Debug("NodeProperties: " + string(propertiesJSON))
 	}
@@ -93,7 +89,7 @@ func mqttSendNodeProperties(globals *Globals, client mqtt.Client, properties Mai
 		NewMessage(nodeId, nodeId, nodeId, "", propertiesJSON, 0).Bytes(),
 	)
 	if token.Wait() && nil != token.Error() {
-		log.Error("NodeProperties: 发送消息出错", token.Error())
+		log.Error("发送消息出错", token.Error())
 	}
 }
 

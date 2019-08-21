@@ -23,9 +23,10 @@ type MainNodeProperties struct {
 // 虚拟节点属性模型
 type VirtualNodeProperties struct {
 	UnionId       string            `json:"unionId"`       // 自动生成的UUID；设备的唯一节点编号；
-	GroupId       string            `json:"groupId"`       // 组ID
-	MajorId       string            `json:"majorId"`       // 设备主ID
-	MinorId       string            `json:"minorId"`       // 设备次ID
+	BoardId       string            `json:"boardId"`       // 主板ID
+	MajorId       string            `json:"majorId"`       // 主ID
+	MinorId       string            `json:"minorId"`       // 次ID
+	DeviceType    string            `json:"deviceType"`    // 设备类型
 	Description   string            `json:"description"`   // 设备描述信息
 	Virtual       bool              `json:"virtual"`       // 是否为虚拟设备，即通过代理后转换的设备
 	StateCommands map[string]string `json:"stateCommands"` // 各个状态下的控制指令
@@ -36,7 +37,7 @@ type VirtualNodeProperties struct {
 type VirtualNodeState struct {
 	UnionId string                 `json:"unionId"` // 自动生成的UUID；设备的唯一节点编号；
 	NodeId  string                 `json:"nodeId"`  // NodeId
-	GroupId string                 `json:"groupId"` // 组ID；
+	BoardId string                 `json:"boardId"` // 主板ID
 	MajorId string                 `json:"majorId"` // 设备主ID
 	MinorId string                 `json:"minorId"` // 设备次ID
 	State   string                 `json:"state"`   // 设备状态
