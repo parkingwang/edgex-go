@@ -127,13 +127,15 @@ type NodeContext struct {
 }
 
 func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
+	log.Debug("Context Initial")
 	// Signals
 	c.signals = make(chan os.Signal, 1)
 	signal.Notify(c.signals, syscall.SIGTERM, syscall.SIGINT)
 
 	c.nodeId = value.ToString(config["NodeId"])
 	checkRequiredId(c.nodeId, "NodeId")
-	c.eventId = fastid.CommonConfig
+	c.eventId = fastid.ConstructConfig(40, 7, 16)
+	log.Debugf("EventId Generator, TestId: %d", c.eventId.GenInt64ID())
 
 	// Globals设置
 	if globals, ok := value.ToMap(config["Globals"]); ok {
@@ -302,7 +304,7 @@ func LoadConfigByName(fileName string) map[string]interface{} {
 	config := make(map[string]interface{})
 	file, err := searchConfig(fileName, DefaultConfDir+fileName, os.Getenv(EnvKeyConfig))
 	if nil != err {
-		log.Panic("未设置任何配置文件")
+		log.Panic("未设置任何配置文件", err)
 	} else {
 		log.Info("加载配置文件：", file)
 	}
