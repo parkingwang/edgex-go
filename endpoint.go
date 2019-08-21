@@ -2,7 +2,7 @@ package edgex
 
 import (
 	"context"
-	"github.com/beinan/fastid"
+	"github.com/bwmarrin/snowflake"
 	"github.com/eclipse/paho.mqtt.golang"
 	"time"
 )
@@ -42,7 +42,7 @@ type endpoint struct {
 	nodeId     string
 	opts       EndpointOptions
 	globals    *Globals
-	eventIdRef *fastid.Config
+	eventIdRef *snowflake.Node
 	// Rpc
 	rpcHandler func(in Message) (out []byte)
 	// MQTT
@@ -59,7 +59,7 @@ func (e *endpoint) NodeId() string {
 }
 
 func (e *endpoint) GenerateEventId() int64 {
-	return e.eventIdRef.GenInt64ID()
+	return e.eventIdRef.Generate().Int64()
 }
 
 func (e *endpoint) NewMessage(groupId, majorId, minorId string, body []byte, eventId int64) Message {

@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/BurntSushi/toml"
-	"github.com/beinan/fastid"
+	"github.com/bwmarrin/snowflake"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/yoojia/go-value"
 	"go.uber.org/zap"
+	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 )
@@ -66,6 +68,7 @@ const (
 	EnvKeyMQCleanSession = "EDGEX_MQTT_CLEAN_SESSION"
 	EnvKeyConfig         = "EDGEX_CONFIG"
 	EnvKeyLogVerbose     = "EDGEX_LOG_VERBOSE"
+	EnvKeyMachineId      = "EDGEX_MACHINE_ID"
 
 	DefaultMqttBroker = "tcp://mqtt-broker.edgex.io:1883"
 	DefaultConfName   = "application.toml"
@@ -123,7 +126,7 @@ type NodeContext struct {
 	nodeId     string
 	mqttClient mqtt.Client
 	signals    chan os.Signal
-	eventId    *fastid.Config
+	eventId    *snowflake.Node
 }
 
 func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
@@ -134,8 +137,13 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 
 	c.nodeId = value.ToString(config["NodeId"])
 	checkRequiredId(c.nodeId, "NodeId")
-	c.eventId = fastid.ConstructConfig(40, 7, 16)
-	log.Debugf("EventId Generator, TestId: %d", c.eventId.GenInt64ID())
+	node, err := snowflake.NewNode(getSnowflakeNodeId())
+	if nil != err {
+		log.Panic("创建ID生成器出错", err)
+	} else {
+		c.eventId = node
+	}
+	log.Debugf("EventId Generator, TestId: %d", c.eventId.Generate().Int64())
 
 	// Globals设置
 	if globals, ok := value.ToMap(config["Globals"]); ok {
@@ -317,4 +325,37 @@ func LoadConfigByName(fileName string) map[string]interface{} {
 // LoadConfig 加载默认文件名的配置。
 func LoadConfig() map[string]interface{} {
 	return LoadConfigByName(DefaultConfName)
+}
+
+////
+
+func getSnowflakeNodeId() int64 {
+	//getting machine from env
+	if machineIDStr, ok := os.LookupEnv(EnvKeyMachineId); ok {
+		if machineID, err := strconv.ParseInt(machineIDStr, 10, 64); err == nil {
+			return machineID
+		}
+	}
+	//take the lower 16bits of IP address as Machine ID
+	if ip, err := getIPAddress(); err == nil {
+		return (int64(ip[2]) << 8) + int64(ip[3])
+	}
+	return 0
+}
+
+func getIPAddress() (net.IP, error) {
+	if addrs, err := net.InterfaceAddrs(); err == nil {
+		for _, addr := range addrs {
+			if ipNet, ok := addr.(*net.IPNet); ok {
+				if !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
+					ip := ipNet.IP.To4()
+
+					if ip[0] == 10 || ip[0] == 172 && (ip[1] >= 16 && ip[1] < 32) || ip[0] == 192 && ip[1] == 168 {
+						return ip, nil
+					}
+				}
+			}
+		}
+	}
+	return nil, errors.New("failed to get ip address")
 }
