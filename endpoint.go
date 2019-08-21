@@ -49,9 +49,9 @@ type endpoint struct {
 	// Rpc
 	rpcServeHandler EndpointServeHandler
 	// MQTT
-	mqttRef         mqtt.Client
-	mqttActionTopic string // MQTT使用的ActionTopic
-	mqttRpcTopic    string // MQTT使用的RpcTopic
+	mqttRef            mqtt.Client
+	mqttPubActionTopic string // MQTT使用的ActionTopic
+	mqttSubRpcTopic    string // MQTT使用的RpcTopic
 	// Shutdown
 	stopContext context.Context
 	stopCancel  context.CancelFunc
@@ -75,7 +75,7 @@ func (e *endpoint) PublishAction(groupId, majorId, minorId string, data []byte, 
 
 func (e *endpoint) PublishActionMessage(message Message) error {
 	return e.PublishMqtt(
-		e.mqttActionTopic,
+		e.mqttPubActionTopic,
 		message,
 		e.globals.MqttQoS, e.globals.MqttRetained)
 }
@@ -98,11 +98,11 @@ func (e *endpoint) Startup() {
 	e.stopContext, e.stopCancel = context.WithCancel(context.Background())
 	// 监听Endpoint异步RPC事件
 	qos := e.globals.MqttQoS
-	e.mqttActionTopic = TopicOfActions(e.nodeId) // Action使用当前节点作为子Topic
-	e.mqttRpcTopic = topicOfRequestListen(e.nodeId)
+	e.mqttPubActionTopic = TopicOfActions(e.nodeId) // Action使用当前节点作为子Topic
+	e.mqttSubRpcTopic = topicOfRequestListen(e.nodeId)
 
-	log.Debugf("订阅RPC-Topic= %s", e.mqttRpcTopic)
-	e.mqttRef.Subscribe(e.mqttRpcTopic, qos, func(cli mqtt.Client, msg mqtt.Message) {
+	log.Debugf("订阅RPC-Topic= %s", e.mqttSubRpcTopic)
+	e.mqttRef.Subscribe(e.mqttSubRpcTopic, qos, func(cli mqtt.Client, msg mqtt.Message) {
 		callerNodeId := topicToRequestCaller(msg.Topic())
 		input := ParseMessage(msg.Payload())
 		unionId := input.UnionId()
@@ -148,7 +148,7 @@ func (e *endpoint) PublishNodeState(state VirtualNodeState) {
 }
 
 func (e *endpoint) Shutdown() {
-	e.mqttRef.Unsubscribe(e.mqttRpcTopic)
+	e.mqttRef.Unsubscribe(e.mqttSubRpcTopic)
 	e.stopCancel()
 }
 
