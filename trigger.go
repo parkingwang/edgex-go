@@ -21,19 +21,19 @@ type Trigger interface {
 	PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error
 
 	// PublishEvent 发送虚拟节点的Event消息。发送消息的QoS使用默认设置。
-	PublishEvent(groupId, majorId, minorId string, data []byte, eventId int64) error
+	PublishEvent(boardId, majorId, minorId string, data []byte, eventId int64) error
 
 	// PublishEventMessage 发送虚拟节点的Event消息。
 	PublishEventMessage(message Message) error
 
 	// PublishValue 发送虚拟节点的Value消息。发送消息的QoS使用默认设置。
-	PublishValue(groupId, majorId, minorId string, data []byte, eventId int64) error
+	PublishValue(boardId, majorId, minorId string, data []byte, eventId int64) error
 
 	// PublishValueMessage 发送虚拟节点的Value消息
 	PublishValueMessage(message Message) error
 
 	// PublishAction 发送虚拟节点的Action发送消息的QoS使用默认设置。
-	PublishAction(groupId, majorId, minorId string, data []byte, eventId int64) error
+	PublishAction(boardId, majorId, minorId string, data []byte, eventId int64) error
 
 	// PublishActionMessage 发送虚拟节点的Action发送消息的QoS使用默认设置。
 	PublishActionMessage(message Message) error
@@ -71,8 +71,8 @@ func (t *trigger) GenerateEventId() int64 {
 	return t.eventIdRef.Generate().Int64()
 }
 
-func (t *trigger) NewMessage(groupId, majorId, minorId string, body []byte, eventId int64) Message {
-	return NewMessage(t.nodeId, groupId, majorId, minorId, body, eventId)
+func (t *trigger) NewMessage(boardId, majorId, minorId string, body []byte, eventId int64) Message {
+	return NewMessage(t.nodeId, boardId, majorId, minorId, body, eventId)
 }
 
 func (t *trigger) Startup() {
@@ -102,8 +102,8 @@ func (t *trigger) PublishNodeState(state VirtualNodeState) {
 	mqttSendNodeState(t.mqttRef, state)
 }
 
-func (t *trigger) PublishEvent(groupId, majorId, minorId string, data []byte, eventId int64) error {
-	return t.PublishEventMessage(t.NewMessage(groupId, majorId, minorId, data, eventId))
+func (t *trigger) PublishEvent(boardId, majorId, minorId string, data []byte, eventId int64) error {
+	return t.PublishEventMessage(t.NewMessage(boardId, majorId, minorId, data, eventId))
 }
 
 func (t *trigger) PublishEventMessage(message Message) error {
@@ -113,8 +113,8 @@ func (t *trigger) PublishEventMessage(message Message) error {
 		t.globals.MqttQoS, t.globals.MqttRetained)
 }
 
-func (t *trigger) PublishValue(groupId, majorId, minorId string, data []byte, eventId int64) error {
-	return t.PublishValueMessage(t.NewMessage(groupId, majorId, minorId, data, eventId))
+func (t *trigger) PublishValue(boardId, majorId, minorId string, data []byte, eventId int64) error {
+	return t.PublishValueMessage(t.NewMessage(boardId, majorId, minorId, data, eventId))
 }
 
 func (t *trigger) PublishValueMessage(message Message) error {
@@ -124,8 +124,8 @@ func (t *trigger) PublishValueMessage(message Message) error {
 		t.globals.MqttQoS, t.globals.MqttRetained)
 }
 
-func (t *trigger) PublishAction(groupId, majorId, minorId string, data []byte, eventId int64) error {
-	return t.PublishActionMessage(t.NewMessage(groupId, majorId, minorId, data, eventId))
+func (t *trigger) PublishAction(boardId, majorId, minorId string, data []byte, eventId int64) error {
+	return t.PublishActionMessage(t.NewMessage(boardId, majorId, minorId, data, eventId))
 }
 
 func (t *trigger) PublishActionMessage(message Message) error {

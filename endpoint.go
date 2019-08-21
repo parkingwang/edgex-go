@@ -25,7 +25,7 @@ type Endpoint interface {
 	PublishMqtt(mqttTopic string, message Message, qos uint8, retained bool) error
 
 	// PublishAction 发送虚拟节点的Action发送消息的QoS使用默认设置。
-	PublishAction(groupId, majorId, minorId string, data []byte, eventId int64) error
+	PublishAction(boardId, majorId, minorId string, data []byte, eventId int64) error
 
 	// PublishActionMessage 发送虚拟节点的Action发送消息的QoS使用默认设置。
 	PublishActionMessage(message Message) error
@@ -65,12 +65,12 @@ func (e *endpoint) GenerateEventId() int64 {
 	return e.eventIdRef.Generate().Int64()
 }
 
-func (e *endpoint) NewMessage(groupId, majorId, minorId string, body []byte, eventId int64) Message {
-	return NewMessage(e.nodeId, groupId, majorId, minorId, body, eventId)
+func (e *endpoint) NewMessage(boardId, majorId, minorId string, body []byte, eventId int64) Message {
+	return NewMessage(e.nodeId, boardId, majorId, minorId, body, eventId)
 }
 
-func (e *endpoint) PublishAction(groupId, majorId, minorId string, data []byte, eventId int64) error {
-	return e.PublishActionMessage(e.NewMessage(groupId, majorId, minorId, data, eventId))
+func (e *endpoint) PublishAction(boardId, majorId, minorId string, data []byte, eventId int64) error {
+	return e.PublishActionMessage(e.NewMessage(boardId, majorId, minorId, data, eventId))
 }
 
 func (e *endpoint) PublishActionMessage(message Message) error {

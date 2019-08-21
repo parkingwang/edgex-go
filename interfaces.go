@@ -21,7 +21,7 @@ type NeedCreateMessages interface {
 	GenerateEventId() int64
 
 	// NewMessage 创建基于节点的消息对象
-	NewMessage(groupId, majorId, minorId string, body []byte, eventId int64) Message
+	NewMessage(boardId, majorId, minorId string, body []byte, eventId int64) Message
 }
 
 // 发布State/Properties消息
