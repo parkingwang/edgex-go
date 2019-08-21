@@ -31,6 +31,12 @@ type Trigger interface {
 
 	// PublishValueMessage 发送虚拟节点的Value消息
 	PublishValueMessage(message Message) error
+
+	// PublishAction 发送虚拟节点的Action发送消息的QoS使用默认设置。
+	PublishAction(groupId, majorId, minorId string, data []byte, eventId int64) error
+
+	// PublishActionMessage 发送虚拟节点的Action发送消息的QoS使用默认设置。
+	PublishActionMessage(message Message) error
 }
 
 type TriggerOptions struct {
@@ -47,10 +53,10 @@ type trigger struct {
 	globals    *Globals
 	eventIdRef *snowflake.Node // Trigger产生的消息ID序列
 	// MQTT
-	mqttRef         mqtt.Client
-	mqttEventTopic  string // MQTT使用的EventTopic
-	mqttValueTopic  string // MQTT使用的ValueTopic
-	mqttActionTopic string // MQTT使用的ActionTopic
+	mqttRef            mqtt.Client
+	mqttPubEventTopic  string // MQTT使用的EventTopic
+	mqttPubValueTopic  string // MQTT使用的ValueTopic
+	mqttPubActionTopic string // MQTT使用的ActionTopic
 
 	// Shutdown
 	stopContext context.Context
@@ -72,9 +78,9 @@ func (t *trigger) NewMessage(groupId, majorId, minorId string, body []byte, even
 func (t *trigger) Startup() {
 	t.stopContext, t.stopCancel = context.WithCancel(context.Background())
 	// 重建Topic前缀
-	t.mqttEventTopic = TopicOfEvents(t.opts.Topic)
-	t.mqttValueTopic = TopicOfValues(t.opts.Topic)
-	t.mqttActionTopic = TopicOfActions(t.nodeId) // Action使用当前节点作为子Topic
+	t.mqttPubEventTopic = TopicOfEvents(t.opts.Topic)
+	t.mqttPubValueTopic = TopicOfValues(t.opts.Topic)
+	t.mqttPubActionTopic = TopicOfActions(t.nodeId) // Action使用当前节点作为子Topic
 	// 定时发送Properties消息
 	if nil != t.opts.NodePropertiesFunc {
 		prop := t.opts.NodePropertiesFunc()
@@ -102,7 +108,7 @@ func (t *trigger) PublishEvent(groupId, majorId, minorId string, data []byte, ev
 
 func (t *trigger) PublishEventMessage(message Message) error {
 	return t.PublishMqtt(
-		t.mqttEventTopic,
+		t.mqttPubEventTopic,
 		message,
 		t.globals.MqttQoS, t.globals.MqttRetained)
 }
@@ -113,7 +119,18 @@ func (t *trigger) PublishValue(groupId, majorId, minorId string, data []byte, ev
 
 func (t *trigger) PublishValueMessage(message Message) error {
 	return t.PublishMqtt(
-		t.mqttValueTopic,
+		t.mqttPubValueTopic,
+		message,
+		t.globals.MqttQoS, t.globals.MqttRetained)
+}
+
+func (t *trigger) PublishAction(groupId, majorId, minorId string, data []byte, eventId int64) error {
+	return t.PublishActionMessage(t.NewMessage(groupId, majorId, minorId, data, eventId))
+}
+
+func (t *trigger) PublishActionMessage(message Message) error {
+	return t.PublishMqtt(
+		t.mqttPubActionTopic,
 		message,
 		t.globals.MqttQoS, t.globals.MqttRetained)
 }
@@ -133,7 +150,6 @@ func (t *trigger) PublishMqtt(mqttTopic string, message Message, qos uint8, reta
 }
 
 func (t *trigger) Shutdown() {
-	t.mqttRef.Unsubscribe(t.mqttValueTopic, t.mqttEventTopic, t.mqttActionTopic)
 	t.stopCancel()
 }
 
