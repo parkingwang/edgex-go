@@ -11,15 +11,8 @@ import (
 // Author: 陈哈哈 yoojiachen@gmail.com
 //
 
-var (
-	ActionNOP     []byte = nil
-	ActionOPEN           = []byte("ACT+OPEN")
-	ActionCLOSE          = []byte("ACT+CLOSE")
-	ActionTRIGGER        = []byte("ACT+TRIGGER")
-)
-
 // 指令处理函数，返回两个结果：1. 处理结果；2. 动作消息
-type EndpointServeHandler func(request Message) (response []byte, action [] byte)
+type EndpointServeHandler func(request Message) (response []byte)
 
 // Endpoint是接收、处理，并返回结果的可控制终端节点。
 type Endpoint interface {
@@ -118,7 +111,7 @@ func (e *endpoint) Startup() {
 			log.Debugf("接收RPC控制指令，目标：%s, 来源： %s, 事件号：%d",
 				unionId, callerNodeId, eventId)
 		}
-		output, action := e.rpcServeHandler(input)
+		output := e.rpcServeHandler(input)
 		// 确保EventId，与Input的相同
 		for i := 0; i <= 5; i++ {
 			token := e.mqttRef.Publish(
@@ -131,15 +124,6 @@ func (e *endpoint) Startup() {
 			} else {
 				break
 			}
-		}
-		// Endpoint执行指令，触发Action事件
-		if nil != action && len(action) > 0 {
-			go func() {
-				if err := e.PublishActionMessage(
-					NewMessageByUnionId(unionId, action, eventId)); nil != err {
-					log.Error("发送RPC动作Action广播出错：", err)
-				}
-			}()
 		}
 	})
 	// 定时发送Properties消息
