@@ -24,6 +24,7 @@ func main() {
 		endpoint := ctx.NewEndpoint(opts)
 
 		endpoint.Serve(func(in edgex.Message) (out []byte) {
+			ctx.Log().Debugf("Received: " + string(in.Body()))
 			return []byte(fmt.Sprintf("TIME: %s", time.Now()))
 		})
 
