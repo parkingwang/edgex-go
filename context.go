@@ -148,9 +148,9 @@ func (c *NodeContext) InitialWithConfig(config map[string]interface{}) {
 
 	c.nodeId = value.ToString(config["NodeId"])
 	checkRequiredId(c.nodeId, "NodeId")
-	node, err := snowflake.NewNode(getSnowflakeNodeId())
+	node, err := snowflake.NewNode(findMachineId())
 	if nil != err {
-		log.Panic("创建ID生成器出错", err)
+		log.Panic("创建ID生成器出错：", err)
 	} else {
 		c.eventId = node
 	}
@@ -353,33 +353,24 @@ func LoadConfig() map[string]interface{} {
 
 ////
 
-func getSnowflakeNodeId() int64 {
-	//getting machine from env
-	if machineIDStr, ok := os.LookupEnv(EnvKeyMachineId); ok {
-		if machineID, err := strconv.ParseInt(machineIDStr, 10, 64); err == nil {
-			return machineID
+func findMachineId() int64 {
+	if str, ok := os.LookupEnv(EnvKeyMachineId); ok {
+		if id, err := strconv.ParseInt(str, 10, 64); err == nil {
+			return id
 		}
 	}
-	//take the lower 16bits of IP address as Machine ID
-	if ip, err := getIPAddress(); err == nil {
-		return (int64(ip[2]) << 8) + int64(ip[3])
+	// 根据IP地址获取：
+	ifaces, err := net.InterfaceAddrs()
+	if err != nil {
+		return 0
 	}
-	return 0
-}
-
-func getIPAddress() (net.IP, error) {
-	if addrs, err := net.InterfaceAddrs(); err == nil {
-		for _, addr := range addrs {
-			if ipNet, ok := addr.(*net.IPNet); ok {
-				if !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
-					ip := ipNet.IP.To4()
-
-					if ip[0] == 10 || ip[0] == 172 && (ip[1] >= 16 && ip[1] < 32) || ip[0] == 192 && ip[1] == 168 {
-						return ip, nil
-					}
-				}
+	for _, addr := range ifaces {
+		if ip, ok := addr.(*net.IPNet); ok {
+			if !ip.IP.IsLoopback() && ip.IP.To4() != nil {
+				ipv4 := ip.IP.To4()
+				return int64(ipv4[2] + ipv4[3])
 			}
 		}
 	}
-	return nil, errors.New("failed to get ip address")
+	return 0
 }
