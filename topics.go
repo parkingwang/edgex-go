@@ -9,14 +9,14 @@ import (
 //
 
 const (
-	prefixProperties = "$EdgeX/properties/"
-	prefixEvents     = "$EdgeX/events/"
-	prefixValues     = "$EdgeX/values/"
-	prefixStates     = "$EdgeX/states/"
-	prefixActions    = "$EdgeX/actions/"
-	prefixStatistics = "$EdgeX/statistics/"
-	prefixRequests   = "$EdgeX/requests/"
-	prefixReplies    = "$EdgeX/replies/"
+	prefixProperties = "edge-x/properties/"
+	prefixEvents     = "edge-x/events/"
+	prefixValues     = "edge-x/values/"
+	prefixStates     = "edge-x/states/"
+	prefixActions    = "edge-x/actions/"
+	prefixStatistics = "edge-x/statistics/"
+	prefixRequests   = "edge-x/requests/"
+	prefixReplies    = "edge-x/replies/"
 )
 
 func TopicOfEvents(exTopic string) string {
